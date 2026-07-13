@@ -32,6 +32,7 @@ type ToolCallRepository interface {
 type ChartRepository interface {
 	Create(context.Context, chart.ChartDraft) error
 	Get(context.Context, string, string) (chart.ChartDraft, error)
+	Update(context.Context, chart.ChartDraft, int64) error
 	ListByTask(context.Context, string, string) ([]chart.ChartDraft, error)
 }
 type ChartExecutionRepository interface {

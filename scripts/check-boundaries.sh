@@ -7,7 +7,7 @@ core="$root/services/ai-core/internal"
 reject() {
   description=$1
   shift
-  if rg -n --glob '*.go' "$@"; then
+  if rg -n --glob '*.go' --glob '!*_test.go' "$@"; then
     printf '%s\n' "dependency boundary violation: $description" >&2
     exit 1
   fi

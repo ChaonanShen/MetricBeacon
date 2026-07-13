@@ -8,4 +8,10 @@ It does not own Grafana authentication, MCP server transport, Prometheus connect
 fixture loading. Domain and application packages may not import database, MCP, Grafana or
 model SDKs; `scripts/check-boundaries.sh` enforces the initial rule.
 
-G0 creates a buildable module only. Domain, Port and SQLite work starts in G2.
+## 运行
+
+```text
+AI_CORE_SQLITE_PATH=data/ai-core.sqlite ASSISTANT_MCP_ENDPOINT=http://127.0.0.1:8081/mcp go run ./cmd/server
+```
+
+`/readyz` 同时检查 SQLite 与三个 MCP 工具。SSE 可用 `afterSequence` 或 `Last-Event-ID` 重放；`Resume`、真实 Agent/模型仍返回结构化未实现错误。

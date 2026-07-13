@@ -9,17 +9,29 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "npm run typecheck"
+    "build": "npm run typecheck && rollup --config rollup.config.mjs"
   },
   "devDependencies": {
     "@redocly/cli": "2.38.0",
+    "@rollup/plugin-node-resolve": "16.0.1",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
+    "esbuild": "0.25.8",
     "openapi-typescript": "7.13.0",
+    "rollup": "4.60.1",
+    "rollup-plugin-esbuild": "6.2.1",
     "typescript": "5.9.3",
     "yaml": "2.9.0"
   },
   "dependencies": {
-    "openapi-fetch": "0.17.0"
+    "@grafana/data": "13.1.0",
+    "@grafana/runtime": "13.1.0",
+    "@grafana/ui": "13.1.0",
+    "@tanstack/react-query": "5.66.8",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "openapi-fetch": "0.17.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }

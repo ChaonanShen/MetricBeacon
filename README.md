@@ -6,8 +6,8 @@ Grafana 内嵌的自然语言指标分析工作台。本仓库当前实现的唯
 
 ## 当前状态
 
-正在执行 G0（仓库脚手架）。还没有真实 Agent、Prometheus、Grafana Dashboard 写入或
-业务 HTTP/MCP Handler；这些能力不得以临时代码绕过既定边界。
+基本 Mock 闭环已经实现：输入任意非空消息会产生固定的 node_exporter CPU、内存和负载三图。
+仍未实现真实 Agent/LLM、真实 Prometheus 和 Grafana Dashboard 写入。
 
 ## 模块边界
 
@@ -22,6 +22,8 @@ Grafana 内嵌的自然语言指标分析工作台。本仓库当前实现的唯
 
 ```text
 make bootstrap-check
+make test
+make check
 ```
 
 安装前端锁定依赖后再执行该命令：
@@ -32,3 +34,7 @@ cd apps/grafana-plugin/frontend && npm ci
 
 进度和每个 Gate 的验证证据保存在
 [`docs/development/basic_mock_progress.md`](docs/development/basic_mock_progress.md)。
+
+## 本地演示
+
+分别启动 `assistant-mcp`（`:8081`）和 AI Core（`:8080`），或运行 `make e2e-mock` 构建 Compose；浏览器只通过 Grafana Plugin Resource API 访问系统。

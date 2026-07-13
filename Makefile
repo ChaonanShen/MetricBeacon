@@ -17,19 +17,40 @@ validate-contracts:
 	@./scripts/validate-contracts.sh
 
 lint:
-	@./scripts/require-gate-implementation.sh "lint is introduced with G1 generated and source code"
+	@test -z "$$(gofmt -l services/ai-core services/assistant-mcp apps/grafana-plugin/backend packages)"
+	@cd apps/grafana-plugin/frontend && npm run typecheck
 
-test:
-	@./scripts/require-gate-implementation.sh "test suites are introduced with their owning Gate"
+test: test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp test-plugin-backend test-frontend
 
-test-adapters test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp test-plugin-backend test-frontend smoke e2e-mock:
-	@./scripts/require-gate-implementation.sh "$@ is not implemented before its owning Gate"
+test-ai-core-domain:
+	@cd services/ai-core && go test ./internal/domain/... ./internal/application/... ./internal/ports/...
+
+test-sqlite:
+	@cd services/ai-core && go test ./internal/adapters/outbound/storage/sqlite ./internal/adapters/outbound/events/inmemory
+
+test-adapters: test-sqlite
+
+test-assistant-mcp:
+	@cd services/assistant-mcp && go test ./...
+
+test-ai-mcp:
+	@cd services/ai-core && go test ./internal/adapters/outbound/tools/mcp ./internal/adapters/inbound/http ./internal/application/workflows
+
+test-plugin-backend:
+	@cd apps/grafana-plugin/backend && GOPROXY=off go test ./...
+
+test-frontend:
+	@cd apps/grafana-plugin/frontend && npm run typecheck
+
+smoke: test-ai-mcp test-plugin-backend test-frontend
+
+e2e-mock:
+	@./scripts/run-mock-e2e.sh
 
 boundary-check:
 	@./scripts/check-boundaries.sh
 
 secret-scan:
-	@./scripts/require-gate-implementation.sh "secret scan is introduced in G8"
+	@! rg -n --hidden --glob '!**/node_modules/**' --glob '!**/.git/**' '(AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)' .
 
-check:
-	@./scripts/require-gate-implementation.sh "check is assembled after G1-G8 validation targets exist"
+check: generated-client-diff validate-contracts lint test boundary-check secret-scan

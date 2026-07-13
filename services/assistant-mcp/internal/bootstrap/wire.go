@@ -1,0 +1,80 @@
+package bootstrap
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+
+	"github.com/mark3labs/mcp-go/server"
+	mockprometheus "mini-torchbearing.local/services/assistant-mcp/internal/adapters/prometheus/mock"
+	"mini-torchbearing.local/services/assistant-mcp/internal/namespaces/grafana"
+)
+
+// Runtime holds the only inbound HTTP handler exposed by assistant-mcp.
+type Runtime struct{ Handler http.Handler }
+
+func Wire(config Config) (*Runtime, error) {
+	adapter, err := mockprometheus.New(config.FixtureDir)
+	if err != nil {
+		return nil, err
+	}
+	schemas, err := loadToolSchemas(config.SchemaDir)
+	if err != nil {
+		return nil, err
+	}
+	service := grafana.NewService(adapter)
+	handler := grafana.NewHandler(service)
+	mcpServer := server.NewMCPServer(
+		"mini-torchbearing-assistant-mcp",
+		"v1",
+		server.WithOutputSchemaValidation(),
+	)
+	if err := grafana.Register(mcpServer, handler, schemas); err != nil {
+		return nil, err
+	}
+	streamable := server.NewStreamableHTTPServer(mcpServer, server.WithStateLess(true))
+	mux := http.NewServeMux()
+	mux.Handle("/mcp", streamable)
+	mux.HandleFunc("/healthz", healthy)
+	mux.HandleFunc("/readyz", healthy)
+	return &Runtime{Handler: mux}, nil
+}
+
+func healthy(writer http.ResponseWriter, _ *http.Request) {
+	writer.Header().Set("Content-Type", "application/json")
+	_, _ = writer.Write([]byte(`{"status":"ok"}`))
+}
+
+func loadToolSchemas(directory string) (grafana.ToolSchemas, error) {
+	files := map[string][2]string{
+		grafana.SearchMetricsTool:   {"search-metrics.input.schema.json", "search-metrics.output.schema.json"},
+		grafana.GetMetricLabelsTool: {"get-metric-labels.input.schema.json", "get-metric-labels.output.schema.json"},
+		grafana.QueryPrometheusTool: {"query-prometheus.input.schema.json", "query-prometheus.output.schema.json"},
+	}
+	result := make(grafana.ToolSchemas, len(files))
+	for toolName, names := range files {
+		input, err := readSchema(filepath.Join(directory, names[0]))
+		if err != nil {
+			return nil, fmt.Errorf("%s input: %w", toolName, err)
+		}
+		output, err := readSchema(filepath.Join(directory, names[1]))
+		if err != nil {
+			return nil, fmt.Errorf("%s output: %w", toolName, err)
+		}
+		result[toolName] = grafana.Schema{Input: input, Output: output}
+	}
+	return result, nil
+}
+
+func readSchema(path string) (json.RawMessage, error) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if !json.Valid(contents) {
+		return nil, fmt.Errorf("schema is not valid JSON")
+	}
+	return json.RawMessage(contents), nil
+}
