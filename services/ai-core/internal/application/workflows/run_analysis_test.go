@@ -72,6 +72,49 @@ func TestRunPersistsOrderedEventsToolCallsAndCharts(t *testing.T) {
 	}
 }
 
+func TestRunUsesLiveCleanupContextAndPersistsFailureOrder(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	store, err := storage.Open(context.Background(), filepath.Join(t.TempDir(), "ai-core.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
+	sessionValue, _ := session.New("session_1", "org:1", "Overview", "user:1", now)
+	if err := store.Sessions().Create(context.Background(), sessionValue); err != nil {
+		t.Fatal(err)
+	}
+	message, _ := session.NewMessage("message_1", "org:1", "session_1", session.RoleUser, "show node exporter", now)
+	if err := store.Messages().Append(context.Background(), message); err != nil {
+		t.Fatal(err)
+	}
+	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "mock-prometheus", timeRange, now)
+	if err := store.Tasks().Create(context.Background(), taskValue); err != nil {
+		t.Fatal(err)
+	}
+
+	workflow := RunAnalysisWorkflow{Store: store, Runtime: cancellingRuntime{cancel: cancel}, IDs: &sequenceIDs{}, Clock: fixedClock{now: now}}
+	if err := workflow.Run(ctx, requestcontext.Context{TenantID: "org:1", UserID: "user:1"}, "task_1"); err == nil {
+		t.Fatal("workflow unexpectedly succeeded")
+	}
+	failed, err := store.Tasks().Get(context.Background(), "org:1", "task_1")
+	if err != nil || failed.Status != task.StatusFailed || failed.Error == nil {
+		t.Fatalf("failed task: %#v, %v", failed, err)
+	}
+	events, err := store.TaskEvents().Replay(context.Background(), "org:1", "task_1", 0, 20)
+	if err != nil || len(events) < 2 {
+		t.Fatalf("events: %#v, %v", events, err)
+	}
+	last := events[len(events)-2:]
+	if last[0].Type != task.EventTaskStatusChanged || last[1].Type != task.EventTaskFailed {
+		t.Fatalf("failure event order: %s, %s", last[0].Type, last[1].Type)
+	}
+	if failed.LatestSequence != last[1].Sequence {
+		t.Fatalf("latest sequence = %d, want %d", failed.LatestSequence, last[1].Sequence)
+	}
+}
+
 type scriptedRuntime struct{}
 
 func (scriptedRuntime) Run(ctx context.Context, _ requestcontext.Context, request dto.AgentRunRequest, sink agent.EventSink) (dto.AgentRunResult, error) {
@@ -89,6 +132,16 @@ func (scriptedRuntime) Run(ctx context.Context, _ requestcontext.Context, reques
 		proposals = append(proposals, dto.ChartProposal{Key: value.key, Title: value.title, Unit: value.unit, Query: chart.QuerySpec{RefID: value.key, Expression: "node_" + value.key, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange}, Execution: dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "node-a"}}}})
 	}
 	return dto.AgentRunResult{AssistantText: "fixed result", Proposals: proposals}, nil
+}
+
+type cancellingRuntime struct{ cancel context.CancelFunc }
+
+func (r cancellingRuntime) Run(ctx context.Context, _ requestcontext.Context, _ dto.AgentRunRequest, _ agent.EventSink) (dto.AgentRunResult, error) {
+	r.cancel()
+	return dto.AgentRunResult{}, ctx.Err()
+}
+func (cancellingRuntime) Resume(context.Context, requestcontext.Context, dto.AgentResumeRequest, agent.EventSink) (dto.AgentRunResult, error) {
+	return dto.AgentRunResult{}, nil
 }
 func (scriptedRuntime) Resume(context.Context, requestcontext.Context, dto.AgentResumeRequest, agent.EventSink) (dto.AgentRunResult, error) {
 	return dto.AgentRunResult{}, nil

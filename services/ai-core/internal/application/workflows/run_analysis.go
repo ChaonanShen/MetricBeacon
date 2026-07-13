@@ -50,7 +50,11 @@ func (w RunAnalysisWorkflow) Run(ctx context.Context, identity requestcontext.Co
 		if !errors.As(err, &domainErr) {
 			domainErr = common.NewError(common.InternalError, "analysis workflow failed", true)
 		}
-		_ = w.fail(ctx, &item, domainErr)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if failErr := w.fail(cleanupCtx, &item, domainErr); failErr != nil {
+			err = errors.Join(err, failErr)
+		}
 	}()
 
 	if err = w.transition(ctx, &item, task.StatusPlanning); err != nil {
@@ -91,19 +95,31 @@ func (w RunAnalysisWorkflow) userMessage(ctx context.Context, item task.Analysis
 }
 
 func (w RunAnalysisWorkflow) transition(ctx context.Context, item *task.AnalysisTask, next task.Status) error {
-	latestSequence, err := w.Store.TaskEvents().LatestSequence(ctx, item.TenantID, item.ID)
+	candidate := *item
+	previous := candidate.Status
+	var event task.TaskEvent
+	err := w.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		latestSequence, err := tx.TaskEvents().LatestSequence(ctx, candidate.TenantID, candidate.ID)
+		if err != nil {
+			return err
+		}
+		candidate.LatestSequence = latestSequence
+		if err := candidate.Transition(next, w.Clock.Now()); err != nil {
+			return err
+		}
+		if err := tx.Tasks().Update(ctx, candidate, candidate.Version-1); err != nil {
+			return err
+		}
+		event, err = w.appendEvent(ctx, tx, candidate, task.EventTaskStatusChanged, map[string]any{"previousStatus": previous, "status": next})
+		return err
+	})
 	if err != nil {
 		return err
 	}
-	item.LatestSequence = latestSequence
-	previous := item.Status
-	if err := item.Transition(next, w.Clock.Now()); err != nil {
-		return err
-	}
-	if err := w.Store.Tasks().Update(ctx, *item, item.Version-1); err != nil {
-		return err
-	}
-	return w.emit(ctx, *item, task.EventTaskStatusChanged, map[string]any{"previousStatus": previous, "status": next})
+	candidate.LatestSequence = event.Sequence
+	*item = candidate
+	w.notify(ctx, event)
+	return nil
 }
 
 func (w RunAnalysisWorkflow) persistResult(ctx context.Context, identity requestcontext.Context, item task.AnalysisTask, assistantMessageID string, result dto.AgentRunResult) error {
@@ -149,33 +165,64 @@ func (w RunAnalysisWorkflow) fail(ctx context.Context, item *task.AnalysisTask, 
 	if item.Status == task.StatusCompleted || item.Status == task.StatusFailed {
 		return nil
 	}
-	latestSequence, err := w.Store.TaskEvents().LatestSequence(ctx, item.TenantID, item.ID)
+	candidate := *item
+	previous := candidate.Status
+	eventsToNotify := make([]task.TaskEvent, 0, 2)
+	err := w.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		latestSequence, err := tx.TaskEvents().LatestSequence(ctx, candidate.TenantID, candidate.ID)
+		if err != nil {
+			return err
+		}
+		candidate.LatestSequence = latestSequence
+		if err := candidate.Fail(domainErr, w.Clock.Now()); err != nil {
+			return err
+		}
+		if err := tx.Tasks().Update(ctx, candidate, candidate.Version-1); err != nil {
+			return err
+		}
+		statusEvent, err := w.appendEvent(ctx, tx, candidate, task.EventTaskStatusChanged, map[string]any{"previousStatus": previous, "status": task.StatusFailed})
+		if err != nil {
+			return err
+		}
+		failedEvent, err := w.appendEvent(ctx, tx, candidate, task.EventTaskFailed, map[string]any{"task": taskSnapshot(candidate), "error": map[string]any{"code": domainErr.Code, "message": domainErr.Message, "retryable": domainErr.Retryable, "requestId": ""}})
+		if err != nil {
+			return err
+		}
+		eventsToNotify = append(eventsToNotify, statusEvent, failedEvent)
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	item.LatestSequence = latestSequence
-	if err := item.Fail(domainErr, w.Clock.Now()); err != nil {
-		return err
+	candidate.LatestSequence = eventsToNotify[len(eventsToNotify)-1].Sequence
+	*item = candidate
+	for _, event := range eventsToNotify {
+		w.notify(ctx, event)
 	}
-	if err := w.Store.Tasks().Update(ctx, *item, item.Version-1); err != nil {
-		return err
-	}
-	return w.emit(ctx, *item, task.EventTaskFailed, map[string]any{"task": taskSnapshot(*item), "error": map[string]any{"code": domainErr.Code, "message": domainErr.Message, "retryable": domainErr.Retryable, "requestId": ""}})
+	return nil
 }
 
 func (w RunAnalysisWorkflow) emit(ctx context.Context, item task.AnalysisTask, kind task.EventType, payload any) error {
-	encoded, err := json.Marshal(payload)
-	if err != nil {
-		return common.NewError(common.InternalError, "cannot encode task event", false)
-	}
-	event, err := w.Store.TaskEvents().Append(ctx, task.EventDraft{EventID: w.IDs.NewID("event"), TenantID: item.TenantID, TaskID: item.ID, SessionID: item.SessionID, Type: kind, Timestamp: w.Clock.Now(), Payload: encoded})
+	event, err := w.appendEvent(ctx, w.Store, item, kind, payload)
 	if err != nil {
 		return err
 	}
-	if w.Notifier != nil {
-		return w.Notifier.Notify(ctx, event)
-	}
+	w.notify(ctx, event)
 	return nil
+}
+
+func (w RunAnalysisWorkflow) appendEvent(ctx context.Context, store repositories.ApplicationStore, item task.AnalysisTask, kind task.EventType, payload any) (task.TaskEvent, error) {
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return task.TaskEvent{}, common.NewError(common.InternalError, "cannot encode task event", false)
+	}
+	return store.TaskEvents().Append(ctx, task.EventDraft{EventID: w.IDs.NewID("event"), TenantID: item.TenantID, TaskID: item.ID, SessionID: item.SessionID, Type: kind, Timestamp: w.Clock.Now(), Payload: encoded})
+}
+
+func (w RunAnalysisWorkflow) notify(ctx context.Context, event task.TaskEvent) {
+	if w.Notifier != nil {
+		_ = w.Notifier.Notify(ctx, event)
+	}
 }
 
 type durableSink struct {
