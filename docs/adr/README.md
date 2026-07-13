@@ -1,0 +1,19 @@
+# Architecture Decision Records
+
+本目录记录会影响模块边界、协议、权限、安全、数据所有权或长期演进成本的架构决策。
+
+状态约定：
+
+- Proposed：待讨论。
+- Provisional：为推进骨架而暂定，达到复审条件前不能视为最终结论。
+- Accepted：已确认，后续变更需要新 ADR supersede。
+- Rejected：未采用，保留原因。
+- Superseded：已被新 ADR 替代。
+
+## 当前 ADR
+
+|ADR|状态|主题|
+|-|-|-|
+|[ADR-017](ADR-017-grafana-delegation-grant.md)|Provisional|assistant-mcp 使用短期 Delegation Grant 回调 Plugin Backend 的 Grafana 受控代理|
+
+新增 ADR 时应至少包含：背景、决策、备选方案、影响、开放问题、复审条件和关联文档。
