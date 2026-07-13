@@ -1,0 +1,17 @@
+{
+  "name": "@mini-torchbearing/grafana-plugin",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Grafana App Plugin frontend for the Mini Torchbearing Mock workbench",
+  "engines": {
+    "node": "22.23.1",
+    "npm": "10.9.8"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

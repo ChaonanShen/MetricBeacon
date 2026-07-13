@@ -1,0 +1,14 @@
+.DS_Store
+.env
+*.db
+*.db-shm
+*.db-wal
+bin/
+apps/grafana-plugin/backend/plugin
+services/ai-core/server
+services/assistant-mcp/server
+coverage/
+dist/
+node_modules/
+playwright-report/
+test-results/

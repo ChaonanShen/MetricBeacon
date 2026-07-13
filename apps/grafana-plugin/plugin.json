@@ -1,0 +1,23 @@
+{
+  "type": "app",
+  "name": "Mini Torchbearing",
+  "id": "mini-torchbearing-app",
+  "backend": true,
+  "executable": "mini-torchbearing-app",
+  "info": {
+    "description": "Natural-language metrics analysis workbench with a deterministic Mock profile.",
+    "author": {
+      "name": "Mini Torchbearing"
+    },
+    "keywords": ["observability", "prometheus", "assistant"],
+    "version": "0.0.1"
+  },
+  "includes": [
+    {
+      "type": "page",
+      "name": "Workbench",
+      "path": "/a/mini-torchbearing-app/workbench",
+      "addToNav": true
+    }
+  ]
+}

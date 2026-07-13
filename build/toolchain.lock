@@ -1,0 +1,35 @@
+# Toolchain Lock
+
+format: v1
+verifiedAt: 2026-07-13T12:55:42Z
+
+## Host tools
+
+|tool|locked version|verification|
+|-|-|-|
+|Go|`go1.26.5 darwin/amd64`|`go version`|
+|Node.js|`v22.23.1`|`node --version`|
+|npm|`10.9.8`|`npm --version`|
+
+## Container images
+
+|purpose|immutable reference|verification|
+|-|-|-|
+|Grafana runtime|`grafana/grafana@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63` (`13.1.0`, `linux/amd64`)|local image inspect and `grafana -v`|
+|Go build image|`golang:1.26.5-bookworm`|planned for G7; host Go is used in G0. Resolve and replace with a platform-specific digest before the first Dockerfile is added.|
+
+## Locked third-party versions for later owning Gates
+
+|component|version|owning Gate|
+|-|-|-|
+|Grafana Plugin SDK (`github.com/grafana/grafana-plugin-sdk-go`)|`v0.292.1`|G5|
+|MCP Go SDK (`github.com/mark3labs/mcp-go`)|`v0.56.0`|G3|
+|SQLite driver (`modernc.org/sqlite`)|`v1.53.0`|G2|
+|Go OpenAPI generator (`github.com/oapi-codegen/oapi-codegen/v2`)|`v2.7.2`|G1|
+|TypeScript OpenAPI generator (`openapi-typescript`)|`v7.13.0`|G1|
+|TypeScript OpenAPI transport (`openapi-fetch`)|`v0.17.0`|G1|
+|Grafana frontend packages (`@grafana/data`, `@grafana/runtime`, `@grafana/ui`)|`v13.1.0`|G6|
+|TypeScript|`v5.9.3`|G0|
+|Playwright (`@playwright/test`)|`v1.61.1`|G7|
+
+All later dependency additions must use these exact versions unless a demonstrated incompatibility is recorded in the progress file.

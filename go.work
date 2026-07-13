@@ -1,0 +1,9 @@
+go 1.26.5
+
+use (
+	./apps/grafana-plugin/backend
+	./services/ai-core
+	./services/assistant-mcp
+	./packages/request-context-go
+	./packages/testkit-go
+)
