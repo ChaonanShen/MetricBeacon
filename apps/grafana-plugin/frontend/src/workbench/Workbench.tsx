@@ -1,7 +1,7 @@
 import { AppRootProps, dateTime, type DataFrame, type TimeRange } from '@grafana/data';
 import { Button, Card, Field, Input, Spinner, TimeSeries } from '@grafana/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { resourceClient, type CreateTask } from '../api/resource';
 import { ChartWireToDataFrame } from './mapper';
@@ -19,6 +19,8 @@ export function Workbench(_props: AppRootProps) {
   const [sessionId, setSessionId] = useState<string | undefined>(initialRoute.sessionId);
   const [taskId, setTaskId] = useState<string | undefined>(initialRoute.taskId);
   const [state, dispatch] = useReducer(taskEventReducer, initialWorkbenchState);
+  const latestSequence = useRef(state.latestSequence);
+  latestSequence.current = state.latestSequence;
   const session = useQuery({ queryKey: ['mini-torchbearing-session', sessionId], queryFn: () => resourceClient.getSession(sessionId!), enabled: Boolean(sessionId) });
   const task = useQuery({ queryKey: ['mini-torchbearing-task', taskId], queryFn: () => resourceClient.getTask(taskId!), enabled: Boolean(taskId), refetchInterval: (query) => query.state.data?.status === 'completed' || query.state.data?.status === 'failed' ? false : 1_000 });
   const create = useMutation({
@@ -38,8 +40,8 @@ export function Workbench(_props: AppRootProps) {
   });
   useEffect(() => {
     if (!taskId) { return; }
-    return subscribeTaskEvents((after) => resourceClient.eventURL(taskId, after), () => state.latestSequence, (event) => { dispatch(event); client.invalidateQueries({ queryKey: ['mini-torchbearing-task', taskId] }); }, () => undefined).close;
-  }, [client, state.latestSequence, taskId]);
+    return subscribeTaskEvents((after) => resourceClient.eventURL(taskId, after), () => latestSequence.current, (event) => { dispatch(event); client.invalidateQueries({ queryKey: ['mini-torchbearing-task', taskId] }); }, () => undefined).close;
+  }, [client, taskId]);
   const charts = useMemo(() => Object.values(state.charts), [state.charts]);
   const submit = () => { if (message.trim()) { create.mutate(); } };
   return <main style={{ padding: 16 }}>
