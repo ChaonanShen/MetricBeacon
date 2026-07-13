@@ -28,7 +28,9 @@ async function streamEvents(url) {
   const timeout = setTimeout(() => controller.abort(), 10_000);
   try {
     const response = await fetch(url, { headers: headers(), signal: controller.signal });
-    assert.equal(response.status, 200, `SSE request failed: ${await response.text()}`);
+    if (response.status !== 200) {
+      assert.fail(`SSE request failed: ${await response.text()}`);
+    }
     assert.ok(response.body, 'SSE response did not include a body');
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -65,7 +67,7 @@ const createTaskBody = {
   message: 'show node exporter',
   analysisContext: { datasourceUid: 'mock-prometheus', timeRange: { relativeDuration: '30m' } },
 };
-const idempotencyKey = 'mock-e2e-task';
+const idempotencyKey = `mock-e2e-task-${crypto.randomUUID()}`;
 const task = await requestJSON(`${resourceBase}/tasks`, {
   method: 'POST',
   headers: { 'content-type': 'application/json', 'idempotency-key': idempotencyKey },
