@@ -213,7 +213,7 @@ real MCP golden path already passes and those boundaries are structurally sound.
 - [x] R0 environment reproduced and documented
 - [x] R1 Grafana App install and authenticated API E2E
 - [x] R2 idempotency and Workflow durability
-- [ ] R3 Frontend restore and unit tests
+- [x] R3 Frontend restore and unit tests
 - [ ] R4 browser/full E2E
 - [ ] R5 original Gate re-verification
 
@@ -243,3 +243,17 @@ R2 evidence (2026-07-13):
 - Repository `make check` and authenticated `make e2e-mock` both pass after the R2 changes.
 - AI Core image dependency/build caching reduced an unchanged rebuild from a 124-second compile
   path to 1.79 seconds.
+
+R3 evidence (2026-07-13):
+
+- Workbench reads `sessionId` and `taskId` from the URL, fetches their snapshots on refresh and
+  replays Task events from sequence zero. Its first successful submission uses the fixed
+  `Node exporter mock analysis` Session title and replaces the route with both identifiers.
+- One EventSource remains open while contiguous events are accepted. Duplicate events are ignored;
+  transport, decode or sequence-gap failures close it and reconnect from the last accepted
+  sequence.
+- Chart rendering uses the durable execution sample range, falling back to the persisted query
+  range rather than a fresh browser-relative range.
+- `make test-frontend` passed with Vitest 4.1.10: mapper alignment, reducer de-duplication/gap
+  rejection, URL restore/replace, SSE gap recovery and transport resumption all pass before
+  TypeScript typechecking.

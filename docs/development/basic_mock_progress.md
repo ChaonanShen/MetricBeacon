@@ -1,10 +1,10 @@
 # Basic Mock Skeleton Progress
 
-lastUpdated: 2026-07-13T17:05:00Z
+lastUpdated: 2026-07-13T17:21:00Z
 currentGate: G4
 status: in_progress
-headCommit: 02efced
-worktreeSummary: remediation R0-R2 complete; canonical idempotency, transactional workflow events, failure cleanup and restart recovery pass, R3 frontend restore is next
+headCommit: 6492e8f
+worktreeSummary: remediation R0-R3 complete; frontend URL restore, stable resumable SSE and unit coverage pass, R4 browser/full E2E is next
 
 ## Passed Gates
 
@@ -54,6 +54,7 @@ worktreeSummary: remediation R0-R2 complete; canonical idempotency, transactiona
 |AI Core R2 tests and fault injection|passed|2026-07-13T16:52:00Z|Relative-time retry, failure ordering, live cleanup context, restart recovery and event-append rollback tests pass|
 |`make check` + authenticated `make e2e-mock` after R2|passed|2026-07-13T16:59:00Z|Repository checks and the real Grafana → AI Core → assistant-mcp golden path pass after transaction/recovery changes|
 |unchanged cached AI Core image rebuild|passed|2026-07-13T17:04:00Z|BuildKit reused module and compile layers; rebuild completed in 1.79 seconds|
+|`make test-frontend`|passed|2026-07-13T17:21:00Z|Vitest mapper, reducer, URL and SSE recovery coverage (9 tests) plus TypeScript typecheck pass|
 
 ## Files/Interfaces Completed
 
@@ -65,17 +66,15 @@ worktreeSummary: remediation R0-R2 complete; canonical idempotency, transactiona
 - G2 pure Domain, application DTO, typed Port and deterministic testkit baseline: complete
 - G2 SQLite migration, ApplicationStore, durable TaskEvent Store and in-memory notifier: complete
 - G3 `assistant-mcp` Grafana namespace, MockPrometheusAdapter, fixture/schema readiness and Streamable HTTP MCP transport: complete
-- G4 AI Core Workflow, durable TaskEvents, SQLite Chart/ToolCall persistence, generated HTTP handlers, SSE replay and real MCP golden path: implemented; failure events, restart recovery and mutation/event transaction boundaries remain incomplete
+- G4 AI Core Workflow, durable TaskEvents, SQLite Chart/ToolCall persistence, generated HTTP handlers, SSE replay and real MCP golden path: remediation complete; original Gate re-verification remains deferred until R4
 - G5 Grafana Plugin Backend generated-client Resource proxy and chunked SSE proxy: registration, App `jsonData` endpoint provisioning and authenticated Plugin Backend → AI Core integration now pass; original Gate re-verification remains deferred until R2-R4 complete
-- G6 Grafana Workbench, Query cache, SSE reducer and DataFrame mapper: UI skeleton exists; URL restore, stable SSE subscription and frontend tests are incomplete
+- G6 Grafana Workbench, Query cache, SSE reducer and DataFrame mapper: URL restore, stable resumable SSE, persisted chart ranges and frontend unit tests complete; original Gate re-verification remains deferred until R4
 - G7 Dockerfiles and Compose topology: containers become healthy, but Plugin Resource API E2E fails and browser E2E is absent
 
 ## Remaining Work For Current Gate
 
-1. Restore `sessionId`/`taskId` from the URL and replace the URL after first submit.
-2. Keep one SSE connection per Task and add frontend reducer/reconnect/restore tests.
-3. Add authenticated browser E2E and strengthen API assertions.
-4. Then rerun original G4 through G8 in order.
+1. Add authenticated browser E2E and strengthen API assertions.
+2. Then rerun original G4 through G8 in order.
 
 ## Resolved Environment Issues
 
@@ -109,6 +108,9 @@ worktreeSummary: remediation R0-R2 complete; canonical idempotency, transactiona
 - decision: use React `18.3.1` with Grafana `13.1.0`, not React 19
 - reason: Grafana `13.1.0` declares a React 18 peer dependency
 - affected files: frontend `package.json` and lockfile
+- decision: use Vitest `4.1.10` for frontend unit tests
+- reason: it runs the mapper, reducer, URL and EventSource tests under the locked Node 22 toolchain
+- affected files: frontend `package.json` and lockfile, `build/toolchain.lock`
 
 ## Blockers Requiring User/Approval
 
