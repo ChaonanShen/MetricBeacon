@@ -1,10 +1,10 @@
 # Basic Mock Skeleton Progress
 
-lastUpdated: 2026-07-13T16:22:00Z
+lastUpdated: 2026-07-13T17:05:00Z
 currentGate: G4
 status: in_progress
-headCommit: be17ac3
-worktreeSummary: remediation R0-R1 complete; Grafana registration and authenticated Plugin Resource API E2E now pass, R2 workflow durability is next
+headCommit: 02efced
+worktreeSummary: remediation R0-R2 complete; canonical idempotency, transactional workflow events, failure cleanup and restart recovery pass, R3 frontend restore is next
 
 ## Passed Gates
 
@@ -51,6 +51,9 @@ worktreeSummary: remediation R0-R1 complete; Grafana registration and authentica
 |retry same relative-duration task body and idempotency key|failed|2026-07-13T15:26:00Z|AI Core returned 409 `idempotency_conflict` because the relative range was resolved against a new current time before hashing|
 |authenticated `make e2e-mock` after Grafana remediation|passed|2026-07-13T16:16:00Z|Plugin settings returned 200; Session/Task/SSE traversed Grafana Plugin Backend, AI Core and assistant-mcp and found the final answer and three charts|
 |unchanged cached Grafana image rebuild|passed|2026-07-13T16:17:00Z|BuildKit reused dependency and compile layers; rebuild completed in 4.53 seconds after the cold cache population|
+|AI Core R2 tests and fault injection|passed|2026-07-13T16:52:00Z|Relative-time retry, failure ordering, live cleanup context, restart recovery and event-append rollback tests pass|
+|`make check` + authenticated `make e2e-mock` after R2|passed|2026-07-13T16:59:00Z|Repository checks and the real Grafana → AI Core → assistant-mcp golden path pass after transaction/recovery changes|
+|unchanged cached AI Core image rebuild|passed|2026-07-13T17:04:00Z|BuildKit reused module and compile layers; rebuild completed in 1.79 seconds|
 
 ## Files/Interfaces Completed
 
@@ -69,10 +72,10 @@ worktreeSummary: remediation R0-R1 complete; Grafana registration and authentica
 
 ## Remaining Work For Current Gate
 
-1. Make Workflow state/ToolCall/Chart mutations atomic with their TaskEvents, and emit `tool.failed` plus both failed-state events.
-2. Add startup recovery for non-terminal Tasks and ensure timeout failure persistence uses a live cleanup context.
-3. Fix relative-time idempotency hashing and add a same-key/same-body HTTP retry assertion.
-4. Then fix frontend restore/tests and rerun G5 through G8 in order.
+1. Restore `sessionId`/`taskId` from the URL and replace the URL after first submit.
+2. Keep one SSE connection per Task and add frontend reducer/reconnect/restore tests.
+3. Add authenticated browser E2E and strengthen API assertions.
+4. Then rerun original G4 through G8 in order.
 
 ## Resolved Environment Issues
 

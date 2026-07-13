@@ -212,7 +212,7 @@ real MCP golden path already passes and those boundaries are structurally sound.
 
 - [x] R0 environment reproduced and documented
 - [x] R1 Grafana App install and authenticated API E2E
-- [ ] R2 idempotency and Workflow durability
+- [x] R2 idempotency and Workflow durability
 - [ ] R3 Frontend restore and unit tests
 - [ ] R4 browser/full E2E
 - [ ] R5 original Gate re-verification
@@ -228,3 +228,18 @@ R1 evidence (2026-07-13):
 - A cold dependency population took 131 seconds and the first SDK compile took 162 seconds; an
   unchanged cached Grafana image rebuild then completed in 4.53 seconds with every dependency and
   compile layer cached.
+
+R2 evidence (2026-07-13):
+
+- HTTP tests prove identical relative-duration intent with the same idempotency key returns the
+  original Task, while a changed message returns 409.
+- Task transitions, failure transitions, ToolCalls, assistant messages, Charts and ChartExecutions
+  now commit with their durable TaskEvents in minimal SQLite transactions.
+- Cancellation failure tests prove a fresh bounded cleanup context persists
+  `tool.failed`, `task.status_changed(failed)`, then `task.failed`.
+- Startup recovery fails non-terminal Tasks and open ToolCalls as `execution_interrupted`, does not
+  invoke the runtime and is idempotent on a second pass.
+- An injected event append failure proves the paired Task mutation rolls back.
+- Repository `make check` and authenticated `make e2e-mock` both pass after the R2 changes.
+- AI Core image dependency/build caching reduced an unchanged rebuild from a 124-second compile
+  path to 1.79 seconds.
