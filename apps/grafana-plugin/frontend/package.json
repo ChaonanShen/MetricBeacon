@@ -9,10 +9,12 @@
   },
   "scripts": {
     "test": "vitest run",
+    "test:e2e": "playwright test --config playwright.config.ts",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && rollup --config rollup.config.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@redocly/cli": "2.38.0",
     "@rollup/plugin-node-resolve": "16.0.1",
     "ajv": "8.20.0",

@@ -60,5 +60,5 @@ export function Workbench(_props: AppRootProps) {
 }
 
 function ChartCard({ title, status, expression, frame, timeRange }: { title: string; status: string; expression?: string; frame?: DataFrame; timeRange?: TimeRange }) {
-  return <Card heading={title}><p>状态：{status}</p>{expression && <details><summary>PromQL</summary><code>{expression}</code></details>}{frame && timeRange && <TimeSeries width={420} height={220} timeRange={timeRange} timeZone="browser" frames={[frame]} legend={{ showLegend: true, placement: 'bottom', calcs: [] }} />}</Card>;
+  return <div data-testid="timeseries-panel"><Card heading={title}><p>状态：{status}</p>{expression && <details><summary>PromQL</summary><code>{expression}</code></details>}{frame && timeRange && <TimeSeries width={420} height={220} timeRange={timeRange} timeZone="browser" frames={[frame]} legend={{ showLegend: true, placement: 'bottom', calcs: [] }} />}</Card></div>;
 }

@@ -8,3 +8,5 @@ npm run build
 cd ../../..
 docker compose -p "$project" -f compose.mock-e2e.yaml up --build --wait
 tests/e2e/mock/api-e2e.sh
+cd apps/grafana-plugin/frontend
+npm run test:e2e
