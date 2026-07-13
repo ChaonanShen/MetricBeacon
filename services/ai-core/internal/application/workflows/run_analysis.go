@@ -134,36 +134,57 @@ func (w RunAnalysisWorkflow) persistResult(ctx context.Context, identity request
 	if err != nil {
 		return err
 	}
-	if err := w.Store.Messages().Append(ctx, message); err != nil {
+	var messageEvent task.TaskEvent
+	err = w.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Messages().Append(ctx, message); err != nil {
+			return err
+		}
+		var err error
+		messageEvent, err = w.appendEvent(ctx, tx, item, task.EventAssistantMessageDone, map[string]any{"message": map[string]any{"id": message.ID, "sessionId": message.SessionID, "role": message.Role, "content": message.Content, "createdAt": message.CreatedAt}})
+		return err
+	})
+	if err != nil {
 		return err
 	}
-	if err := w.emit(ctx, item, task.EventAssistantMessageDone, map[string]any{"message": map[string]any{"id": message.ID, "sessionId": message.SessionID, "role": message.Role, "content": message.Content, "createdAt": message.CreatedAt}}); err != nil {
-		return err
-	}
+	w.notify(ctx, messageEvent)
 	for _, proposal := range result.Proposals {
 		draft, err := chart.New(w.IDs.NewID("chart"), item.TenantID, item.SessionID, item.ID, proposal.Title, proposal.Unit, []chart.QuerySpec{proposal.Query}, w.Clock.Now())
 		if err != nil {
 			return err
 		}
-		if err := w.Store.Charts().Create(ctx, draft); err != nil {
+		var chartEvent task.TaskEvent
+		err = w.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+			if err := tx.Charts().Create(ctx, draft); err != nil {
+				return err
+			}
+			var err error
+			chartEvent, err = w.appendEvent(ctx, tx, item, task.EventChartCreated, map[string]any{"chart": map[string]any{"id": draft.ID, "taskId": draft.TaskID, "title": draft.Title, "status": draft.Status, "unit": draft.Unit, "visualization": draft.Visualization, "queries": querySpecsWire(draft.Queries)}})
+			return err
+		})
+		if err != nil {
 			return err
 		}
-		if err := w.emit(ctx, item, task.EventChartCreated, map[string]any{"chart": map[string]any{"id": draft.ID, "taskId": draft.TaskID, "title": draft.Title, "status": draft.Status, "unit": draft.Unit, "visualization": draft.Visualization, "queries": querySpecsWire(draft.Queries)}}); err != nil {
-			return err
-		}
+		w.notify(ctx, chartEvent)
 		execution := chart.Execution{ID: w.IDs.NewID("execution"), TenantID: item.TenantID, ChartID: draft.ID, QueryRefID: proposal.Query.RefID, Status: chart.ExecutionSuccess, Series: proposal.Execution.Series, DurationMS: proposal.Execution.DurationMS, SampleRange: item.TimeRange, Warnings: proposal.Execution.Warnings, CreatedAt: w.Clock.Now()}
-		if err := w.Store.ChartExecutions().Create(ctx, execution); err != nil {
-			return err
-		}
 		if err := draft.MarkReady(execution.ID, w.Clock.Now()); err != nil {
 			return err
 		}
-		if err := w.Store.Charts().Update(ctx, draft, draft.Version-1); err != nil {
+		var executionEvent task.TaskEvent
+		err = w.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+			if err := tx.ChartExecutions().Create(ctx, execution); err != nil {
+				return err
+			}
+			if err := tx.Charts().Update(ctx, draft, draft.Version-1); err != nil {
+				return err
+			}
+			var err error
+			executionEvent, err = w.appendEvent(ctx, tx, item, task.EventChartExecutionDone, map[string]any{"chartId": draft.ID, "chartStatus": draft.Status, "execution": executionWire(execution)})
+			return err
+		})
+		if err != nil {
 			return err
 		}
-		if err := w.emit(ctx, item, task.EventChartExecutionDone, map[string]any{"chartId": draft.ID, "chartStatus": draft.Status, "execution": executionWire(execution)}); err != nil {
-			return err
-		}
+		w.notify(ctx, executionEvent)
 	}
 	return nil
 }
