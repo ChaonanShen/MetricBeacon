@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -116,6 +117,56 @@ func TestRunUsesLiveCleanupContextAndPersistsFailureOrder(t *testing.T) {
 	calls, err := store.ToolCalls().ListByTask(context.Background(), "org:1", "task_1")
 	if err != nil || len(calls) != 1 || calls[0].Status != task.ToolCallFailed || calls[0].Error == nil {
 		t.Fatalf("failed tool calls: %#v, %v", calls, err)
+	}
+}
+
+func TestRecoverInterruptedFailsPersistedWorkWithoutRerun(t *testing.T) {
+	ctx := context.Background()
+	store, err := storage.Open(ctx, filepath.Join(t.TempDir(), "ai-core.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
+	sessionValue, _ := session.New("session_1", "org:1", "Overview", "user:1", now)
+	if err := store.Sessions().Create(ctx, sessionValue); err != nil {
+		t.Fatal(err)
+	}
+	message, _ := session.NewMessage("message_1", "org:1", "session_1", session.RoleUser, "show node exporter", now)
+	if err := store.Messages().Append(ctx, message); err != nil {
+		t.Fatal(err)
+	}
+	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "mock-prometheus", timeRange, now)
+	if err := store.Tasks().Create(ctx, taskValue); err != nil {
+		t.Fatal(err)
+	}
+	call := task.ToolCallRecord{ID: "tool_1", TenantID: "org:1", TaskID: "task_1", ToolName: "grafana.query_prometheus", ToolVersion: "v1", Status: task.ToolCallStarted, InputSummary: json.RawMessage(`{}`), StartedAt: now, Version: 1}
+	if err := store.ToolCalls().Create(ctx, call); err != nil {
+		t.Fatal(err)
+	}
+
+	workflow := RunAnalysisWorkflow{Store: store, IDs: &sequenceIDs{}, Clock: fixedClock{now: now}}
+	if err := workflow.RecoverInterrupted(ctx); err != nil {
+		t.Fatal(err)
+	}
+	failed, err := store.Tasks().Get(ctx, "org:1", "task_1")
+	if err != nil || failed.Status != task.StatusFailed || failed.Error == nil || failed.Error.Code != common.ExecutionInterrupted {
+		t.Fatalf("recovered task: %#v, %v", failed, err)
+	}
+	events, err := store.TaskEvents().Replay(ctx, "org:1", "task_1", 0, 20)
+	if err != nil || len(events) != 3 {
+		t.Fatalf("recovery events: %#v, %v", events, err)
+	}
+	if events[0].Type != task.EventToolFailed || events[1].Type != task.EventTaskStatusChanged || events[2].Type != task.EventTaskFailed {
+		t.Fatalf("recovery event order: %s, %s, %s", events[0].Type, events[1].Type, events[2].Type)
+	}
+	if err := workflow.RecoverInterrupted(ctx); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := store.TaskEvents().Replay(ctx, "org:1", "task_1", 0, 20)
+	if err != nil || len(replayed) != len(events) {
+		t.Fatalf("recovery was not idempotent: %#v, %v", replayed, err)
 	}
 }
 

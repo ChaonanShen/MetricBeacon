@@ -22,6 +22,7 @@ type MessageRepository interface {
 type TaskRepository interface {
 	Create(context.Context, task.AnalysisTask) error
 	Get(context.Context, string, string) (task.AnalysisTask, error)
+	ListNonTerminal(context.Context) ([]task.AnalysisTask, error)
 	Update(context.Context, task.AnalysisTask, int64) error
 }
 type ToolCallRepository interface {

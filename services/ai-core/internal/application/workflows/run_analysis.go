@@ -29,6 +29,42 @@ type RunAnalysisWorkflow struct {
 	Clock    clocks.Clock
 }
 
+// RecoverInterrupted fails persisted work that cannot safely be resumed after
+// a process restart. It deliberately does not invoke the runtime.
+func (w RunAnalysisWorkflow) RecoverInterrupted(ctx context.Context) error {
+	if w.Store == nil || w.IDs == nil || w.Clock == nil {
+		return common.NewError(common.InternalError, "analysis workflow is not configured", true)
+	}
+	items, err := w.Store.Tasks().ListNonTerminal(ctx)
+	if err != nil {
+		return err
+	}
+	interrupted := common.NewError(common.ExecutionInterrupted, "analysis execution was interrupted by process restart", true)
+	for index := range items {
+		item := &items[index]
+		calls, err := w.Store.ToolCalls().ListByTask(ctx, item.TenantID, item.ID)
+		if err != nil {
+			return err
+		}
+		openCalls := make(map[string]task.ToolCallRecord)
+		for _, call := range calls {
+			if call.Status == task.ToolCallStarted {
+				openCalls[call.ToolName+"#"+call.ID] = call
+			}
+		}
+		if len(openCalls) > 0 {
+			sink := durableSink{workflow: w, task: item, openCalls: openCalls}
+			if err := sink.failOpenTools(ctx, interrupted); err != nil {
+				return err
+			}
+		}
+		if err := w.fail(ctx, item, interrupted); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (w RunAnalysisWorkflow) Run(ctx context.Context, identity requestcontext.Context, taskID string) (err error) {
 	if w.Store == nil || w.Runtime == nil || w.IDs == nil || w.Clock == nil {
 		return common.NewError(common.InternalError, "analysis workflow is not configured", true)
@@ -333,8 +369,9 @@ func (s *durableSink) failOpenTools(ctx context.Context, domainErr *common.Domai
 		toolNames = append(toolNames, toolName)
 	}
 	sort.Strings(toolNames)
-	for _, toolName := range toolNames {
-		record := s.openCalls[toolName]
+	for _, openCallKey := range toolNames {
+		record := s.openCalls[openCallKey]
+		toolName := record.ToolName
 		now := s.workflow.Clock.Now()
 		duration := now.Sub(record.StartedAt).Milliseconds()
 		if duration < 0 {
@@ -354,7 +391,7 @@ func (s *durableSink) failOpenTools(ctx context.Context, domainErr *common.Domai
 		if err != nil {
 			return err
 		}
-		delete(s.openCalls, toolName)
+		delete(s.openCalls, openCallKey)
 		s.workflow.notify(ctx, event)
 	}
 	return nil

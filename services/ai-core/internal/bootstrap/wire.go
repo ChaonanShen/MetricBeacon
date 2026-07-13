@@ -41,6 +41,10 @@ func New(ctx context.Context, config Config) (*Application, error) {
 	gateway := mcpadapter.NewGateway(config.AssistantMCPEndpoint, 5*time.Second)
 	runtime := mock.New(mcpadapter.NewMetricCatalogAdapter(gateway), mcpadapter.NewQueryEngineAdapter(gateway))
 	workflow := workflows.RunAnalysisWorkflow{Store: store, Notifier: notifier, Runtime: runtime, IDs: generator, Clock: clock}
+	if err := workflow.RecoverInterrupted(ctx); err != nil {
+		_ = store.Close()
+		return nil, err
+	}
 	commandService := commands.New(store, notifier, workflow, generator, clock)
 	api := httpapi.API{Commands: commandService, Store: store, Notifier: notifier, Readiness: func(checkCtx context.Context) error {
 		identity := requestcontext.Context{TenantID: "readiness", OrgID: "0", UserID: "readiness", Roles: []string{"Admin"}, Permissions: []string{"datasources:query"}, RequestID: "readyz", TraceID: "readyz"}

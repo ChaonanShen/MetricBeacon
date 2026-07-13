@@ -83,6 +83,9 @@ func (r taskRepository) Create(ctx context.Context, value task.AnalysisTask) err
 func (r taskRepository) Get(ctx context.Context, tenantID, taskID string) (task.AnalysisTask, error) {
 	return r.store.getTask(ctx, tenantID, taskID)
 }
+func (r taskRepository) ListNonTerminal(ctx context.Context) ([]task.AnalysisTask, error) {
+	return r.store.listNonTerminalTasks(ctx)
+}
 func (r taskRepository) Update(ctx context.Context, value task.AnalysisTask, expectedVersion int64) error {
 	return r.store.updateTask(ctx, value, expectedVersion)
 }
@@ -291,6 +294,26 @@ func (s *Store) getTask(ctx context.Context, tenantID, taskID string) (task.Anal
 	}
 	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND id = ?`, tenantID, taskID)
 	return scanTask(row)
+}
+
+func (s *Store) listNonTerminalTasks(ctx context.Context) ([]task.AnalysisTask, error) {
+	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE status NOT IN (?, ?) ORDER BY created_at, id`, task.StatusCompleted, task.StatusFailed)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer rows.Close()
+	values := make([]task.AnalysisTask, 0)
+	for rows.Next() {
+		value, err := scanTask(rows)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, mapError(err)
+	}
+	return values, nil
 }
 
 func (s *Store) updateTask(ctx context.Context, value task.AnalysisTask, expectedVersion int64) error {
