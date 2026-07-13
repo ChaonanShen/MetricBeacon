@@ -1,10 +1,10 @@
 # Basic Mock Skeleton Progress
 
-lastUpdated: 2026-07-13T13:25:05Z
-currentGate: G1
-status: passed
-headCommit: 3da81a2
-worktreeSummary: G1 generated-client and validation artifacts are verified and pending their own commit
+lastUpdated: 2026-07-13T13:30:05Z
+currentGate: G2
+status: in_progress
+headCommit: ce93490
+worktreeSummary: G2 domain and Port baseline is verified and pending its own commit
 
 ## Passed Gates
 
@@ -29,6 +29,8 @@ worktreeSummary: G1 generated-client and validation artifacts are verified and p
 |`make validate-contracts`|passed|2026-07-13T13:25:05Z|Three OpenAPI documents, 21 JSON Schemas, all examples and the node_exporter fixture validate|
 |`make generated-client-diff`|passed|2026-07-13T13:25:05Z|Go and TypeScript OpenAPI/Tool output is reproducible|
 |`make bootstrap-check` + generated Go `go test ./...`|passed|2026-07-13T13:25:05Z|Generated AI Core client/server, tool DTOs, all scaffold modules and frontend typecheck compile|
+|`go test ./internal/domain/... ./internal/application/... ./internal/ports/...`|passed|2026-07-13T13:30:05Z|Task/Chart state transitions and all pure Domain/Port packages compile|
+|`make boundary-check` + `make bootstrap-check`|passed|2026-07-13T13:30:05Z|Domain/Application/Port dependency rule and full scaffold compilation pass|
 
 ## Files/Interfaces Completed
 
@@ -37,11 +39,12 @@ worktreeSummary: G1 generated-client and validation artifacts are verified and p
 - `scripts/check-boundaries.sh`: initial AI Core boundary rule recorded
 - G1 OpenAPI/JSON Schema/SSE/MCP contracts, examples and node_exporter fixture: complete
 - G1 generated Go/TypeScript clients, server interface and schema validation: complete
+- G2 pure Domain, application DTO, typed Port and deterministic testkit baseline: complete
 
 ## Remaining Work For Current Gate
 
-1. Commit the verified G1 code-generation and validation tooling as its own cohesive slice.
-2. Advance to G2: implement AI Core Domain, Port and SQLite only after this contract baseline is committed.
+1. Commit the verified G2 Domain/Port baseline as its own cohesive slice.
+2. Implement SQLite migration, ApplicationStore, transaction/event sequence behavior and Contract Tests.
 
 ## Known Failures
 
