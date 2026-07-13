@@ -3,6 +3,7 @@ package workflows
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -17,6 +18,8 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
+	portevents "mini-torchbearing.local/services/ai-core/internal/ports/events"
+	"mini-torchbearing.local/services/ai-core/internal/ports/repositories"
 )
 
 func TestRunPersistsOrderedEventsToolCallsAndCharts(t *testing.T) {
@@ -170,6 +173,43 @@ func TestRecoverInterruptedFailsPersistedWorkWithoutRerun(t *testing.T) {
 	}
 }
 
+func TestTransitionRollsBackWhenEventAppendFails(t *testing.T) {
+	ctx := context.Background()
+	store, err := storage.Open(ctx, filepath.Join(t.TempDir(), "ai-core.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
+	sessionValue, _ := session.New("session_1", "org:1", "Overview", "user:1", now)
+	if err := store.Sessions().Create(ctx, sessionValue); err != nil {
+		t.Fatal(err)
+	}
+	message, _ := session.NewMessage("message_1", "org:1", "session_1", session.RoleUser, "show node exporter", now)
+	if err := store.Messages().Append(ctx, message); err != nil {
+		t.Fatal(err)
+	}
+	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "mock-prometheus", timeRange, now)
+	if err := store.Tasks().Create(ctx, taskValue); err != nil {
+		t.Fatal(err)
+	}
+
+	failingStore := eventFailingStore{ApplicationStore: store, failType: task.EventTaskStatusChanged}
+	workflow := RunAnalysisWorkflow{Store: failingStore, Runtime: scriptedRuntime{}, IDs: &sequenceIDs{}, Clock: fixedClock{now: now}}
+	if err := workflow.Run(ctx, requestcontext.Context{TenantID: "org:1", UserID: "user:1"}, "task_1"); err == nil {
+		t.Fatal("workflow unexpectedly succeeded")
+	}
+	persisted, err := store.Tasks().Get(ctx, "org:1", "task_1")
+	if err != nil || persisted.Status != task.StatusCreated || persisted.Version != taskValue.Version {
+		t.Fatalf("task mutation was not rolled back: %#v, %v", persisted, err)
+	}
+	events, err := store.TaskEvents().Replay(ctx, "org:1", "task_1", 0, 20)
+	if err != nil || len(events) != 0 {
+		t.Fatalf("unexpected events after rollback: %#v, %v", events, err)
+	}
+}
+
 type scriptedRuntime struct{}
 
 func (scriptedRuntime) Run(ctx context.Context, _ requestcontext.Context, request dto.AgentRunRequest, sink agent.EventSink) (dto.AgentRunResult, error) {
@@ -215,3 +255,30 @@ func (s *sequenceIDs) NewID(kind string) string {
 type fixedClock struct{ now time.Time }
 
 func (c fixedClock) Now() time.Time { return c.now }
+
+type eventFailingStore struct {
+	repositories.ApplicationStore
+	failType task.EventType
+}
+
+func (s eventFailingStore) TaskEvents() portevents.Store {
+	return eventFailingTaskEvents{Store: s.ApplicationStore.TaskEvents(), failType: s.failType}
+}
+
+func (s eventFailingStore) WithinTransaction(ctx context.Context, fn func(repositories.ApplicationStore) error) error {
+	return s.ApplicationStore.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		return fn(eventFailingStore{ApplicationStore: tx, failType: s.failType})
+	})
+}
+
+type eventFailingTaskEvents struct {
+	portevents.Store
+	failType task.EventType
+}
+
+func (s eventFailingTaskEvents) Append(ctx context.Context, draft task.EventDraft) (task.TaskEvent, error) {
+	if draft.Type == s.failType {
+		return task.TaskEvent{}, errors.New("injected task event failure")
+	}
+	return s.Store.Append(ctx, draft)
+}
