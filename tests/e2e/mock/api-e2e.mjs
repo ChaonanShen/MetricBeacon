@@ -87,7 +87,7 @@ const conflict = await requestJSON(`${resourceBase}/tasks`, {
   body: JSON.stringify({ ...createTaskBody, message: 'different node exporter request' }),
 });
 assert.equal(conflict.response.status, 409);
-assert.equal(conflict.body.code, 'idempotency_conflict');
+assert.equal(conflict.body.error?.code, 'idempotency_conflict');
 
 const events = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events?afterSequence=0`);
 assert.ok(events.length > 0, 'Task SSE did not return any durable events');
