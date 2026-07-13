@@ -6,6 +6,7 @@ import { useEffect, useMemo, useReducer, useState } from 'react';
 import { resourceClient, type CreateTask } from '../api/resource';
 import { ChartWireToDataFrame } from './mapper';
 import { resetWorkbench, taskEventReducer } from './reducer';
+import { readWorkbenchRoute, replaceWorkbenchRoute } from './route';
 import { subscribeTaskEvents } from './sse';
 import { initialWorkbenchState } from './types';
 
@@ -13,19 +14,27 @@ const chartRange: TimeRange = { from: dateTime(Date.now() - 30 * 60 * 1000), to:
 
 export function Workbench(_props: AppRootProps) {
   const client = useQueryClient();
+  const initialRoute = useMemo(() => readWorkbenchRoute(window.location.search), []);
   const [message, setMessage] = useState('');
-  const [sessionId, setSessionId] = useState<string>();
-  const [taskId, setTaskId] = useState<string>();
+  const [sessionId, setSessionId] = useState<string | undefined>(initialRoute.sessionId);
+  const [taskId, setTaskId] = useState<string | undefined>(initialRoute.taskId);
   const [state, dispatch] = useReducer(taskEventReducer, initialWorkbenchState);
+  const session = useQuery({ queryKey: ['mini-torchbearing-session', sessionId], queryFn: () => resourceClient.getSession(sessionId!), enabled: Boolean(sessionId) });
   const task = useQuery({ queryKey: ['mini-torchbearing-task', taskId], queryFn: () => resourceClient.getTask(taskId!), enabled: Boolean(taskId), refetchInterval: (query) => query.state.data?.status === 'completed' || query.state.data?.status === 'failed' ? false : 1_000 });
   const create = useMutation({
     mutationFn: async () => {
-      const session = sessionId ? { id: sessionId } : await resourceClient.createSession('Node exporter overview');
-      setSessionId(session.id);
-      const body: CreateTask = { sessionId: session.id, message: message.trim(), analysisContext: { datasourceUid: 'mock-prometheus', timeRange: { relativeDuration: '30m' } } };
-      return resourceClient.createTask(body, crypto.randomUUID());
+      const activeSession = sessionId ? { id: sessionId } : await resourceClient.createSession('Node exporter overview');
+      const body: CreateTask = { sessionId: activeSession.id, message: message.trim(), analysisContext: { datasourceUid: 'mock-prometheus', timeRange: { relativeDuration: '30m' } } };
+      const createdTask = await resourceClient.createTask(body, crypto.randomUUID());
+      return { sessionId: activeSession.id, task: createdTask };
     },
-    onSuccess: (created) => { dispatch(resetWorkbench()); setTaskId(created.id); client.setQueryData(['mini-torchbearing-task', created.id], created); },
+    onSuccess: (created) => {
+      dispatch(resetWorkbench());
+      setSessionId(created.sessionId);
+      setTaskId(created.task.id);
+      replaceWorkbenchRoute(created.sessionId, created.task.id);
+      client.setQueryData(['mini-torchbearing-task', created.task.id], created.task);
+    },
   });
   useEffect(() => {
     if (!taskId) { return; }
@@ -39,7 +48,7 @@ export function Workbench(_props: AppRootProps) {
       <Input value={message} onChange={(event) => setMessage(event.currentTarget.value)} placeholder="例如：查看 node exporter" />
     </Field>
     <Button onClick={submit} disabled={!message.trim() || create.isPending}>开始分析</Button>
-    {(create.isPending || task.isFetching) && <Spinner />}
+    {(create.isPending || session.isFetching || task.isFetching) && <Spinner />}
     <p>Task 状态：{state.taskStatus ?? task.data?.status ?? 'idle'}</p>
     {state.error && <p role="alert">{state.error.code}: {state.error.message}</p>}
     {state.assistantText && <section><h3>助手</h3><p>{state.assistantText}</p></section>}

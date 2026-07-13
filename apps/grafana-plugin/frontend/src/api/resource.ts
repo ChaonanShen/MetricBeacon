@@ -13,6 +13,9 @@ export const resourceClient = {
   createSession(title: string): Promise<Session> {
     return getBackendSrv().post<Session>(`${resourceBase}/sessions`, { title });
   },
+  getSession(sessionId: string): Promise<Session> {
+    return getBackendSrv().get<Session>(`${resourceBase}/sessions/${encodeURIComponent(sessionId)}`);
+  },
   createTask(input: CreateTask, idempotencyKey: string): Promise<Task> {
     return getBackendSrv().post<Task>(`${resourceBase}/tasks`, input, { headers: { 'Idempotency-Key': idempotencyKey } });
   },
