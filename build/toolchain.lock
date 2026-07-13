@@ -1,7 +1,7 @@
 # Toolchain Lock
 
 format: v1
-verifiedAt: 2026-07-13T12:55:42Z
+verifiedAt: 2026-07-13T15:13:43Z
 
 ## Host tools
 
@@ -10,6 +10,10 @@ verifiedAt: 2026-07-13T12:55:42Z
 |Go|`go1.26.5 darwin/amd64`|`go version`|
 |Node.js|`v22.23.1`|`node --version`|
 |npm|`10.9.8`|`npm --version`|
+|Docker CLI / Server|`29.6.1` / `29.5.2`|`docker version` against Colima|
+|Docker Compose|`v5.3.0`|`docker compose version`|
+|Docker Buildx / BuildKit|`v0.35.0` / `v0.30.0`|`docker buildx version` and `docker buildx inspect colima`|
+|Colima|`v0.10.3`|`brew list --versions colima`|
 
 ## Container images
 

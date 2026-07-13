@@ -38,3 +38,43 @@ cd apps/grafana-plugin/frontend && npm ci
 ## 本地演示
 
 分别启动 `assistant-mcp`（`:8081`）和 AI Core（`:8080`），或运行 `make e2e-mock` 构建 Compose；浏览器只通过 Grafana Plugin Resource API 访问系统。
+
+### Docker/Colima 前置检查
+
+`make e2e-mock` 依赖 Docker Compose 和 BuildKit。使用 Homebrew Docker CLI + Colima
+时，必须另外安装 `docker-buildx`；否则 Compose 会提示
+`Docker Compose requires buildx plugin to be installed`，回退到 classic builder。该回退会
+重复构建镜像、无法有效复用依赖缓存，首次下载和编译 Grafana Backend SDK 时容易表现为长时间
+没有输出，但不代表 Go module proxy 一定不可用。
+
+```text
+brew install docker-buildx
+docker context use colima
+docker buildx use colima
+docker buildx inspect colima
+```
+
+期望结果是 `colima` builder 的状态为 `running`。如 Homebrew 已安装插件但 Docker 找不到它，
+按 `brew info docker-buildx` 的提示把 `/usr/local/lib/docker/cli-plugins`（Intel Mac）或
+`/opt/homebrew/lib/docker/cli-plugins`（Apple Silicon）加入
+`~/.docker/config.json` 的 `cliPluginsExtraDirs`。
+
+在 Colima 环境中，`docker buildx ls` 可能同时显示：
+
+```text
+colima*   ...   running
+default         error
+```
+
+这是因为 Colima 使用 `~/.colima/default/docker.sock`，而 Docker 的保留 `default` context
+仍尝试连接 Linux 默认的 `/var/run/docker.sock`。只要当前 Docker context 和带 `*` 的 builder
+都是 `colima`，该 `default` 错误不影响构建；不要为消除提示而创建
+`/var/run/docker.sock` 软链接。Colima 的 `docker` driver builder 跟随当前 Docker context，
+不要额外设置 `BUILDX_BUILDER=colima`；该环境变量会让部分 Compose/Buildx 版本把 builder
+和 context 判为不匹配。确认 context 后直接执行：
+
+```text
+docker context use colima
+docker buildx inspect colima
+make e2e-mock
+```
