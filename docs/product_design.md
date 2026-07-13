@@ -1,8 +1,8 @@
 产品设计文档：Grafana 自然语言指标分析工作台
 
 文档状态：Draft
-版本：v1.0
-最后更新：2026-07-09
+版本：v1.1
+最后更新：2026-07-13
 适用阶段：MS1-MS4 全周期产品设计，MS1 作为首个落地闭环
 ---
 1. 执行摘要
@@ -149,7 +149,7 @@ MS1 不自动提炼参数化 Playbook，不自动执行决策逻辑，不做完�
 |指标与评测|最小埋点和 20-30 条 Golden Query|离线评测和在线采纳/编辑信号|指标达标和一轮用户反馈|输出复盘和质量报告|
 
 5.2 MS1 Must Have
-MS1 按总纲定义为"战略决策与首个可串联版本"：各模块对接完成，允许部分实现为空、整体尚不一定能运行，演示为原型 / mock 串联。以下交付物均为设计定稿、骨架代码或 mock 串联层面，功能实现属于 MS2/MS3。
+MS1 按总纲定义为"战略决策与首个可串联版本"：各模块对接完成，允许部分实现为空、整体尚不一定能运行，演示为原型 / mock 串联。以下交付物均为设计定稿、骨架代码或 mock 串联层面，功能实现属于 MS2/MS3。允许在 MS1 提前建立本地真实基础设施混合 E2E，用 Grafana、Prometheus 和 node_exporter 验证一条最薄真实链路；它属于测试基础设施增强，不把真实模型、完整指标字典或生产鉴权提前纳入 MS1 产品门槛。
 |#|能力|说明|
 |-|-|-|
 |1|产品设计定稿|方向性决策、用户流程、信息架构、交互方案、AI 体验策略、验收标准完整，经组内 Review 通过|
@@ -163,6 +163,7 @@ MS1 按总纲定义为"战略决策与首个可串联版本"：各模块对接�
 |9|保存确认与权限模型|临时图表 → Dashboard 写入的确认流程、权限模型与冲突处理策略定稿|
 |10|Golden Query 与评测基准|20-30 条典型查询，定义 PromQL 一次可用率等核心指标的评测方法|
 |11|最小埋点方案|关键事件定义与埋点位置|
+|12|本地 Docker 混合 E2E 方案|定义 Grafana + Prometheus + node_exporter + AI Core + assistant-mcp 五容器拓扑、`mock-e2e`/`local-real` 双测试跑道和 node_exporter Golden Path；跑通为集成增强目标，不阻塞接口骨架验收|
 
 5.3 全周期明确不做
 |不做事项|理由|
@@ -391,6 +392,18 @@ Agent 生成 PromQL 后进行校验：
 |会话存储方案|确认使用 Grafana DB/SQLStore、外部 DB 或独立服务|
 |Dashboard API 写入|验证新建 Panel、权限不足、版本冲突、保存备注|
 |App Plugin RBAC|确认临时图表权限和 Dashboard 写权限可分离|
+|本地 Docker 混合 E2E|用真实 Grafana、Prometheus、node_exporter 验证插件加载、服务通信、真实 PromQL、SQLite 恢复和审批后新增 Panel；模型保持确定性 Mock|
+
+11.3 测试跑道
+
+产品验收同时保留两条互补跑道：
+
+|跑道|真实范围|Mock 范围|主要验证|
+|-|-|-|-|
+|`mock-e2e`|Frontend、Plugin Backend、AI Core、assistant-mcp 的调用和状态流|Model、Prometheus、Grafana Read/Write、Knowledge/Playbook|固定输出、错误注入、权限失败、版本冲突、AI 不可用、断线重放|
+|`local-real`|Grafana、Prometheus、node_exporter、插件加载、HTTP/SSE/MCP、SQLite、PromQL 查询、Dashboard 新增 Panel|Model 默认确定性 Mock；Knowledge/Playbook 可用 fixture|容器网络、真实 API、Adapter 替换、会话恢复、审批和 Grafana 写入回程|
+
+`local-real` 不断言 CPU、内存或系统负载的精确值，只断言 Prometheus target 健康、结果非空、Schema 正确、状态迁移正确和 Grafana 资产发生预期变化。需要精确复现的异常继续在 `mock-e2e` 中验证。
 
 ---
 12. 验收标准
@@ -407,6 +420,7 @@ Agent 生成 PromQL 后进行校验：
 |AC-08|会话 Fork|用户打开他人分享会话|点击 Fork 并替换服务/时间范围|创建独立副本，原会话不受影响|
 |AC-09|模板执行|用户选择“服务错误率分析”模板|输入 service 和 timeRange|创建新会话，生成模板默认图表，并记录 TemplateRun|
 |AC-10|AI 不可用|AI API 故障|用户提交查询|提示 AI 不可用，保留手动 PromQL 模式|
+|AC-11|本地真实基础设施链路|`local-real` 五个容器 readiness 正常，Prometheus 已抓取 node_exporter|用户输入“查看 node-exporter 最近 30 分钟的 CPU 使用率、内存可用率和系统负载”|系统通过真实 Prometheus 查询生成三张非空图表；刷新可恢复；未审批不能写 Dashboard，审批后只新增 Panel 并记录版本与审计|
 
 12.2 示例验收
 输入：
@@ -420,6 +434,8 @@ Agent 生成 PromQL 后进行校验：
 6. 用户添加备注后，回放能看到原始问题、每张图、每条 PromQL、用户修改和备注。
 7. 用户可搜索 checkout、/pay、metric 名称或备注找到该会话。
 8. 用户可 Fork 该会话，并将服务名替换为 cart、时间范围替换为过去 1 小时。
+
+本地基础设施示例验收不替代上述业务示例。它固定自然语言到工具计划，但真实查询 `node_cpu_seconds_total`、`node_memory_MemAvailable_bytes` 和 `node_load1`，用于证明同一应用流程可以在不修改领域层的前提下从 Mock Adapter 切换为真实 Adapter。
 ---
 13. 风险与应对
 |风险|表现|应对|
@@ -434,13 +450,14 @@ Agent 生成 PromQL 后进行校验：
 |AI 摘要错误|错误经验被沉淀|摘要默认草稿，用户确认后才作为结论|
 |多轮指代错误|修改了错误图|图表编号和标题；匹配多个时必须澄清|
 |Playbook 过早复杂化|阶段范围失控|只预留数据结构，不做自动 Playbook|
+|真实基础设施 E2E 不稳定|node_exporter 数值、启动耗时和容器环境变化导致偶发失败|使用 readiness 而非固定 sleep；只断言非空/Schema/状态；精确数值和异常场景留在 Mock E2E|
 
 ---
 14. Milestone 计划
 14.1 阶段目标
 |Milestone|时间|产品重点|核心交付|验收重点|
 |-|-|-|-|-|
-|MS1|第 1-2 周|战略决策 + 首个可串联版本|产品设计定稿、App Plugin 架构骨架、Agent 工具接口、会话/图表核心数据结构、主链路 mock 串联|产品方向是否成立；“临时多图工作台 + 会话沉淀”是否被明确为主线；架构是否支撑后续迭代|
+|MS1|第 1-2 周|战略决策 + 首个可串联版本|产品设计定稿、App Plugin 架构骨架、Agent 工具接口、会话/图表核心数据结构、主链路 mock 串联、本地 Docker 混合 E2E 方案与 Compose 骨架|产品方向是否成立；“临时多图工作台 + 会话沉淀”是否被明确为主线；架构是否支撑后续迭代；真实 Adapter 验证入口是否清晰|
 |MS2|第 3-4 周|MVP 核心流程跑通|NL→PromQL→校验→图表渲染真实可演示；会话保存/恢复可用；基础指标字典同步；保存到 Dashboard 基本链路；Candidate Playbook 草稿生成|用户能否完成一次真实指标分析；PromQL 可执行率和会话恢复是否达到可用水平|
 |MS3|第 5-6 周|功能闭合 + 质量达标|多图编辑、分享/Fork、模板、Dashboard 保存异常处理闭合；参数化 Playbook 最小能力；内部用户试用一轮|功能是否闭合；一次可用率是否接近 70%；内部用户是否认为比手动流程省时间|
 |MS4|第 7-8 周|打磨、交付与发布|功能冻结、修 bug、体验打磨、部署/演示环境、v1.0 tag、用户说明、展示材料、复盘报告|交付是否真实可运行；核心指标和风险是否清楚；材料是否能说明产品价值和边界|

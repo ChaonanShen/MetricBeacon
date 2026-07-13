@@ -141,6 +141,16 @@ AI Core 内部 API：
 - MCP Server 按能力拆分部署，靠近数据源和 Grafana 所在网络。
 - Model Gateway 统一连接内外部模型供应商，并提供降级、审计和预算控制。
 - PostgreSQL、Vector DB、Redis / Queue、Object Store 作为共享基础设施。
+
+本地骨架集成采用收敛的 Docker 混合 E2E 拓扑：
+- 五个常驻容器：Grafana（承载 Plugin Frontend/Backend）、AI Core、assistant-mcp、Prometheus、node_exporter；Plugin build 是一次性构建任务。
+- Prometheus 抓取 `node-exporter:9100`，Grafana provisioning 指向 `http://prometheus:9090` 的 datasource；AI Core 与 assistant-mcp 分别独占自己的 SQLite volume。
+- Model 默认使用 Deterministic Mock，Knowledge/Playbook 可以使用 fixture；HTTP、SSE、MCP、Prometheus 查询、SQLite 恢复和 Grafana 新增 Panel 走真实链路。
+- 保留 `mock-e2e` 与 `local-real` 两个 profile。前者负责可重复输出和权限/冲突/超时等错误注入，后者负责容器网络、插件加载、真实 API、Adapter 替换和写入授权回程。
+- `local-real` 首个场景使用 node_exporter 的 CPU、内存和系统负载指标。真实数值不稳定，只断言 target 健康、查询结果非空、Schema/状态迁移正确以及审批后的 Dashboard 版本和 Panel 变化。
+- 本地 Prometheus Adapter 可以直连 Prometheus，但不能据此声称已验证 Grafana datasource RBAC；生产查询是否必须经过 Grafana datasource proxy 由独立 Adapter/ADR 决定。
+
+本地混合 E2E 是骨架后的集成增强目标，不替代契约、单元、Adapter Contract 和 Mock E2E，也不成为首个接口骨架提交的硬门槛。真实 Grafana 写入仍必须经过 `Draft → SaveIntent → Approval → Execute → Audit`，测试初始化凭证不得进入应用运行链路。
 九、主要风险与应对
 - 图表生成质量不稳定：用结构化 panel schema、查询验证、截图预览和用户确认降低风险。
 - Grafana JSON 兼容性问题：按 Grafana 版本维护 panel 模板和迁移器，优先生成 patch 而非整份覆盖。
@@ -149,9 +159,9 @@ AI Core 内部 API：
 - 数据源差异大：通过 MCP 工具把不同数据源能力抽象为统一 schema，逐步扩展。
 - 成本不可控：按任务类型选择模型，缓存上下文摘要，设置租户预算和熔断。
 十、演进路线
-MS1：完成插件骨架、AI Core 骨架、Grafana Context MCP、会话与任务模型，打通只读解释链路。
+MS1：完成插件骨架、AI Core 骨架、Grafana Context MCP、会话与任务模型，打通只读解释链路；建立 `mock-e2e`/`local-real` 双跑道及 Compose 骨架，真实链路跑通不作为接口骨架硬门槛。
 
-MS2：支持自然语言生成 panel 草稿、查询验证、预览图、diff 和人工确认写回。
+MS2：支持自然语言生成 panel 草稿、查询验证、预览图、diff 和人工确认写回；用真实 Grafana、Prometheus、node_exporter 跑通本地 Golden Path。
 
 MS3：支持编辑现有 panel、dashboard 多图表生成、回滚、审计和质量反馈。
 

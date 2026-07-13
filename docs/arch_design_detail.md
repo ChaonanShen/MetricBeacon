@@ -944,7 +944,10 @@ namespace = skills
 - [ ]  1 个 MCP server 用 mcp-go 起，监听 Streamable HTTP endpoint，按 4 个 namespace（grafana / knowledge / playbook / skills）注册工具
 - [ ]  AI Agent 用 eino-ext/components/tool/mcp 1 个 client 连接，按 namespace 过滤/聚合工具
 - [ ]  read 工具调一次成功
+- [ ]  Mock Prometheus Adapter 与真实 Prometheus Adapter 通过同一套 `PrometheusPort` Contract Test
+- [ ]  `local-real` profile 下 Prometheus 抓取 `node-exporter:9100`，`grafana.search_metrics`/`grafana.get_metric_labels`/`grafana.query_prometheus` 可真实命中 `node_cpu_seconds_total`、`node_memory_MemAvailable_bytes`、`node_load1`
 - [ ]  write 工具触发 Eino Interrupt & CheckPoint（HITL 审批）
+- [ ]  `local-real` profile 下未经审批的 Dashboard 写入被拒绝；审批后只新增测试 Panel，并校验 Dashboard version 和审计记录
 - [ ]  server 故障后 client 自动重连（mcp-go 内置）
 - [ ]  Skills MCP 可被外部 MCP 客户端连接：curl /mcp 调用 list_skills 返回 JSON-RPC 响应
 - [ ]  Skills MCP 与 Eino Skill Middleware 共用同一 data/skills/ 目录（文件单一来源）
@@ -962,6 +965,8 @@ namespace = skills
 |data/services/*.yaml|文件|knowledge.* 工具加载|
 |data/playbooks/*.yaml|文件|playbook.* 工具加载|
 |data/skills/*.md|文件|skills.* 工具加载（与 Skill Middleware 共享）|
+
+本地混合 E2E 中，Prometheus Adapter 可以通过 bootstrap 配置直连 `http://prometheus:9090`；工具输入仍携带 `datasource_uid`，业务层不得感知 URL。该直连模式只验证 Prometheus API 和 Adapter 替换，不代表已覆盖 Grafana datasource RBAC。若生产查询统一经过 Grafana datasource proxy，应实现第二个 Adapter，并复用同一 Tool Schema 和 Contract Test。
 
 8.3 数据流向
 flowchart TB
@@ -2582,6 +2587,8 @@ func main() {
         server.WithEndpointPath("/mcp"),
     ).Start(":8083")
 }
+```
+
 外部 AI 工具（如 Cursor）通过 MCP 客户端连接 http://assistant-mcp:8080/mcp，可消费所有 skills.* 工具。
 8. 验收标准
 形态 A（内部）

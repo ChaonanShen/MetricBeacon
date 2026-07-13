@@ -1,7 +1,7 @@
 # Grafana 自然语言指标分析工作台：可执行骨架代码设计
 
 > 文档状态：Implementation Blueprint
-> 版本：v1.1
+> 版本：v1.2
 > 适用范围：MS1–MS4；首个实现目标为“完整契约 + 可替换 Adapter + 可独立验证的模块骨架”
 > 目标读者：架构师、前端工程师、Grafana 插件工程师、后端工程师、AI/Agent 工程师、测试工程师、SRE
 > 最后更新：2026-07-13
@@ -52,7 +52,9 @@
 - AI Core
 - `assistant-mcp`（一个进程、四个 namespace）
 - SQLite 文件（分别由数据所有者独占）
-- 可选 Mock Prometheus
+- 可选 Prometheus（Mock Adapter 或真实 Prometheus 容器）
+
+本地真实基础设施混合 E2E 额外运行 Prometheus 与 `node_exporter`。此时共有五个常驻运行容器：Grafana、AI Core、`assistant-mcp`、Prometheus、`node_exporter`；`plugin-build` 只能作为一次性构建任务，不计入常驻部署单元。模型仍默认使用 Deterministic Mock，以保证自然语言到工具计划的输出可重复；真实查询结果、插件通信、会话持久化和 Dashboard 写入走真实链路。
 
 PostgreSQL、Redis、向量库和对象存储均不是首个骨架运行的前置条件。
 
@@ -325,8 +327,12 @@ mini-torchbearing/
 │   └── fixtures/
 │
 ├── data/{skills,playbooks,mock-scenarios}/
-├── tests/{contract,integration,e2e,golden-queries}/
-├── deploy/{docker-compose,grafana,kubernetes,helm}/
+├── tests/{contract,integration,e2e/{mock,local-real},golden-queries}/
+├── deploy/
+│   ├── docker-compose/{compose.mock-e2e.yaml,compose.local-real.yaml}
+│   ├── prometheus/prometheus.yml
+│   ├── grafana/provisioning/{datasources,dashboards}/
+│   └── {kubernetes,helm}/
 ├── docs/{adr,api,development,runbooks}/
 ├── scripts/{generate-clients.sh,validate-contracts.sh,seed-mock-data.sh,run-e2e.sh}
 ├── go.work
@@ -365,6 +371,24 @@ Browser
                   → GrafanaAccessPort → Mock / Plugin Backend controlled proxy
                   → Catalog Stores → SQLite / PostgreSQL / Filesystem Adapter
 ```
+
+本地真实基础设施混合 E2E 使用以下具体拓扑：
+
+```text
+Browser
+  → Grafana container（Plugin Frontend + Plugin Backend）
+      → AI Core container
+          → AI Core SQLite volume
+          → Deterministic Mock Model
+          → assistant-mcp container
+              → Prometheus Adapter → Prometheus container
+                                           ↑ scrape
+                                    node_exporter container
+              → Grafana Adapter → Plugin Backend 受控代理 → Grafana API
+              → assistant-mcp SQLite volume / deterministic fixtures
+```
+
+该拓扑是“真实基础设施 + 真实应用链路 + 确定性 Mock 智能层”，不是生产拓扑。它必须真实覆盖 HTTP、SSE、MCP、Prometheus API、SQLite migration/恢复、Grafana 插件加载和 Dashboard 写入；不要求使用真实外部模型，也不以 `node_exporter` 的具体数值作为稳定测试夹具。
 
 ### 6.2 数据所有权
 
@@ -405,17 +429,37 @@ adapters:
 ```yaml
 services:
   grafana:
-  plugin-build:
   ai-core:
   assistant-mcp:
-  mock-prometheus:
+  plugin-build:      # one-shot，可由多阶段镜像构建替代
+  prometheus:        # 由 local-real override/profile 启用
+  node-exporter:     # 由 local-real override/profile 启用
   postgres:          # profile=postgres；默认关闭
 ```
 
-- 默认 profile 使用 SQLite，不启动 PostgreSQL。
-- `mock-prometheus` 可省略，由 assistant-mcp 的 Mock Adapter 直接返回 fixture。
+- `mock-e2e`/`local-real` 是测试启动配置名，推荐由基础 `docker-compose.yml` 加 `deploy/docker-compose/compose.<profile>.yaml` override 和对应 env 文件实现；不能依赖 Compose profile 去隐式修改同一个服务的 Adapter 环境变量。
+- 基础服务为 Grafana、AI Core 和 `assistant-mcp`，默认使用两个服务各自独占的 SQLite volume，不启动 PostgreSQL。
+- `mock-e2e` profile 使用 Deterministic Mock Model、Mock Prometheus、Mock Grafana Read/Write 和固定 fixture，负责稳定回归及错误场景注入。
+- `local-real` profile 额外启动 Prometheus 与 `node_exporter`，启用真实 Prometheus Adapter、真实 Grafana Read/Write Adapter；Model、Knowledge、Playbook 仍可使用确定性 Mock。
+- Prometheus 必须以 `node-exporter:9100` 为 scrape target；容器间访问使用 Compose service name，不得使用 `localhost`。
+- Grafana 必须 provisioning 一个指向 `http://prometheus:9090` 的 Prometheus datasource，并为测试创建独立 Folder/Dashboard。测试种子可以用测试管理员凭证初始化，但应用运行链路不得持有或使用该凭证。
+- Grafana、Prometheus、`node_exporter` 镜像 tag/digest 必须在测试配置中固定，并通过 `.env.example` 暴露可替换变量；不得以浮动 `latest` 作为验收基线。
+- 本地未签名插件必须显式加入 Grafana 开发环境 allowlist；Plugin Backend 必须构建为 Grafana 容器可执行的 Linux/目标架构二进制，不能直接挂载宿主机 macOS 二进制。
+- `node_exporter` 在 Docker Desktop/Colima 中通常观测 Linux VM 或容器宿主环境；本测试只要求存在真实、持续变化的时间序列，不声称代表 macOS 宿主机全部指标。
 - Redis 不进入首个 Compose；需要时以独立 Adapter 和 profile 增加。
 - 全系统 `docker compose up` 可运行是集成阶段目标，不是“接口骨架完成”的唯一判断标准。
+
+建议提供以下统一入口：
+
+```text
+make e2e-mock          # 确定性 Mock 纵向链路
+make e2e-local         # Grafana + Prometheus + node_exporter 混合 E2E
+make e2e-local-down    # 停止环境；保留或清理 volume 由显式参数决定
+```
+
+`e2e-local` 启动前必须检查镜像存在性、端口占用和 Docker daemon；启动后必须等待各服务 readiness，而不是依赖固定 sleep。
+
+建议 readiness 至少检查 Grafana `/api/health`、Prometheus `/-/ready`、`node_exporter` `/metrics`、AI Core `/readyz` 和 `assistant-mcp` `/readyz`；最后再调用 Plugin Resource Handler 和 MCP `tools/list`，确认进程健康不等于业务链路可用。
 
 ---
 
@@ -2946,9 +2990,9 @@ Repository Contract Test 至少验证：CRUD、tenant 隔离、乐观锁、事�
 - Plugin Backend：使用 Mock AI Core Client 处理一个 Resource Handler 请求。
 - Frontend：Mock API 下渲染空态、三张图和审批态。
 
-### 26.6 E2E（集成阶段）
+### 26.6 Mock E2E（集成阶段）
 
-最少覆盖：
+Mock E2E 运行完整应用调用链，但外部系统 Adapter 使用确定性 fixture，至少覆盖：
 
 1. 创建会话
 2. 输入自然语言
@@ -2961,13 +3005,70 @@ Repository Contract Test 至少验证：CRUD、tenant 隔离、乐观锁、事�
 9. AI 不可用
 10. Fork 会话
 
-E2E 是纵向链路目标，不是所有首版模块都完成前的阻塞条件。
+Mock E2E 必须支持固定 ID/时间或可注入时钟，且可通过 `X-Mock-Scenario` 稳定触发权限失败、版本冲突、查询超时、无数据、AI 不可用和断线续传。它是 PR/CI 中优先自动化的纵向链路。
 
-### 26.7 Golden Query
+### 26.7 本地真实基础设施混合 E2E
+
+本地混合 E2E 使用 Grafana、Prometheus 和 `node_exporter` 真实容器，加上项目的 AI Core 与 `assistant-mcp` 容器。它验证真实基础设施和服务集成，不取代 Mock E2E。
+
+真实部分必须包括：
+
+- Grafana 插件加载、Frontend → Plugin Backend Resource Handler。
+- Plugin Backend → AI Core HTTP/SSE，以及事件断线后按 `sequence` 重放。
+- AI Core 与 `assistant-mcp` 之间的 Streamable HTTP MCP 调用。
+- Prometheus 对 `node-exporter:9100` 的真实抓取、metadata/label 查询和 PromQL range query。
+- AI Core 与 `assistant-mcp` 各自独占的 SQLite migration、写入和重启恢复。
+- `PanelDraft → SaveIntent → Approval → AddPanel → Audit`，并真实写入测试 Grafana Dashboard。
+
+为保持结果可重复，Model 默认使用 Deterministic Mock，Knowledge/Playbook/Skill 可以使用 fixture；这些 Mock 只能通过 Adapter 注入。首个 Golden Path 输入为：
+
+```text
+查看 node-exporter 最近 30 分钟的 CPU 使用率、内存可用率和系统负载
+```
+
+Deterministic Mock Model 应产生固定计划，但指标检索和查询必须真实命中至少以下指标：
+
+```text
+node_cpu_seconds_total
+node_memory_MemAvailable_bytes
+node_load1
+```
+
+首版固定 PromQL 建议为：
+
+```promql
+100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))
+100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+node_load1
+```
+
+PromQL 是 Golden Path 的确定性输入，时间序列样本来自真实 Prometheus；测试可以校验表达式、返回类型和 series 数，但不能校验运行时样本的精确值。
+
+验收断言至少包括：
+
+1. Prometheus target `up{job="node-exporter"}` 为 1。
+2. 指标 metadata/labels 可检索，三条 PromQL 执行成功且每张图至少返回一个 series/sample。
+3. 前端收到三张 `ChartDraft`，TaskEvent `sequence` 单调递增且刷新后可重放。
+4. 编辑一条 PromQL 后产生新的 `QueryRevision` 和 `ChartExecution`，旧版本仍可追溯。
+5. 重启 AI Core 后，会话、图表、任务事件和审批状态能从 SQLite 恢复。
+6. 未审批的写入返回 `approval_required`；批准后测试 Dashboard 新增 Panel，Dashboard version 递增，Panel PromQL 与已批准草稿一致。
+7. 审计记录包含 request/trace、用户、目标 Dashboard、approval 和结果摘要，但不包含 Grafana grant、Cookie、Token 或时间序列明细。
+8. 使用相同 idempotency key 重试已批准保存时不产生重复 Panel；使用过期或 scope 不匹配的 ApprovalEvidence 必须失败。
+
+真实指标值随时间和运行环境变化，测试不得断言 CPU、内存或 load 的精确数值；只断言 target 健康、返回类型、非空结果、时间范围和 Schema。无数据、超时、权限失败、版本冲突等需要精确复现的异常仍由 Mock E2E 覆盖。
+
+测试环境必须与日常/生产 Grafana 隔离：使用独立 Compose project name、Grafana org/folder/dashboard、datasource UID 和命名 volume。测试断言使用本次 `runId`、保存前后 Dashboard version 与新 Panel ID，不能依赖“同名 Panel 已存在”。本地停止默认不隐式删除调试数据，CI teardown 必须显式 `down -v` 清理；任何脚本都不得接受生产 Grafana/Prometheus 地址作为默认值。
+
+本地首版 Prometheus Adapter 可以通过 bootstrap 配置直连 `http://prometheus:9090`，但 Request/Domain 仍必须携带不透明 `datasourceUid`。直连模式不覆盖 Grafana datasource RBAC；若生产要求所有查询经过 Grafana datasource proxy，应新增对应 Adapter/ADR，并复用同一 `PrometheusPort` Contract Test。
+
+所有 E2E 都是纵向链路目标，不是 Level 1 接口骨架的阻塞条件。`local-real` 可以作为手工、nightly 或合并前专项检查；当环境和时长稳定后再提升为常规 CI 门槛。
+
+### 26.8 Golden Query
 
 `tests/golden-queries/` 建议：
 
 ```text
+node_exporter_analysis.yaml
 service_error_rate.yaml
 service_latency.yaml
 instance_cpu.yaml
@@ -3013,6 +3114,7 @@ component-smoke          # 对已有可启动模块
 sqlite-contract-test     # SQLite Adapter 建立后必须
 postgres-contract-test   # PostgreSQL Adapter 建立后必须
 mock-e2e                 # Level 3 集成阶段
+local-real-e2e           # Level 4，先手工/nightly，稳定后再进入常规 CI
 security-scan            # 有可构建镜像后
 ```
 
@@ -3113,6 +3215,8 @@ AI Core Persistence: SQLite Real
 assistant-mcp Catalog Persistence: SQLite or deterministic fixture
 ```
 
+骨架阶段可以并行实现一个最薄的真实 Prometheus Adapter 和测试 Grafana Write Adapter，用于 `local-real` profile 验证 Port/Adapter 可替换性。这是集成测试基础设施前置，不表示把 MS2 的真实模型、完整指标字典、生产鉴权或产品质量目标提前到 MS1；默认骨架验收仍以 Mock 可重复、模块可独立验证为准。
+
 ### 29.2 MS2
 
 ```text
@@ -3206,6 +3310,19 @@ Deployment: Production-ready
 7. 记录 DashboardSaveResult 和 AuditEvent。
 8. 可重放无权限、版本冲突、AI 不可用和断线续传场景。
 
+### 30.7 第 6 步：本地真实基础设施混合 E2E
+
+Mock 纵向链路稳定后，按以下顺序替换真实基础设施 Adapter，不修改 application/domain：
+
+1. 增加 Prometheus 和 `node_exporter` Compose 服务，配置 scrape、readiness 和持久化/临时数据目录。
+2. Provision Grafana Prometheus datasource、测试 Folder 和 `AI E2E` Dashboard；应用路径不得使用测试初始化管理员凭证。
+3. 为 Grafana 容器构建并加载 Linux 目标架构的 Plugin Frontend/Backend。
+4. 实现最薄 Prometheus Adapter，使用 `node_*` 指标通过同一 MetricCatalog/QueryEngine Contract Test。
+5. 保持 Deterministic Mock Model，执行 `node_exporter_analysis` Golden Path，真实生成三张图。
+6. 验证 SSE 重放、PromQL 编辑、SQLite 重启恢复。
+7. 实现/接入测试 Grafana 受控代理，验证审批前拒绝、审批后新增 Panel、版本递增与审计落盘。
+8. 将 `make e2e-local` 接入手工/nightly 检查；稳定后再评估是否成为合并门槛。
+
 ---
 
 ## 31. 骨架验收标准
@@ -3237,7 +3354,17 @@ Deployment: Production-ready
 - 权限失败、版本冲突、AI 不可用和断线重放可解释且不丢已有内容。
 - Compose 默认使用 SQLite；PostgreSQL profile 不要求在此阶段完成。
 
-### 31.4 全阶段架构验收
+### 31.4 Level 4：本地真实基础设施混合 E2E（集成增强目标）
+
+- 五个常驻容器 Grafana、AI Core、`assistant-mcp`、Prometheus、`node_exporter` 可通过统一命令启动并通过 readiness。
+- `node-exporter` target 可被 Prometheus 抓取，真实 metadata/label/PromQL 查询可生成三张非空图表。
+- HTTP、SSE、MCP、SQLite 和 Grafana Dashboard 写入均走真实链路；Model 可以保持确定性 Mock。
+- 会话恢复、QueryRevision、TaskEvent replay 和 Approval 状态在容器/进程重启后不丢失。
+- 未审批写入失败，审批后只新增 Panel、不覆盖或删除现有 Panel；Grafana version 与审计记录可验证。
+- 真实数据测试只断言健康、Schema、非空和状态迁移；确定性错误语义继续由 Level 3 覆盖。
+- 该 Level 不反向阻塞 Level 1；是否成为日常 CI 门槛由运行时长和稳定性决定。
+
+### 31.5 全阶段架构验收
 
 - 前端可只依赖 Mock 开发
 - AI Core 可只依赖 Tool Mock 开发
@@ -3274,9 +3401,10 @@ ADR-015-single-assistant-mcp-with-namespaces.md
 ADR-016-service-data-ownership.md
 ADR-017-grafana-delegation-grant.md
 ADR-018-reuse-grafana-folder-permissions.md
+ADR-019-local-docker-hybrid-e2e.md
 ```
 
-其中 ADR-017 状态为 Provisional；其他 ADR 文件可在建立骨架时按本文内容补齐。Provisional ADR 不妨碍创建接口和 Mock，但会阻止对应真实高风险 Adapter 进入生产。
+其中 ADR-017 状态为 Provisional；ADR-019 记录 `mock-e2e` 与 `local-real` 双测试跑道、五容器拓扑、直连 Prometheus 的测试边界及升级 CI 门槛的条件。其他 ADR 文件可在建立骨架时按本文内容补齐。Provisional ADR 不妨碍创建接口和 Mock，但会阻止对应真实高风险 Adapter 进入生产。
 
 ---
 
@@ -3318,6 +3446,8 @@ ADR-018-reuse-grafana-folder-permissions.md
 - Prometheus 和 Grafana 工具可以独立实现。
 - 会话和持久化可以独立建设。
 - Mock 可以逐步支持完整演示和 E2E，但首个接口骨架不以全系统可运行为完成条件。
+- 本地可以用 Grafana、Prometheus、`node_exporter` 加项目服务运行真实基础设施混合 E2E，验证 Adapter 替换和完整协议链路。
+- 确定性 Mock E2E 与真实基础设施 E2E 长期并存：前者负责精确回归和错误注入，后者负责发现网络、镜像、插件、真实 API 与权限回程问题。
 - 后续真实能力可以逐步替换 Mock。
 - 替换过程中接口、状态机和领域对象保持稳定。
 - 权限、安全、审批、审计和可观测性不会在后期被迫重构。
