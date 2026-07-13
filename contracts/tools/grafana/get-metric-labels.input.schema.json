@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/tools/grafana/get-metric-labels.input.schema.json",
+  "title": "grafana.get_metric_labels input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["datasourceUid", "metricName"],
+  "properties": {
+    "datasourceUid": {"const": "mock-prometheus"},
+    "metricName": {"type": "string", "enum": ["node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_load1"]}
+  }
+}

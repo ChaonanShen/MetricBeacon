@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/tools/grafana/query-prometheus.output.schema.json",
+  "title": "grafana.query_prometheus output",
+  "$defs": {
+    "validation": {
+      "type": "object", "additionalProperties": false, "required": ["valid", "errors", "warnings", "metricNames", "labelNames"],
+      "properties": {
+        "valid": {"type": "boolean"}, "errors": {"type": "array", "items": {"type": "string"}}, "warnings": {"type": "array", "items": {"type": "string"}},
+        "metricNames": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "labelNames": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["validation", "status", "resultType", "series", "durationMs", "warnings"],
+  "properties": {
+    "validation": {"$ref": "#/$defs/validation"},
+    "status": {"type": "string", "enum": ["success", "failed"]},
+    "resultType": {"const": "matrix"},
+    "series": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "labels", "points"], "properties": {"name": {"type": "string"}, "labels": {"type": "object", "additionalProperties": {"type": "string"}}, "points": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["timestamp", "value"], "properties": {"timestamp": {"type": "string", "format": "date-time"}, "value": {"type": "number"}}}}}}},
+    "durationMs": {"type": "integer", "minimum": 0},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

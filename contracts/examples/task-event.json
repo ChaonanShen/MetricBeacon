@@ -1,0 +1,13 @@
+{
+  "eventId": "event_demo_001",
+  "taskId": "task_demo",
+  "sessionId": "session_demo",
+  "sequence": 4,
+  "type": "assistant.message.delta",
+  "timestamp": "2026-07-13T10:30:00Z",
+  "payload": {
+    "messageId": "message_demo",
+    "delta": "正在生成固定的 node_exporter 分析视图…",
+    "ordinal": 1
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/mock-scenario-manifest.schema.json",
+  "title": "MockScenarioManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scenarioId", "version", "files"],
+  "properties": {
+    "scenarioId": {"const": "node_exporter_overview"},
+    "version": {"const": "v1"},
+    "files": {
+      "type": "object", "additionalProperties": false,
+      "required": ["searchMetrics", "metricLabels", "queryCpu", "queryMemory", "queryLoad", "expectedTaskEvents"],
+      "properties": {
+        "searchMetrics": {"const": "search_metrics.json"}, "metricLabels": {"const": "metric_labels.json"}, "queryCpu": {"const": "query_cpu.json"},
+        "queryMemory": {"const": "query_memory.json"}, "queryLoad": {"const": "query_load.json"}, "expectedTaskEvents": {"const": "expected_task_events.json"}
+      }
+    }
+  }
+}

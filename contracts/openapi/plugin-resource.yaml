@@ -1,0 +1,108 @@
+openapi: 3.1.1
+info:
+  title: Mini Torchbearing Plugin Resource API
+  version: v1
+  description: Browser-visible API exposed only by the Grafana App Plugin backend.
+  license: {name: UNLICENSED, identifier: UNLICENSED}
+servers:
+  - url: /
+security:
+  - GrafanaSession: []
+paths:
+  /api/plugins/mini-torchbearing-app/resources/sessions:
+    post:
+      summary: Create a Session through the Plugin Resource API
+      x-mtb-timeout-ms: 10000
+      operationId: createSession
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateSessionRequest'}
+      responses:
+        '201': {description: Session created, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/sessions/{sessionId}:
+    get:
+      summary: Get a Session snapshot through the Plugin Resource API
+      x-mtb-timeout-ms: 10000
+      operationId: getSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': {description: Session snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/tasks:
+    post:
+      summary: Create an asynchronous analysis Task
+      x-mtb-timeout-ms: 10000
+      operationId: createTask
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateTaskRequest'}
+      responses:
+        '202': {description: Task accepted, content: {application/json: {schema: {$ref: '#/components/schemas/Task'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/tasks/{taskId}:
+    get:
+      summary: Get an analysis Task snapshot
+      x-mtb-timeout-ms: 10000
+      operationId: getTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': {description: Task snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Task'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/tasks/{taskId}/events:
+    get:
+      summary: Replay and follow durable TaskEvents
+      x-mtb-timeout-ms: 0
+      operationId: streamTaskEvents
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/AfterSequence'
+        - $ref: '#/components/parameters/LastEventId'
+      responses:
+        '200':
+          description: Durable TaskEvent stream. `id` is the event sequence.
+          content:
+            text/event-stream:
+              schema: {$ref: '#/components/schemas/TaskEvent'}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+components:
+  parameters:
+    SessionId: {name: sessionId, in: path, required: true, schema: {type: string, minLength: 1}}
+    TaskId: {name: taskId, in: path, required: true, schema: {type: string, minLength: 1}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1}}
+    RequestId: {name: X-Request-ID, in: header, required: false, schema: {type: string, minLength: 1}}
+    AfterSequence: {name: afterSequence, in: query, required: false, schema: {type: integer, minimum: 0}}
+    LastEventId: {name: Last-Event-ID, in: header, required: false, schema: {type: integer, minimum: 0}}
+  schemas:
+    CreateSessionRequest: {$ref: '../schemas/api/create-session-request.schema.json'}
+    CreateTaskRequest: {$ref: '../schemas/api/create-task-request.schema.json'}
+    Session: {$ref: '../schemas/session/session.schema.json'}
+    Task: {$ref: '../schemas/task/task.schema.json'}
+    Chart: {$ref: '../schemas/chart/chart.schema.json'}
+    ChartExecution: {$ref: '../schemas/chart/execution.schema.json'}
+    TaskEvent: {$ref: '../events/task-events.schema.json'}
+    ErrorEnvelope: {$ref: '../schemas/common/error.schema.json'}
+  responses:
+    ErrorResponse:
+      description: Structured domain error
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  securitySchemes:
+    GrafanaSession:
+      type: apiKey
+      in: cookie
+      name: grafana_session

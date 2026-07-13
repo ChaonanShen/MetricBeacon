@@ -1,0 +1,4 @@
+{
+  "datasourceUid": "mock-prometheus",
+  "metricName": "node_cpu_seconds_total"
+}

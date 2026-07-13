@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/tools/grafana/query-prometheus.input.schema.json",
+  "title": "grafana.query_prometheus input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["datasourceUid", "expression", "start", "end", "stepSeconds", "mode"],
+  "properties": {
+    "datasourceUid": {"const": "mock-prometheus"},
+    "expression": {"type": "string", "minLength": 1},
+    "start": {"type": "string", "format": "date-time"},
+    "end": {"type": "string", "format": "date-time"},
+    "stepSeconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+    "mode": {"type": "string", "enum": ["validate", "execute"]}
+  }
+}

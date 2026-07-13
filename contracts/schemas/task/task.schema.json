@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/task/task.schema.json",
+  "title": "AnalysisTask",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "sessionId", "status", "inputMessageId", "datasourceUid", "timeRange", "latestSequence", "error", "createdAt", "startedAt", "completedAt", "updatedAt", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "sessionId": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["created", "planning", "running_tools", "validating", "completed", "failed"]},
+    "inputMessageId": {"type": "string", "minLength": 1},
+    "datasourceUid": {"type": "string", "minLength": 1},
+    "timeRange": {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string", "format": "date-time"}, "to": {"type": "string", "format": "date-time"}}},
+    "latestSequence": {"type": "integer", "minimum": 0},
+    "error": {"anyOf": [{"type": "object", "additionalProperties": true, "required": ["code", "message", "retryable", "requestId"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "retryable": {"type": "boolean"}, "requestId": {"type": "string"}}}, {"type": "null"}]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "startedAt": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "completedAt": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "updatedAt": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1}
+  }
+}

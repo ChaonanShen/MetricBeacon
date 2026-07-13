@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/task/tool-call.schema.json",
+  "title": "ToolCall",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "taskId", "toolName", "toolVersion", "status", "inputSummary", "outputSummary", "error", "startedAt", "completedAt", "durationMs", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "taskId": {"type": "string", "minLength": 1},
+    "toolName": {"type": "string", "minLength": 1},
+    "toolVersion": {"const": "v1"},
+    "status": {"type": "string", "enum": ["started", "completed", "failed"]},
+    "inputSummary": {"type": "object", "additionalProperties": true},
+    "outputSummary": {"anyOf": [{"type": "object", "additionalProperties": true}, {"type": "null"}]},
+    "error": {"anyOf": [{"type": "object", "additionalProperties": true, "required": ["code", "message", "retryable", "requestId"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "retryable": {"type": "boolean"}, "requestId": {"type": "string"}}}, {"type": "null"}]},
+    "startedAt": {"type": "string", "format": "date-time"},
+    "completedAt": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "durationMs": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+    "version": {"type": "integer", "minimum": 1}
+  }
+}

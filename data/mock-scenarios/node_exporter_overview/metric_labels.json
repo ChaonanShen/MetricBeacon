@@ -1,0 +1,7 @@
+{
+  "labels": [
+    {"metricName":"node_cpu_seconds_total","labelNames":["cpu","instance","job","mode"],"sampleValues":{"cpu":["0","1"],"instance":["node-a:9100","node-b:9100"],"job":["node-exporter"],"mode":["idle","user","system"]}},
+    {"metricName":"node_memory_MemAvailable_bytes","labelNames":["instance","job"],"sampleValues":{"instance":["node-a:9100","node-b:9100"],"job":["node-exporter"]}},
+    {"metricName":"node_load1","labelNames":["instance","job"],"sampleValues":{"instance":["node-a:9100","node-b:9100"],"job":["node-exporter"]}}
+  ]
+}

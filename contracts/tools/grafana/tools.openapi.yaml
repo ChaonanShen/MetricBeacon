@@ -1,0 +1,38 @@
+openapi: 3.1.1
+info:
+  title: Mini Torchbearing Grafana MCP Tool DTOs
+  version: v1
+  license: {name: UNLICENSED, identifier: UNLICENSED}
+servers:
+  - url: /
+security: []
+paths:
+  /grafana.search_metrics:
+    post:
+      operationId: searchMetrics
+      summary: Type source for grafana.search_metrics
+      x-mtb-timeout-ms: 5000
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SearchMetricsInput'}}}}
+      responses: {'200': {description: Tool output, content: {application/json: {schema: {$ref: '#/components/schemas/SearchMetricsOutput'}}}}}
+  /grafana.get_metric_labels:
+    post:
+      operationId: getMetricLabels
+      summary: Type source for grafana.get_metric_labels
+      x-mtb-timeout-ms: 5000
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GetMetricLabelsInput'}}}}
+      responses: {'200': {description: Tool output, content: {application/json: {schema: {$ref: '#/components/schemas/GetMetricLabelsOutput'}}}}}
+  /grafana.query_prometheus:
+    post:
+      operationId: queryPrometheus
+      summary: Type source for grafana.query_prometheus
+      x-mtb-timeout-ms: 5000
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/QueryPrometheusInput'}}}}
+      responses: {'200': {description: Tool output, content: {application/json: {schema: {$ref: '#/components/schemas/QueryPrometheusOutput'}}}}}
+components:
+  schemas:
+    SearchMetricsInput: {$ref: './search-metrics.input.schema.json'}
+    SearchMetricsOutput: {$ref: './search-metrics.output.schema.json'}
+    GetMetricLabelsInput: {$ref: './get-metric-labels.input.schema.json'}
+    GetMetricLabelsOutput: {$ref: './get-metric-labels.output.schema.json'}
+    QueryPrometheusInput: {$ref: './query-prometheus.input.schema.json'}
+    QueryPrometheusOutput: {$ref: './query-prometheus.output.schema.json'}

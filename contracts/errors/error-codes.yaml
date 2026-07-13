@@ -1,0 +1,17 @@
+version: v1
+codes:
+  invalid_argument: {httpStatus: 400, retryable: false}
+  unauthenticated: {httpStatus: 401, retryable: false}
+  permission_denied: {httpStatus: 403, retryable: false}
+  resource_not_found: {httpStatus: 404, retryable: false}
+  resource_conflict: {httpStatus: 409, retryable: false}
+  invalid_state_transition: {httpStatus: 409, retryable: false}
+  adapter_not_configured: {httpStatus: 500, retryable: false}
+  dependency_unavailable: {httpStatus: 503, retryable: true}
+  tool_not_supported: {httpStatus: 501, retryable: false}
+  tool_timeout: {httpStatus: 503, retryable: true}
+  schema_validation_failed: {httpStatus: 400, retryable: false}
+  idempotency_conflict: {httpStatus: 409, retryable: false}
+  execution_interrupted: {httpStatus: 503, retryable: true}
+  internal_error: {httpStatus: 500, retryable: false}
+  not_implemented: {httpStatus: 501, retryable: false}

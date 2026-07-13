@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/events/task-events.schema.json",
+  "title": "TaskEvent",
+  "$defs": {
+    "taskEventError": {
+      "type": "object", "additionalProperties": true, "required": ["code", "message", "retryable", "requestId"],
+      "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "retryable": {"type": "boolean"}, "requestId": {"type": "string"}}
+    },
+    "taskSnapshot": {
+      "type": "object", "additionalProperties": true, "required": ["id", "sessionId", "status"],
+      "properties": {"id": {"type": "string"}, "sessionId": {"type": "string"}, "status": {"type": "string"}}
+    },
+    "message": {
+      "type": "object", "additionalProperties": true, "required": ["id", "sessionId", "role", "content", "createdAt"],
+      "properties": {"id": {"type": "string"}, "sessionId": {"type": "string"}, "role": {"type": "string"}, "content": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}}
+    },
+    "candidate": {
+      "type": "object", "additionalProperties": true, "required": ["metricName", "type", "description", "labels", "score", "sources"],
+      "properties": {"metricName": {"type": "string"}, "type": {"type": "string"}, "description": {"type": "string"}, "labels": {"type": "array"}, "score": {"type": "number"}, "sources": {"type": "array"}}
+    },
+    "chart": {
+      "type": "object", "additionalProperties": true, "required": ["id", "taskId", "title", "status"],
+      "properties": {"id": {"type": "string"}, "taskId": {"type": "string"}, "title": {"type": "string"}, "status": {"type": "string"}}
+    },
+    "execution": {
+      "type": "object", "additionalProperties": true, "required": ["id", "status", "series", "seriesCount"],
+      "properties": {"id": {"type": "string"}, "status": {"type": "string"}, "series": {"type": "array"}, "seriesCount": {"type": "integer", "minimum": 0}}
+    },
+    "taskCreated": {
+      "type": "object", "additionalProperties": false, "required": ["task"],
+      "properties": {"task": {"$ref": "#/$defs/taskSnapshot"}}
+    },
+    "statusChanged": {
+      "type": "object", "additionalProperties": false, "required": ["previousStatus", "status"],
+      "properties": {
+        "previousStatus": {"type": "string", "enum": ["created", "planning", "running_tools", "validating", "completed", "failed"]},
+        "status": {"type": "string", "enum": ["created", "planning", "running_tools", "validating", "completed", "failed"]},
+        "error": {"$ref": "#/$defs/taskEventError"}
+      }
+    },
+    "assistantStarted": {
+      "type": "object", "additionalProperties": false, "required": ["messageId", "role"],
+      "properties": {"messageId": {"type": "string", "minLength": 1}, "role": {"const": "assistant"}}
+    },
+    "assistantDelta": {
+      "type": "object", "additionalProperties": false, "required": ["messageId", "delta", "ordinal"],
+      "properties": {"messageId": {"type": "string", "minLength": 1}, "delta": {"type": "string", "minLength": 1}, "ordinal": {"type": "integer", "minimum": 1}}
+    },
+    "assistantCompleted": {
+      "type": "object", "additionalProperties": false, "required": ["message"],
+      "properties": {"message": {"$ref": "#/$defs/message"}}
+    },
+    "toolStarted": {
+      "type": "object", "additionalProperties": false, "required": ["toolCallId", "toolName", "toolVersion", "inputSummary"],
+      "properties": {
+        "toolCallId": {"type": "string", "minLength": 1}, "toolName": {"type": "string", "minLength": 1}, "toolVersion": {"const": "v1"},
+        "inputSummary": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "toolCompleted": {
+      "type": "object", "additionalProperties": false, "required": ["toolCallId", "toolName", "durationMs", "outputSummary"],
+      "properties": {
+        "toolCallId": {"type": "string", "minLength": 1}, "toolName": {"type": "string", "minLength": 1}, "durationMs": {"type": "integer", "minimum": 0},
+        "outputSummary": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "toolFailed": {
+      "type": "object", "additionalProperties": false, "required": ["toolCallId", "toolName", "durationMs", "error"],
+      "properties": {
+        "toolCallId": {"type": "string", "minLength": 1}, "toolName": {"type": "string", "minLength": 1}, "durationMs": {"type": "integer", "minimum": 0},
+        "error": {"$ref": "#/$defs/taskEventError"}
+      }
+    },
+    "metricCandidates": {
+      "type": "object", "additionalProperties": false, "required": ["candidates"],
+      "properties": {"candidates": {"type": "array", "items": {"$ref": "#/$defs/candidate"}}}
+    },
+    "chartCreated": {
+      "type": "object", "additionalProperties": false, "required": ["chart"],
+      "properties": {"chart": {"$ref": "#/$defs/chart"}}
+    },
+    "chartExecutionCompleted": {
+      "type": "object", "additionalProperties": false, "required": ["chartId", "execution", "chartStatus"],
+      "properties": {
+        "chartId": {"type": "string", "minLength": 1}, "execution": {"$ref": "#/$defs/execution"}, "chartStatus": {"const": "ready"}
+      }
+    },
+    "taskCompleted": {
+      "type": "object", "additionalProperties": false, "required": ["task"],
+      "properties": {"task": {"$ref": "#/$defs/taskSnapshot"}}
+    },
+    "taskFailed": {
+      "type": "object", "additionalProperties": false, "required": ["task", "error"],
+      "properties": {
+        "task": {"$ref": "#/$defs/taskSnapshot"},
+        "error": {"$ref": "#/$defs/taskEventError"}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "taskId", "sessionId", "sequence", "type", "timestamp", "payload"],
+  "properties": {
+    "eventId": {"type": "string", "minLength": 1},
+    "taskId": {"type": "string", "minLength": 1},
+    "sessionId": {"type": "string", "minLength": 1},
+    "sequence": {"type": "integer", "minimum": 1},
+    "type": {"type": "string", "enum": ["task.created", "task.status_changed", "assistant.message.started", "assistant.message.delta", "assistant.message.completed", "tool.started", "tool.completed", "tool.failed", "metric.candidates_created", "chart.created", "chart.execution_completed", "task.completed", "task.failed"]},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object"}
+  },
+  "oneOf": [
+    {"properties": {"type": {"const": "task.created"}, "payload": {"$ref": "#/$defs/taskCreated"}}},
+    {"properties": {"type": {"const": "task.status_changed"}, "payload": {"$ref": "#/$defs/statusChanged"}}},
+    {"properties": {"type": {"const": "assistant.message.started"}, "payload": {"$ref": "#/$defs/assistantStarted"}}},
+    {"properties": {"type": {"const": "assistant.message.delta"}, "payload": {"$ref": "#/$defs/assistantDelta"}}},
+    {"properties": {"type": {"const": "assistant.message.completed"}, "payload": {"$ref": "#/$defs/assistantCompleted"}}},
+    {"properties": {"type": {"const": "tool.started"}, "payload": {"$ref": "#/$defs/toolStarted"}}},
+    {"properties": {"type": {"const": "tool.completed"}, "payload": {"$ref": "#/$defs/toolCompleted"}}},
+    {"properties": {"type": {"const": "tool.failed"}, "payload": {"$ref": "#/$defs/toolFailed"}}},
+    {"properties": {"type": {"const": "metric.candidates_created"}, "payload": {"$ref": "#/$defs/metricCandidates"}}},
+    {"properties": {"type": {"const": "chart.created"}, "payload": {"$ref": "#/$defs/chartCreated"}}},
+    {"properties": {"type": {"const": "chart.execution_completed"}, "payload": {"$ref": "#/$defs/chartExecutionCompleted"}}},
+    {"properties": {"type": {"const": "task.completed"}, "payload": {"$ref": "#/$defs/taskCompleted"}}},
+    {"properties": {"type": {"const": "task.failed"}, "payload": {"$ref": "#/$defs/taskFailed"}}}
+  ]
+}

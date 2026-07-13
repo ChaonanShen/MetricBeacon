@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/tools/grafana/search-metrics.input.schema.json",
+  "title": "grafana.search_metrics input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["datasourceUid", "query", "limit"],
+  "properties": {
+    "datasourceUid": {"const": "mock-prometheus"},
+    "query": {"type": "string", "minLength": 1},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 100}
+  }
+}

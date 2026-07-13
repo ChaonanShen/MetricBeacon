@@ -1,0 +1,156 @@
+openapi: 3.1.1
+info:
+  title: Mini Torchbearing AI Core API
+  version: v1
+  description: Internal API used only by the Grafana Plugin Backend.
+  license: {name: UNLICENSED, identifier: UNLICENSED}
+servers:
+  - url: http://ai-core:8080
+security:
+  - InternalServiceIdentity: []
+paths:
+  /healthz:
+    get:
+      summary: Report process liveness
+      x-mtb-timeout-ms: 1000
+      operationId: healthz
+      responses:
+        '200': {description: Process is alive}
+  /readyz:
+    get:
+      summary: Report storage and MCP dependency readiness
+      x-mtb-timeout-ms: 5000
+      operationId: readyz
+      responses:
+        '200': {description: "Migrations, storage and MCP dependency are ready"}
+        '503': {$ref: '#/components/responses/ErrorResponse'}
+  /v1/sessions:
+    post:
+      summary: Create a Session with Plugin-derived RequestContext
+      x-mtb-timeout-ms: 10000
+      operationId: createSession
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Roles'
+        - $ref: '#/components/parameters/Permissions'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreateSessionRequest'}}}
+      responses:
+        '201': {description: Session created, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /v1/sessions/{sessionId}:
+    get:
+      summary: Get a tenant-scoped Session
+      x-mtb-timeout-ms: 10000
+      operationId: getSession
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Roles'
+        - $ref: '#/components/parameters/Permissions'
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      responses:
+        '200': {description: Session snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /v1/tasks:
+    post:
+      summary: Create an asynchronous tenant-scoped Task
+      x-mtb-timeout-ms: 10000
+      operationId: createTask
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Roles'
+        - $ref: '#/components/parameters/Permissions'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreateTaskRequest'}}}
+      responses:
+        '202': {description: Task accepted, content: {application/json: {schema: {$ref: '#/components/schemas/Task'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /v1/tasks/{taskId}:
+    get:
+      summary: Get a tenant-scoped Task
+      x-mtb-timeout-ms: 10000
+      operationId: getTask
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Roles'
+        - $ref: '#/components/parameters/Permissions'
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      responses:
+        '200': {description: Task snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Task'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /v1/tasks/{taskId}/events:
+    get:
+      summary: Replay and follow durable tenant-scoped TaskEvents
+      x-mtb-timeout-ms: 0
+      operationId: streamTaskEvents
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Roles'
+        - $ref: '#/components/parameters/Permissions'
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/AfterSequence'
+        - $ref: '#/components/parameters/LastEventId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      responses:
+        '200': {description: Durable TaskEvent stream, content: {text/event-stream: {schema: {$ref: '#/components/schemas/TaskEvent'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+components:
+  parameters:
+    SessionId: {name: sessionId, in: path, required: true, schema: {type: string, minLength: 1}}
+    TaskId: {name: taskId, in: path, required: true, schema: {type: string, minLength: 1}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1}}
+    RequestId: {name: X-Request-ID, in: header, required: true, schema: {type: string, minLength: 1}}
+    TraceId: {name: X-Trace-ID, in: header, required: true, schema: {type: string, minLength: 1}}
+    TraceParent: {name: traceparent, in: header, required: false, schema: {type: string, minLength: 1}}
+    AfterSequence: {name: afterSequence, in: query, required: false, schema: {type: integer, minimum: 0}}
+    LastEventId: {name: Last-Event-ID, in: header, required: false, schema: {type: integer, minimum: 0}}
+    TenantId: {name: X-MTB-Tenant-ID, in: header, required: true, schema: {type: string, minLength: 1}}
+    OrgId: {name: X-MTB-Org-ID, in: header, required: true, schema: {type: string, minLength: 1}}
+    UserId: {name: X-MTB-User-ID, in: header, required: true, schema: {type: string, minLength: 1}}
+    Roles: {name: X-MTB-Roles, in: header, required: true, schema: {type: string, minLength: 1}, description: "Comma-separated, trimmed and de-duplicated roles."}
+    Permissions: {name: X-MTB-Permissions, in: header, required: true, schema: {type: string, minLength: 1}, description: "Comma-separated permissions; must include datasources:query for this profile."}
+  schemas:
+    CreateSessionRequest: {$ref: '../schemas/api/create-session-request.schema.json'}
+    CreateTaskRequest: {$ref: '../schemas/api/create-task-request.schema.json'}
+    Session: {$ref: '../schemas/session/session.schema.json'}
+    Task: {$ref: '../schemas/task/task.schema.json'}
+    Chart: {$ref: '../schemas/chart/chart.schema.json'}
+    ChartExecution: {$ref: '../schemas/chart/execution.schema.json'}
+    TaskEvent: {$ref: '../events/task-events.schema.json'}
+    ErrorEnvelope: {$ref: '../schemas/common/error.schema.json'}
+  responses:
+    ErrorResponse:
+      description: Structured domain error
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+  securitySchemes:
+    InternalServiceIdentity:
+      type: apiKey
+      in: header
+      name: X-MTB-Tenant-ID

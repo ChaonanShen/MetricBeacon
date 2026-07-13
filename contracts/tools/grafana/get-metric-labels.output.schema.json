@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/tools/grafana/get-metric-labels.output.schema.json",
+  "title": "grafana.get_metric_labels output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["metricName", "labelNames", "sampleValues"],
+  "properties": {
+    "metricName": {"type": "string", "minLength": 1},
+    "labelNames": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "sampleValues": {"type": "object", "additionalProperties": {"type": "array", "minItems": 1, "items": {"type": "string"}}}
+  }
+}

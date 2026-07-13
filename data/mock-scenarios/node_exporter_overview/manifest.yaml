@@ -1,0 +1,9 @@
+scenarioId: node_exporter_overview
+version: v1
+files:
+  searchMetrics: search_metrics.json
+  metricLabels: metric_labels.json
+  queryCpu: query_cpu.json
+  queryMemory: query_memory.json
+  queryLoad: query_load.json
+  expectedTaskEvents: expected_task_events.json

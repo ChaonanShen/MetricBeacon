@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/expected-task-events.schema.json",
+  "title": "ExpectedTaskEventOrder",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventTypes"],
+  "properties": {
+    "eventTypes": {
+      "type": "array", "minItems": 1,
+      "items": {"type": "string", "enum": ["task.created", "task.status_changed", "assistant.message.started", "assistant.message.delta", "assistant.message.completed", "tool.started", "tool.completed", "tool.failed", "metric.candidates_created", "chart.created", "chart.execution_completed", "task.completed", "task.failed"]}
+    }
+  }
+}

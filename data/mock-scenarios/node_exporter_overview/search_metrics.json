@@ -1,0 +1,8 @@
+{
+  "candidates": [
+    {"metricName":"node_cpu_seconds_total","type":"counter","description":"Seconds the CPUs spent in each mode","labels":["cpu","instance","job","mode"],"score":1,"sources":[{"type":"mock_fixture","reference":"node_exporter_overview"}]},
+    {"metricName":"node_memory_MemAvailable_bytes","type":"gauge","description":"Memory information field MemAvailable_bytes","labels":["instance","job"],"score":0.98,"sources":[{"type":"mock_fixture","reference":"node_exporter_overview"}]},
+    {"metricName":"node_memory_MemTotal_bytes","type":"gauge","description":"Memory information field MemTotal_bytes","labels":["instance","job"],"score":0.96,"sources":[{"type":"mock_fixture","reference":"node_exporter_overview"}]},
+    {"metricName":"node_load1","type":"gauge","description":"1m load average","labels":["instance","job"],"score":0.95,"sources":[{"type":"mock_fixture","reference":"node_exporter_overview"}]}
+  ]
+}

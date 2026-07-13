@@ -1,0 +1,10 @@
+{
+  "eventTypes": [
+    "task.created", "task.status_changed", "assistant.message.started", "assistant.message.delta", "task.status_changed",
+    "tool.started", "tool.completed", "metric.candidates_created",
+    "tool.started", "tool.completed", "tool.started", "tool.completed", "tool.started", "tool.completed",
+    "tool.started", "tool.completed", "tool.started", "tool.completed", "tool.started", "tool.completed",
+    "chart.created", "chart.execution_completed", "chart.created", "chart.execution_completed", "chart.created", "chart.execution_completed",
+    "task.status_changed", "assistant.message.completed", "task.status_changed", "task.completed"
+  ]
+}

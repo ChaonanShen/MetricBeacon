@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/chart/chart.schema.json",
+  "title": "ChartDraft",
+  "$defs": {
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["refId", "expression", "legend", "datasourceUid", "timeRange"],
+      "properties": {
+        "refId": {"type": "string", "minLength": 1},
+        "expression": {"type": "string", "minLength": 1},
+        "legend": {"type": "string", "minLength": 1},
+        "datasourceUid": {"type": "string", "minLength": 1},
+        "timeRange": {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string", "format": "date-time"}, "to": {"type": "string", "format": "date-time"}}}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "sessionId", "taskId", "title", "visualization", "unit", "queries", "status", "latestExecutionId", "createdAt", "updatedAt", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "sessionId": {"type": "string", "minLength": 1},
+    "taskId": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "visualization": {"const": "timeseries"},
+    "unit": {"type": "string", "minLength": 1},
+    "queries": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/query"}},
+    "status": {"type": "string", "enum": ["proposed", "ready"]},
+    "latestExecutionId": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1}
+  }
+}
