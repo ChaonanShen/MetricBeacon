@@ -1,4 +1,4 @@
-module mini-torchbearing.local/services/ai-core
+module mini-torchbearing.local/packages/generated-clients/go
 
 go 1.26.5
 

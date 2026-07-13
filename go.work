@@ -2,8 +2,10 @@ go 1.26.5
 
 use (
 	./apps/grafana-plugin/backend
-	./services/ai-core
-	./services/assistant-mcp
+	./packages/generated-clients/go
+	./packages/generated-contracts/go
 	./packages/request-context-go
 	./packages/testkit-go
+	./services/ai-core
+	./services/assistant-mcp
 )

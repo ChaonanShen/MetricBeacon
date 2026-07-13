@@ -1,15 +1,15 @@
 # Basic Mock Skeleton Progress
 
-lastUpdated: 2026-07-13T13:02:27Z
-currentGate: G0
+lastUpdated: 2026-07-13T13:25:05Z
+currentGate: G1
 status: passed
-headCommit: 7026b44
-worktreeSummary: G0 scaffold verified; pending commit contains only the G0 scaffold and this progress record
+headCommit: 3da81a2
+worktreeSummary: G1 generated-client and validation artifacts are verified and pending their own commit
 
 ## Passed Gates
 
 - [x] G0 Scaffold
-- [ ] G1 Contracts
+- [x] G1 Contracts
 - [ ] G2 Domain/SQLite
 - [ ] G3 assistant-mcp
 - [ ] G4 AI Workflow
@@ -26,17 +26,22 @@ worktreeSummary: G0 scaffold verified; pending commit contains only the G0 scaff
 |`node --version` / `npm --version`|passed|2026-07-13T12:55:42Z|`v22.23.1` / `10.9.8`|
 |`docker image inspect grafana/grafana:latest`|passed|2026-07-13T12:55:42Z|Grafana `13.1.0`, linux/amd64 digest recorded in toolchain lock|
 |`make bootstrap-check`|passed|2026-07-13T13:02:27Z|All five Go modules compile; frontend typecheck and dependency boundary check pass without leaving binaries in source directories|
+|`make validate-contracts`|passed|2026-07-13T13:25:05Z|Three OpenAPI documents, 21 JSON Schemas, all examples and the node_exporter fixture validate|
+|`make generated-client-diff`|passed|2026-07-13T13:25:05Z|Go and TypeScript OpenAPI/Tool output is reproducible|
+|`make bootstrap-check` + generated Go `go test ./...`|passed|2026-07-13T13:25:05Z|Generated AI Core client/server, tool DTOs, all scaffold modules and frontend typecheck compile|
 
 ## Files/Interfaces Completed
 
 - G0 root/module/frontend skeleton: complete
 - `build/toolchain.lock`: initial host and Grafana runtime lock recorded
 - `scripts/check-boundaries.sh`: initial AI Core boundary rule recorded
+- G1 OpenAPI/JSON Schema/SSE/MCP contracts, examples and node_exporter fixture: complete
+- G1 generated Go/TypeScript clients, server interface and schema validation: complete
 
 ## Remaining Work For Current Gate
 
-1. Commit the verified G0 scaffold as its own cohesive slice.
-2. Advance to G1: establish shared contracts and fixture validation before any handler implementation.
+1. Commit the verified G1 code-generation and validation tooling as its own cohesive slice.
+2. Advance to G2: implement AI Core Domain, Port and SQLite only after this contract baseline is committed.
 
 ## Known Failures
 
@@ -53,6 +58,9 @@ worktreeSummary: G0 scaffold verified; pending commit contains only the G0 scaff
 - decision: lock Grafana frontend package family to the locally verified Grafana `13.1.0`
 - reason: Plugin frontend and runtime image must track the same Grafana major/minor baseline
 - affected files: `build/toolchain.lock`
+- decision: preserve OpenAPI 3.1 as the authority and project the Redocly-bundled AI Core/Tool schemas to temporary OpenAPI 3.0 only for Go generation
+- reason: `oapi-codegen` `v2.7.2` reports that OpenAPI 3.1 is unsupported and fails to generate directly from `$defs`/null-capable 3.1 schemas
+- affected files: `scripts/generate-clients.sh`, `apps/grafana-plugin/frontend/scripts/project-oas31-to-oas30.mjs`, ignored `build/generated/openapi/`
 
 ## Blockers Requiring User/Approval
 

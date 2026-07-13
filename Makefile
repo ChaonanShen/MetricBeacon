@@ -11,7 +11,7 @@ generate:
 	@./scripts/generate-clients.sh
 
 generated-client-diff:
-	@./scripts/require-gate-implementation.sh "generated-client-diff requires G1 contract generation"
+	@./scripts/generated-client-diff.sh
 
 validate-contracts:
 	@./scripts/validate-contracts.sh

@@ -4,6 +4,7 @@
 *.db-shm
 *.db-wal
 bin/
+build/generated/
 apps/grafana-plugin/backend/plugin
 services/ai-core/server
 services/assistant-mcp/server

@@ -12,6 +12,14 @@
     "build": "npm run typecheck"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "@redocly/cli": "2.38.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "yaml": "2.9.0"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
   }
 }

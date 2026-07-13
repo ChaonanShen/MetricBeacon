@@ -26,8 +26,12 @@ verifiedAt: 2026-07-13T12:55:42Z
 |MCP Go SDK (`github.com/mark3labs/mcp-go`)|`v0.56.0`|G3|
 |SQLite driver (`modernc.org/sqlite`)|`v1.53.0`|G2|
 |Go OpenAPI generator (`github.com/oapi-codegen/oapi-codegen/v2`)|`v2.7.2`|G1|
+|Go OpenAPI runtime (`github.com/oapi-codegen/runtime`)|`v1.5.0`|G1|
 |TypeScript OpenAPI generator (`openapi-typescript`)|`v7.13.0`|G1|
 |TypeScript OpenAPI transport (`openapi-fetch`)|`v0.17.0`|G1|
+|OpenAPI validator (`@redocly/cli`)|`v2.38.0`|G1|
+|JSON Schema validator (`ajv`, `ajv-formats`)|`v8.20.0`, `v3.0.1`|G1|
+|YAML parser (`yaml`)|`v2.9.0`|G1|
 |Grafana frontend packages (`@grafana/data`, `@grafana/runtime`, `@grafana/ui`)|`v13.1.0`|G6|
 |TypeScript|`v5.9.3`|G0|
 |Playwright (`@playwright/test`)|`v1.61.1`|G7|

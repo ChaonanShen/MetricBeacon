@@ -1,0 +1,6 @@
+extends:
+  - recommended
+rules:
+  # Each operation has a default structured Error response. Exact 4xx/5xx selection is
+  # owned by contracts/errors/error-codes.yaml and must not be duplicated per operation.
+  operation-4xx-response: off
