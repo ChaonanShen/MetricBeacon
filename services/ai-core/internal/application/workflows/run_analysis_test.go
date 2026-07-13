@@ -94,7 +94,7 @@ func TestRunUsesLiveCleanupContextAndPersistsFailureOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	workflow := RunAnalysisWorkflow{Store: store, Runtime: cancellingRuntime{cancel: cancel}, IDs: &sequenceIDs{}, Clock: fixedClock{now: now}}
+	workflow := RunAnalysisWorkflow{Store: store, Runtime: cancellingToolRuntime{cancel: cancel}, IDs: &sequenceIDs{}, Clock: fixedClock{now: now}}
 	if err := workflow.Run(ctx, requestcontext.Context{TenantID: "org:1", UserID: "user:1"}, "task_1"); err == nil {
 		t.Fatal("workflow unexpectedly succeeded")
 	}
@@ -106,12 +106,16 @@ func TestRunUsesLiveCleanupContextAndPersistsFailureOrder(t *testing.T) {
 	if err != nil || len(events) < 2 {
 		t.Fatalf("events: %#v, %v", events, err)
 	}
-	last := events[len(events)-2:]
-	if last[0].Type != task.EventTaskStatusChanged || last[1].Type != task.EventTaskFailed {
-		t.Fatalf("failure event order: %s, %s", last[0].Type, last[1].Type)
+	last := events[len(events)-3:]
+	if last[0].Type != task.EventToolFailed || last[1].Type != task.EventTaskStatusChanged || last[2].Type != task.EventTaskFailed {
+		t.Fatalf("failure event order: %s, %s, %s", last[0].Type, last[1].Type, last[2].Type)
 	}
-	if failed.LatestSequence != last[1].Sequence {
-		t.Fatalf("latest sequence = %d, want %d", failed.LatestSequence, last[1].Sequence)
+	if failed.LatestSequence != last[2].Sequence {
+		t.Fatalf("latest sequence = %d, want %d", failed.LatestSequence, last[2].Sequence)
+	}
+	calls, err := store.ToolCalls().ListByTask(context.Background(), "org:1", "task_1")
+	if err != nil || len(calls) != 1 || calls[0].Status != task.ToolCallFailed || calls[0].Error == nil {
+		t.Fatalf("failed tool calls: %#v, %v", calls, err)
 	}
 }
 
@@ -134,13 +138,16 @@ func (scriptedRuntime) Run(ctx context.Context, _ requestcontext.Context, reques
 	return dto.AgentRunResult{AssistantText: "fixed result", Proposals: proposals}, nil
 }
 
-type cancellingRuntime struct{ cancel context.CancelFunc }
+type cancellingToolRuntime struct{ cancel context.CancelFunc }
 
-func (r cancellingRuntime) Run(ctx context.Context, _ requestcontext.Context, _ dto.AgentRunRequest, _ agent.EventSink) (dto.AgentRunResult, error) {
+func (r cancellingToolRuntime) Run(ctx context.Context, _ requestcontext.Context, _ dto.AgentRunRequest, sink agent.EventSink) (dto.AgentRunResult, error) {
+	if err := sink.Emit(ctx, dto.AgentEvent{Type: string(task.EventToolStarted), Payload: map[string]any{"toolName": "grafana.query_prometheus"}}); err != nil {
+		return dto.AgentRunResult{}, err
+	}
 	r.cancel()
 	return dto.AgentRunResult{}, ctx.Err()
 }
-func (cancellingRuntime) Resume(context.Context, requestcontext.Context, dto.AgentResumeRequest, agent.EventSink) (dto.AgentRunResult, error) {
+func (cancellingToolRuntime) Resume(context.Context, requestcontext.Context, dto.AgentResumeRequest, agent.EventSink) (dto.AgentRunResult, error) {
 	return dto.AgentRunResult{}, nil
 }
 func (scriptedRuntime) Resume(context.Context, requestcontext.Context, dto.AgentResumeRequest, agent.EventSink) (dto.AgentRunResult, error) {

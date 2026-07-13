@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"time"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
@@ -42,6 +43,7 @@ func (w RunAnalysisWorkflow) Run(ctx context.Context, identity requestcontext.Co
 	if item.Status != task.StatusCreated {
 		return common.NewError(common.InvalidStateTransition, "task has already been started", false)
 	}
+	var sink *durableSink
 	defer func() {
 		if err == nil {
 			return
@@ -52,6 +54,11 @@ func (w RunAnalysisWorkflow) Run(ctx context.Context, identity requestcontext.Co
 		}
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		if sink != nil {
+			if toolErr := sink.failOpenTools(cleanupCtx, domainErr); toolErr != nil {
+				err = errors.Join(err, toolErr)
+			}
+		}
 		if failErr := w.fail(cleanupCtx, &item, domainErr); failErr != nil {
 			err = errors.Join(err, failErr)
 		}
@@ -64,7 +71,7 @@ func (w RunAnalysisWorkflow) Run(ctx context.Context, identity requestcontext.Co
 		return err
 	}
 	assistantMessageID := w.IDs.NewID("message")
-	sink := &durableSink{workflow: w, identity: identity, task: &item, assistantMessageID: assistantMessageID, openCalls: make(map[string]task.ToolCallRecord)}
+	sink = &durableSink{workflow: w, identity: identity, task: &item, assistantMessageID: assistantMessageID, openCalls: make(map[string]task.ToolCallRecord)}
 	result, err := w.Runtime.Run(ctx, identity, dto.AgentRunRequest{TaskID: item.ID, SessionID: item.SessionID, UserMessage: w.userMessage(ctx, item), DatasourceUID: item.DatasourceUID, TimeRange: item.TimeRange}, sink)
 	if err != nil {
 		return err
@@ -251,11 +258,22 @@ func (s *durableSink) Emit(ctx context.Context, source dto.AgentEvent) error {
 	if kind == task.EventToolStarted && toolName != "" {
 		encoded, _ := json.Marshal(payload)
 		record := task.ToolCallRecord{ID: s.workflow.IDs.NewID("tool"), TenantID: s.task.TenantID, TaskID: s.task.ID, ToolName: toolName, ToolVersion: "v1", Status: task.ToolCallStarted, InputSummary: encoded, StartedAt: s.workflow.Clock.Now(), Version: 1}
-		if err := s.workflow.Store.ToolCalls().Create(ctx, record); err != nil {
+		payload = map[string]any{"toolCallId": record.ID, "toolName": toolName, "toolVersion": "v1", "inputSummary": payload}
+		var event task.TaskEvent
+		err := s.workflow.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+			if err := tx.ToolCalls().Create(ctx, record); err != nil {
+				return err
+			}
+			var err error
+			event, err = s.workflow.appendEvent(ctx, tx, *s.task, kind, payload)
+			return err
+		})
+		if err != nil {
 			return err
 		}
 		s.openCalls[toolName] = record
-		payload = map[string]any{"toolCallId": record.ID, "toolName": toolName, "toolVersion": "v1", "inputSummary": payload}
+		s.workflow.notify(ctx, event)
+		return nil
 	}
 	if kind == task.EventToolCompleted && toolName != "" {
 		if record, exists := s.openCalls[toolName]; exists {
@@ -267,14 +285,58 @@ func (s *durableSink) Emit(ctx context.Context, source dto.AgentEvent) error {
 			record.Status, record.CompletedAt, record.DurationMS, record.Version = task.ToolCallCompleted, &now, &duration, record.Version+1
 			encoded, _ := json.Marshal(payload)
 			record.OutputSummary = encoded
-			if err := s.workflow.Store.ToolCalls().Complete(ctx, record, record.Version-1); err != nil {
+			payload = map[string]any{"toolCallId": record.ID, "toolName": toolName, "durationMs": duration, "outputSummary": payload}
+			var event task.TaskEvent
+			err := s.workflow.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+				if err := tx.ToolCalls().Complete(ctx, record, record.Version-1); err != nil {
+					return err
+				}
+				var err error
+				event, err = s.workflow.appendEvent(ctx, tx, *s.task, kind, payload)
+				return err
+			})
+			if err != nil {
 				return err
 			}
 			delete(s.openCalls, toolName)
-			payload = map[string]any{"toolCallId": record.ID, "toolName": toolName, "durationMs": duration, "outputSummary": payload}
+			s.workflow.notify(ctx, event)
+			return nil
 		}
 	}
 	return s.workflow.emit(ctx, *s.task, kind, payload)
+}
+
+func (s *durableSink) failOpenTools(ctx context.Context, domainErr *common.DomainError) error {
+	toolNames := make([]string, 0, len(s.openCalls))
+	for toolName := range s.openCalls {
+		toolNames = append(toolNames, toolName)
+	}
+	sort.Strings(toolNames)
+	for _, toolName := range toolNames {
+		record := s.openCalls[toolName]
+		now := s.workflow.Clock.Now()
+		duration := now.Sub(record.StartedAt).Milliseconds()
+		if duration < 0 {
+			duration = 0
+		}
+		record.Status, record.Error, record.CompletedAt, record.DurationMS, record.Version = task.ToolCallFailed, domainErr, &now, &duration, record.Version+1
+		payload := map[string]any{"toolCallId": record.ID, "toolName": toolName, "durationMs": duration, "error": map[string]any{"code": domainErr.Code, "message": domainErr.Message, "retryable": domainErr.Retryable}}
+		var event task.TaskEvent
+		err := s.workflow.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+			if err := tx.ToolCalls().Complete(ctx, record, record.Version-1); err != nil {
+				return err
+			}
+			var err error
+			event, err = s.workflow.appendEvent(ctx, tx, *s.task, task.EventToolFailed, payload)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		delete(s.openCalls, toolName)
+		s.workflow.notify(ctx, event)
+	}
+	return nil
 }
 
 func agentEventType(value string) (task.EventType, bool) {
