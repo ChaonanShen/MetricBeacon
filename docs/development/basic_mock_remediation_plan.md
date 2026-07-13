@@ -1,10 +1,10 @@
 # Basic Mock Skeleton Remediation Plan
 
-status: in_progress
+status: completed
 createdAt: 2026-07-13T15:30:00Z
 sourceCommit: 11d505b
 originalPlan: `docs/basic_mock_skeleton_execution_plan.md` v1.2
-resumeOriginalPlanAt: G4
+resumeOriginalPlanAt: completed
 
 ## 1. Purpose and boundary
 
@@ -93,10 +93,10 @@ ignores cleanup errors. Bootstrap never marks interrupted non-terminal Tasks as 
 
 ### 3.4 Frontend state and verification
 
-`sessionId` and `taskId` exist only in React state. The workbench neither reads nor replaces the URL,
-so refresh cannot restore snapshots or replay events. The SSE effect depends on `latestSequence`,
-which tears down the connection after every event. There is no frontend test runner or Playwright
-suite to catch either behavior.
+At audit time, `sessionId` and `taskId` existed only in React state. The workbench neither read nor
+replaced the URL, so refresh could not restore snapshots or replay events. The SSE effect depended
+on `latestSequence`, which tore down the connection after every event. No frontend test runner or
+Playwright suite caught either behavior.
 
 ## 4. Remediation gates
 
@@ -214,8 +214,8 @@ real MCP golden path already passes and those boundaries are structurally sound.
 - [x] R1 Grafana App install and authenticated API E2E
 - [x] R2 idempotency and Workflow durability
 - [x] R3 Frontend restore and unit tests
-- [ ] R4 browser/full E2E
-- [ ] R5 original Gate re-verification
+- [x] R4 browser/full E2E
+- [x] R5 original Gate re-verification
 
 R1 evidence (2026-07-13):
 
@@ -257,3 +257,20 @@ R3 evidence (2026-07-13):
 - `make test-frontend` passed with Vitest 4.1.10: mapper alignment, reducer de-duplication/gap
   rejection, URL restore/replace, SSE gap recovery and transport resumption all pass before
   TypeScript typechecking.
+
+R4 evidence (2026-07-13):
+
+- The locked Playwright 1.61.1 browser test authenticates as the Grafana admin, submits a request,
+  verifies the assistant response, three titled non-empty TimeSeries panels and their PromQL,
+  then refreshes the route and verifies the same restored content.
+- The API E2E parses durable SSE rather than grepping text. It asserts sequences are continuous,
+  exactly 7 `tool.started`/`tool.completed` pairs and 3 Chart/Execution pairs, exact replay suffix,
+  same-intent idempotent reuse and changed-intent conflict.
+- Browser execution exposed and corrected the production bundle `process` reference, missing visible
+  Card titles, and the relative Compose cleanup path after the browser test. `make e2e-mock` now
+  exits zero and removes only `mini-torchbearing-mock` resources.
+
+R5 evidence (2026-07-13):
+
+- Re-ran original G4 `make test-ai-mcp`, G5 `make test-plugin-backend`, G6 `make test-frontend`,
+  G7 `make e2e-mock` and G8 `make check` in order; every command passed.

@@ -1,10 +1,10 @@
 # Basic Mock Skeleton Progress
 
-lastUpdated: 2026-07-13T17:21:00Z
-currentGate: G4
-status: in_progress
-headCommit: 6492e8f
-worktreeSummary: remediation R0-R3 complete; frontend URL restore, stable resumable SSE and unit coverage pass, R4 browser/full E2E is next
+lastUpdated: 2026-07-13T17:40:00Z
+currentGate: G8
+status: completed
+headCommit: 0a14292
+worktreeSummary: remediation R0-R5 complete; original G4-G8 have been re-verified and the worktree is clean
 
 ## Passed Gates
 
@@ -12,11 +12,11 @@ worktreeSummary: remediation R0-R3 complete; frontend URL restore, stable resuma
 - [x] G1 Contracts
 - [x] G2 Domain/SQLite
 - [x] G3 assistant-mcp
-- [ ] G4 AI Workflow
-- [ ] G5 Plugin Backend
-- [ ] G6 Frontend
-- [ ] G7 Mock E2E
-- [ ] G8 Closeout
+- [x] G4 AI Workflow
+- [x] G5 Plugin Backend
+- [x] G6 Frontend
+- [x] G7 Mock E2E
+- [x] G8 Closeout
 
 ## Last Verified Commands
 
@@ -55,6 +55,11 @@ worktreeSummary: remediation R0-R3 complete; frontend URL restore, stable resuma
 |`make check` + authenticated `make e2e-mock` after R2|passed|2026-07-13T16:59:00Z|Repository checks and the real Grafana → AI Core → assistant-mcp golden path pass after transaction/recovery changes|
 |unchanged cached AI Core image rebuild|passed|2026-07-13T17:04:00Z|BuildKit reused module and compile layers; rebuild completed in 1.79 seconds|
 |`make test-frontend`|passed|2026-07-13T17:21:00Z|Vitest mapper, reducer, URL and SSE recovery coverage (9 tests) plus TypeScript typecheck pass|
+|`make test-ai-mcp`|passed|2026-07-13T17:40:00Z|Original G4 MCP tool gateway, HTTP and workflow suites pass|
+|`make test-plugin-backend`|passed|2026-07-13T17:40:00Z|Original G5 authenticated Resource proxy component suite passes|
+|`make test-frontend`|passed|2026-07-13T17:40:00Z|Original G6 mapper, reducer, URL and EventSource tests (9) plus typecheck pass|
+|`make e2e-mock`|passed|2026-07-13T17:40:00Z|Original G7 runs structured API and authenticated Playwright coverage, then removes only its Compose project and volume|
+|`make check`|passed|2026-07-13T17:40:00Z|Original G8 generated diff, contracts, lint, unit suites, boundary and secret checks pass|
 
 ## Files/Interfaces Completed
 
@@ -69,12 +74,11 @@ worktreeSummary: remediation R0-R3 complete; frontend URL restore, stable resuma
 - G4 AI Core Workflow, durable TaskEvents, SQLite Chart/ToolCall persistence, generated HTTP handlers, SSE replay and real MCP golden path: remediation complete; original Gate re-verification remains deferred until R4
 - G5 Grafana Plugin Backend generated-client Resource proxy and chunked SSE proxy: registration, App `jsonData` endpoint provisioning and authenticated Plugin Backend → AI Core integration now pass; original Gate re-verification remains deferred until R2-R4 complete
 - G6 Grafana Workbench, Query cache, SSE reducer and DataFrame mapper: URL restore, stable resumable SSE, persisted chart ranges and frontend unit tests complete; original Gate re-verification remains deferred until R4
-- G7 Dockerfiles and Compose topology: containers become healthy, but Plugin Resource API E2E fails and browser E2E is absent
+- G7 Dockerfiles and Compose topology: structured Plugin Resource API E2E and authenticated browser E2E pass; selected Compose resources are removed on completion
 
 ## Remaining Work For Current Gate
 
-1. Add authenticated browser E2E and strengthen API assertions.
-2. Then rerun original G4 through G8 in order.
+None. The remediation track and original G4-G8 re-verification are complete.
 
 ## Resolved Environment Issues
 
@@ -92,7 +96,8 @@ worktreeSummary: remediation R0-R3 complete; frontend URL restore, stable resuma
 - command: same `POST /v1/tasks` relative-duration body with the same `Idempotency-Key`
 - relevant output summary: the retry returned 409 `idempotency_conflict` instead of the original Task.
 - suspected cause: the HTTP adapter resolves `relativeDuration` with `time.Now()` before the command hashes `CreateTaskInput`, so every retry hashes a different absolute range.
-- next safe action: hash the canonical wire intent (or otherwise preserve the first frozen range for the reserved key) and add an HTTP-level retry test.
+- resolution: hash the canonical wire intent before freezing the relative range and cover same-intent
+  reuse plus changed-intent conflict at the HTTP and full Mock E2E layers.
 
 ## Decisions Made Within Plan Defaults
 
