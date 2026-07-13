@@ -12,6 +12,9 @@ export function taskEventReducer(state: WorkbenchState, incoming: Action): Workb
   if (incoming.sequence <= state.latestSequence) {
     return state;
   }
+  if (incoming.sequence !== state.latestSequence + 1) {
+    return state;
+  }
   const next: WorkbenchState = { ...state, latestSequence: incoming.sequence };
   switch (incoming.type) {
     case 'assistant.message.delta':

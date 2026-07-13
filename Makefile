@@ -40,7 +40,7 @@ test-plugin-backend:
 	@cd apps/grafana-plugin/backend && GOPROXY=off go test ./...
 
 test-frontend:
-	@cd apps/grafana-plugin/frontend && npm run typecheck
+	@cd apps/grafana-plugin/frontend && npm run test && npm run typecheck
 
 smoke: test-ai-mcp test-plugin-backend test-frontend
 

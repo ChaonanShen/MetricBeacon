@@ -37,6 +37,7 @@ verifiedAt: 2026-07-13T15:13:43Z
 |JSON Schema validator (`ajv`, `ajv-formats`)|`v8.20.0`, `v3.0.1`|G1|
 |YAML parser (`yaml`)|`v2.9.0`|G1|
 |Grafana frontend packages (`@grafana/data`, `@grafana/runtime`, `@grafana/ui`)|`v13.1.0`|G6|
+|Frontend unit test runner (`vitest`)|`v4.1.10`|R3|
 |TypeScript|`v5.9.3`|G0|
 |Playwright (`@playwright/test`)|`v1.61.1`|G7|
 
