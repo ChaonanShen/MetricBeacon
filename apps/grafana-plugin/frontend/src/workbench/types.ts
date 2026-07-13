@@ -3,7 +3,7 @@ import type { components } from '../api/generated/plugin-resource';
 export type TaskStatus = components['schemas']['task.schema']['status'];
 export type ChartWire = components['schemas']['chart'] & {
   unit?: string;
-  queries?: Array<{ expression?: string }>;
+  queries?: Array<{ expression?: string; timeRange?: { from: string; to: string } }>;
 };
 export type ChartSeriesWire = {
   name: string;
@@ -12,6 +12,7 @@ export type ChartSeriesWire = {
 };
 export type ExecutionWire = components['schemas']['execution'] & {
   series: ChartSeriesWire[];
+  sampleRange?: { from: string; to: string };
 };
 export type WorkbenchChart = { chart: ChartWire; execution?: ExecutionWire };
 export type WorkbenchState = {
