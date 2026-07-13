@@ -20,50 +20,83 @@ import (
 )
 
 type ResourceHandler struct {
+	// Client is an optional fixed client, primarily useful for isolated tests.
+	// Production requests should resolve the endpoint from Grafana App settings.
 	Client      generated.ClientInterface
+	NewClient   func(endpoint string) (generated.ClientInterface, error)
 	MaxResponse int64
+}
+
+type appSettings struct {
+	AICoreEndpoint string `json:"aiCoreEndpoint"`
 }
 
 var _ backend.CallResourceHandler = (*ResourceHandler)(nil)
 
 func (h *ResourceHandler) CallResource(ctx context.Context, request *backend.CallResourceRequest, sender backend.CallResourceResponseSender) error {
-	if h == nil || h.Client == nil {
-		return h.sendError(sender, http.StatusServiceUnavailable, "dependency_unavailable", "AI Core client is not configured", "", true)
+	if h == nil {
+		return errors.New("resource handler is nil")
 	}
 	requestContext, ok := identity.FromResourceRequest(request)
 	if !ok {
 		return h.sendError(sender, http.StatusUnauthorized, "unauthenticated", "Grafana user context is required", "", false)
 	}
+	client, err := h.clientFor(request)
+	if err != nil {
+		return h.sendError(sender, http.StatusServiceUnavailable, "dependency_unavailable", "AI Core endpoint is not configured in Grafana App settings", requestContext.RequestID, false)
+	}
 	path := strings.Trim(strings.SplitN(request.Path, "?", 2)[0], "/")
 	switch {
 	case request.Method == http.MethodPost && path == "sessions":
-		return h.createSession(ctx, request, requestContext, sender)
+		return h.createSession(ctx, client, request, requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "sessions/") && strings.Count(path, "/") == 1:
-		return h.getSession(ctx, strings.TrimPrefix(path, "sessions/"), requestContext, sender)
+		return h.getSession(ctx, client, strings.TrimPrefix(path, "sessions/"), requestContext, sender)
 	case request.Method == http.MethodPost && path == "tasks":
-		return h.createTask(ctx, request, requestContext, sender)
+		return h.createTask(ctx, client, request, requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "tasks/") && strings.HasSuffix(path, "/events"):
-		return h.streamEvents(ctx, request, strings.TrimSuffix(strings.TrimPrefix(path, "tasks/"), "/events"), requestContext, sender)
+		return h.streamEvents(ctx, client, request, strings.TrimSuffix(strings.TrimPrefix(path, "tasks/"), "/events"), requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "tasks/") && strings.Count(path, "/") == 1:
-		return h.getTask(ctx, strings.TrimPrefix(path, "tasks/"), requestContext, sender)
+		return h.getTask(ctx, client, strings.TrimPrefix(path, "tasks/"), requestContext, sender)
 	default:
 		return h.sendError(sender, http.StatusNotFound, "resource_not_found", "Plugin resource was not found", requestContext.RequestID, false)
 	}
 }
 
-func (h *ResourceHandler) createSession(ctx context.Context, request *backend.CallResourceRequest, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+func (h *ResourceHandler) clientFor(request *backend.CallResourceRequest) (generated.ClientInterface, error) {
+	if request != nil && request.PluginContext.AppInstanceSettings != nil {
+		var settings appSettings
+		if err := json.Unmarshal(request.PluginContext.AppInstanceSettings.JSONData, &settings); err != nil {
+			return nil, err
+		}
+		endpoint := strings.TrimSpace(settings.AICoreEndpoint)
+		if endpoint == "" || h.NewClient == nil {
+			return nil, errors.New("aiCoreEndpoint is missing")
+		}
+		parsed, err := url.Parse(endpoint)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil {
+			return nil, errors.New("aiCoreEndpoint must be an HTTP(S) URL without credentials")
+		}
+		return h.NewClient(strings.TrimRight(endpoint, "/"))
+	}
+	if h.Client != nil {
+		return h.Client, nil
+	}
+	return nil, errors.New("Grafana App settings are unavailable")
+}
+
+func (h *ResourceHandler) createSession(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
 	var body generated.CreateSessionJSONRequestBody
 	if err := decode(request.Body, &body); err != nil {
 		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid session request", identity.RequestID, false)
 	}
-	response, err := h.Client.CreateSession(ctx, sessionParams(identity), body)
+	response, err := client.CreateSession(ctx, sessionParams(identity), body)
 	return h.forward(sender, response, err, identity.RequestID, false)
 }
-func (h *ResourceHandler) getSession(ctx context.Context, sessionID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
-	response, err := h.Client.GetSession(ctx, sessionID, getSessionParams(identity))
+func (h *ResourceHandler) getSession(ctx context.Context, client generated.ClientInterface, sessionID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	response, err := client.GetSession(ctx, sessionID, getSessionParams(identity))
 	return h.forward(sender, response, err, identity.RequestID, false)
 }
-func (h *ResourceHandler) createTask(ctx context.Context, request *backend.CallResourceRequest, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+func (h *ResourceHandler) createTask(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
 	key := request.GetHTTPHeader("Idempotency-Key")
 	if key == "" {
 		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Idempotency-Key is required", identity.RequestID, false)
@@ -72,19 +105,19 @@ func (h *ResourceHandler) createTask(ctx context.Context, request *backend.CallR
 	if err := decode(request.Body, &body); err != nil {
 		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid task request", identity.RequestID, false)
 	}
-	response, err := h.Client.CreateTask(ctx, taskParams(identity, key), body)
+	response, err := client.CreateTask(ctx, taskParams(identity, key), body)
 	return h.forward(sender, response, err, identity.RequestID, false)
 }
-func (h *ResourceHandler) getTask(ctx context.Context, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
-	response, err := h.Client.GetTask(ctx, taskID, getTaskParams(identity))
+func (h *ResourceHandler) getTask(ctx context.Context, client generated.ClientInterface, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	response, err := client.GetTask(ctx, taskID, getTaskParams(identity))
 	return h.forward(sender, response, err, identity.RequestID, false)
 }
-func (h *ResourceHandler) streamEvents(ctx context.Context, request *backend.CallResourceRequest, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+func (h *ResourceHandler) streamEvents(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
 	params, err := eventParams(request, identity)
 	if err != nil {
 		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid event replay sequence", identity.RequestID, false)
 	}
-	response, err := h.Client.StreamTaskEvents(ctx, taskID, params)
+	response, err := client.StreamTaskEvents(ctx, taskID, params)
 	if err != nil {
 		return h.forward(sender, nil, err, identity.RequestID, true)
 	}

@@ -17,4 +17,4 @@ cd frontend && npm ci && npm run build
 cd ../backend && go test ./...
 ```
 
-Backend uses `AI_CORE_ENDPOINT`, `AI_CORE_TIMEOUT` and `AI_CORE_MAX_RESPONSE_BYTES`. It ignores browser-provided `X-MTB-*` identity headers and derives identity from Grafana context; its SSE proxy copies bytes and IDs without buffering or renumbering.
+Backend reads `aiCoreEndpoint` from the provisioned Grafana App `jsonData`; `AI_CORE_TIMEOUT` and `AI_CORE_MAX_RESPONSE_BYTES` remain optional process-level limits. It ignores browser-provided `X-MTB-*` identity headers and derives identity from Grafana context; its SSE proxy copies bytes and IDs without buffering or renumbering.

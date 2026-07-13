@@ -4,6 +4,7 @@
   "id": "mini-torchbearing-app",
   "backend": true,
   "executable": "mini-torchbearing-app",
+  "autoEnabled": true,
   "info": {
     "description": "Natural-language metrics analysis workbench with a deterministic Mock profile.",
     "author": {
@@ -11,6 +12,10 @@
     },
     "keywords": ["observability", "prometheus", "assistant"],
     "version": "0.0.1"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=13.1.0",
+    "plugins": []
   },
   "includes": [
     {

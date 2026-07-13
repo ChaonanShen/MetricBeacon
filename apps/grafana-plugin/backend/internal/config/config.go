@@ -8,13 +8,12 @@ import (
 )
 
 type Config struct {
-	AICoreEndpoint string
-	Timeout        time.Duration
-	MaxResponse    int64
+	Timeout     time.Duration
+	MaxResponse int64
 }
 
 func Load() Config {
-	return Config{AICoreEndpoint: env("AI_CORE_ENDPOINT", "http://127.0.0.1:8080"), Timeout: duration("AI_CORE_TIMEOUT", 10*time.Second), MaxResponse: size("AI_CORE_MAX_RESPONSE_BYTES", 1<<20)}
+	return Config{Timeout: duration("AI_CORE_TIMEOUT", 10*time.Second), MaxResponse: size("AI_CORE_MAX_RESPONSE_BYTES", 1<<20)}
 }
 func env(key, fallback string) string {
 	if value := strings.TrimSpace(os.Getenv(key)); value != "" {

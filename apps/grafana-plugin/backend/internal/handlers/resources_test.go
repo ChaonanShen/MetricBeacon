@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +12,76 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	generated "mini-torchbearing.local/packages/generated-clients/go"
 )
+
+func TestResourceHandlerUsesProvisionedAppEndpoint(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/sessions" {
+			t.Errorf("path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"session_1"}`))
+	}))
+	defer upstream.Close()
+
+	var configuredEndpoint string
+	handler := &ResourceHandler{
+		NewClient: func(endpoint string) (generated.ClientInterface, error) {
+			configuredEndpoint = endpoint
+			return generated.NewClient(endpoint)
+		},
+	}
+	settings, err := json.Marshal(appSettings{AICoreEndpoint: upstream.URL + "/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := &backend.CallResourceRequest{
+		Method: http.MethodPost,
+		Path:   "sessions",
+		Body:   []byte(`{"title":"Provisioned session"}`),
+		PluginContext: backend.PluginContext{
+			OrgID:               1,
+			User:                &backend.User{Login: "grafana-user", Role: "Viewer"},
+			AppInstanceSettings: &backend.AppInstanceSettings{JSONData: settings},
+		},
+	}
+	sender := &captureSender{}
+	if err := handler.CallResource(context.Background(), request, sender); err != nil {
+		t.Fatal(err)
+	}
+	if configuredEndpoint != upstream.URL {
+		t.Fatalf("configured endpoint = %q, want %q", configuredEndpoint, upstream.URL)
+	}
+	if len(sender.responses) != 1 || sender.responses[0].Status != http.StatusCreated {
+		t.Fatalf("responses: %#v", sender.responses)
+	}
+}
+
+func TestResourceHandlerRejectsMissingProvisionedEndpoint(t *testing.T) {
+	handler := &ResourceHandler{NewClient: func(endpoint string) (generated.ClientInterface, error) {
+		return generated.NewClient(endpoint)
+	}}
+	request := &backend.CallResourceRequest{
+		Method: http.MethodPost,
+		Path:   "sessions",
+		Body:   []byte(`{"title":"Missing endpoint"}`),
+		PluginContext: backend.PluginContext{
+			OrgID:               1,
+			User:                &backend.User{Login: "grafana-user", Role: "Viewer"},
+			AppInstanceSettings: &backend.AppInstanceSettings{JSONData: json.RawMessage(`{}`)},
+		},
+	}
+	sender := &captureSender{}
+	if err := handler.CallResource(context.Background(), request, sender); err != nil {
+		t.Fatal(err)
+	}
+	if len(sender.responses) != 1 || sender.responses[0].Status != http.StatusServiceUnavailable {
+		t.Fatalf("responses: %#v", sender.responses)
+	}
+	if !strings.Contains(string(sender.responses[0].Body), "AI Core endpoint is not configured") {
+		t.Fatalf("body: %s", sender.responses[0].Body)
+	}
+}
 
 func TestResourceHandlerUsesGrafanaIdentityAndGeneratedClient(t *testing.T) {
 	var received http.Header
