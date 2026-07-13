@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	clockadapter "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/clocks"
@@ -52,8 +51,7 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 		t.Fatal("session id is missing")
 	}
 
-	now := time.Now().UTC()
-	body := `{"sessionId":"` + sessionBody.ID + `","message":"show node exporter","analysisContext":{"datasourceUid":"mock-prometheus","timeRange":{"from":"` + now.Add(-time.Minute).Format(time.RFC3339) + `","to":"` + now.Format(time.RFC3339) + `"}}}`
+	body := `{"sessionId":"` + sessionBody.ID + `","message":"show node exporter","analysisContext":{"datasourceUid":"mock-prometheus","timeRange":{"relativeDuration":"30m"}}}`
 	taskResponse := request(t, http.MethodPost, server.URL+"/v1/tasks", body, "request-task", "task-key")
 	if taskResponse.StatusCode != http.StatusAccepted {
 		t.Fatalf("task response: %d", taskResponse.StatusCode)
@@ -67,6 +65,28 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 	taskResponse.Body.Close()
 	if taskBody.ID == "" {
 		t.Fatal("task id is missing")
+	}
+
+	retryResponse := request(t, http.MethodPost, server.URL+"/v1/tasks", body, "request-task-retry", "task-key")
+	if retryResponse.StatusCode != http.StatusAccepted {
+		t.Fatalf("same-body retry response: %d", retryResponse.StatusCode)
+	}
+	var retryBody struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(retryResponse.Body).Decode(&retryBody); err != nil {
+		t.Fatal(err)
+	}
+	retryResponse.Body.Close()
+	if retryBody.ID != taskBody.ID {
+		t.Fatalf("retry task id = %q, want %q", retryBody.ID, taskBody.ID)
+	}
+
+	conflictBody := strings.Replace(body, "show node exporter", "different request", 1)
+	conflictResponse := request(t, http.MethodPost, server.URL+"/v1/tasks", conflictBody, "request-task-conflict", "task-key")
+	defer conflictResponse.Body.Close()
+	if conflictResponse.StatusCode != http.StatusConflict {
+		t.Fatalf("different-body retry response: %d", conflictResponse.StatusCode)
 	}
 
 	streamContext, cancel := context.WithCancel(context.Background())

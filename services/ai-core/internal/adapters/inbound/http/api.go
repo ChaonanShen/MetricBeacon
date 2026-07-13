@@ -3,6 +3,8 @@ package httpapi
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -98,12 +100,21 @@ func (a *API) CreateTask(w http.ResponseWriter, r *http.Request, params generate
 		writeError(w, params.XRequestID, err)
 		return
 	}
-	result, err := a.Commands.CreateTask(r.Context(), identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID), commands.CreateTaskInput{SessionID: body.SessionId, Message: body.Message, DatasourceUID: datasourceUID, TimeRange: timeRange, IdempotencyKey: params.IdempotencyKey})
+	result, err := a.Commands.CreateTask(r.Context(), identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID), commands.CreateTaskInput{SessionID: body.SessionId, Message: body.Message, DatasourceUID: datasourceUID, TimeRange: timeRange, IdempotencyKey: params.IdempotencyKey, RequestHash: canonicalTaskRequestHash(params.XMTBTenantID, body)})
 	if err != nil {
 		writeError(w, params.XRequestID, err)
 		return
 	}
 	writeJSON(w, http.StatusAccepted, taskResponse(result))
+}
+
+func canonicalTaskRequestHash(tenantID string, body generated.CreateTaskJSONRequestBody) string {
+	encoded, _ := json.Marshal(struct {
+		TenantID string                              `json:"tenantId"`
+		Body     generated.CreateTaskJSONRequestBody `json:"body"`
+	}{TenantID: tenantID, Body: body})
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:])
 }
 
 func (a *API) GetTask(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.GetTaskParams) {

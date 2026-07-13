@@ -40,6 +40,9 @@ type CreateSessionInput struct{ Title, IdempotencyKey string }
 type CreateTaskInput struct {
 	SessionID, Message, DatasourceUID, IdempotencyKey string
 	TimeRange                                         common.AbsoluteTimeRange
+	// RequestHash identifies the canonical caller intent before relative time
+	// is resolved. In-process callers may leave it empty and use the fallback.
+	RequestHash string
 }
 
 func (s *Service) CreateSession(ctx context.Context, identity requestcontext.Context, input CreateSessionInput) (session.AnalysisSession, error) {
@@ -82,9 +85,16 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 	}
 	var result task.AnalysisTask
 	shouldRun := false
+	requestHash := strings.TrimSpace(input.RequestHash)
+	if requestHash == "" {
+		requestHash = hash(struct {
+			TenantID, SessionID, Message, DatasourceUID string
+			TimeRange                                   common.AbsoluteTimeRange
+		}{identity.TenantID, input.SessionID, input.Message, input.DatasourceUID, input.TimeRange})
+	}
 	err := s.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 		key := repositories.IdempotencyKey{TenantID: identity.TenantID, Scope: "create_task", Key: input.IdempotencyKey}
-		record, err := tx.Idempotency().Reserve(ctx, key, hash(input), s.Clock.Now().Add(idempotencyTTL))
+		record, err := tx.Idempotency().Reserve(ctx, key, requestHash, s.Clock.Now().Add(idempotencyTTL))
 		if err != nil {
 			return err
 		}
