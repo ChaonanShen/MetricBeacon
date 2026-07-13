@@ -1,10 +1,10 @@
 # Basic Mock Skeleton Progress
 
-lastUpdated: 2026-07-13T13:30:05Z
+lastUpdated: 2026-07-13T13:30:48Z
 currentGate: G2
 status: in_progress
-headCommit: ce93490
-worktreeSummary: G2 domain and Port baseline is verified and pending its own commit
+headCommit: 6e48a2e
+worktreeSummary: G2 Domain/Port baseline committed; SQLite adapter, migrations and Contract Tests remain
 
 ## Passed Gates
 
@@ -43,8 +43,8 @@ worktreeSummary: G2 domain and Port baseline is verified and pending its own com
 
 ## Remaining Work For Current Gate
 
-1. Commit the verified G2 Domain/Port baseline as its own cohesive slice.
-2. Implement SQLite migration, ApplicationStore, transaction/event sequence behavior and Contract Tests.
+1. Implement SQLite migration and ApplicationStore without leaking database/sql above the Adapter boundary.
+2. Add tenant, transaction rollback, idempotency, sequence and Replay Contract Tests, then verify G2.
 
 ## Known Failures
 
