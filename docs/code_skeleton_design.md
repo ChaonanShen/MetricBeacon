@@ -1,7 +1,7 @@
 # Grafana 自然语言指标分析工作台：可执行骨架代码设计
 
 > 文档状态：Implementation Blueprint
-> 版本：v1.2
+> 版本：v1.3
 > 适用范围：MS1–MS4；首个实现目标为“完整契约 + 可替换 Adapter + 可独立验证的模块骨架”
 > 目标读者：架构师、前端工程师、Grafana 插件工程师、后端工程师、AI/Agent 工程师、测试工程师、SRE
 > 最后更新：2026-07-13
@@ -28,6 +28,7 @@
 - `product_design.md` 决定阶段范围和产品验收；不得因为本文预留了接口就提前扩大 Milestone。
 - `arch_design_draft.md` 定义长期总体分层。
 - `arch_design_detail.md` 中标注“拍板”的模块决策优先于本文中的通用建议。
+- `basic_mock_skeleton_execution_plan.md` 将本文收敛为首个可执行切片：只跑确定性 Mock Agent、Mock Prometheus 和三图纵向闭环，不改变本文的长期接口与替换边界。
 - 本文负责把上述决策翻译成可直接建立的代码结构和稳定契约。
 
 如果实现需要偏离本文，必须先记录 ADR。涉及产品边界、权限模型、数据所有权或不可逆存储结构的偏离，需要先向项目负责人确认。
@@ -312,7 +313,7 @@ mini-torchbearing/
 │       └── go.mod
 │
 ├── contracts/
-│   ├── openapi/{plugin-ai-core.yaml,ai-core-public.yaml,alert-receiver.yaml}
+│   ├── openapi/{plugin-resource.yaml,plugin-ai-core.yaml,ai-core-public.yaml,alert-receiver.yaml}
 │   ├── schemas/{session,task,chart,approval,playbook,alert}.schema.json
 │   ├── events/task-events.schema.json
 │   ├── tools/{grafana,knowledge,playbook,skills}/
@@ -3270,7 +3271,7 @@ Deployment: Production-ready
 ### 30.2 第 1 步：契约
 
 - 建立 RequestContext、Error、Session、Task、TaskEvent、Chart、Approval Schema。
-- 建立 Plugin Backend ↔ AI Core OpenAPI。
+- 建立 Plugin Frontend ↔ Plugin Backend Resource OpenAPI，以及 Plugin Backend ↔ AI Core OpenAPI；共享业务 Schema 不得复制定义。
 - 建立 assistant-mcp 最小工具集 Schema。
 - 生成 TypeScript/Go client，并让 `generated-client-diff` 通过。
 - 所有 fixture 先通过 Schema 校验。

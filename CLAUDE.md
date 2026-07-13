@@ -13,9 +13,10 @@
 - `docs/arch_design_draft.md`：长期总体架构草案。描述 Grafana App Plugin、薄 Plugin Backend、AI Core、MCP、模型基础设施和数据治理等六层，以及告警、审批、回滚和安全链路。
 - `docs/arch_design_detail.md`：P1–P10（P7 拆为 P7a/P7b）共 11 份模块 Proposal 合集。包含更具体的模块接口、对象和已拍板决策；Proposal 本身仍是 Draft，而且不按 Milestone 排期，不能据此扩大当前阶段范围。
 - `docs/code_skeleton_design.md`：后续生成骨架代码的权威实现蓝图。重点是 Monorepo、契约、Port/Adapter、状态机、SSE、SQLite→PostgreSQL、Mock、测试和分级验收。实现前应优先按此文档建立边界；发现缺口先修改文档或新增 ADR。
+- `docs/basic_mock_skeleton_execution_plan.md`：当前首个可执行切片的自包含实施手册。只实现确定性 Mock Agent → 真实 MCP transport → Mock Prometheus → 三张 node_exporter 图的基本闭环；包含新 Session 入口、默认值、文件清单、Gate、测试和恢复方式。执行骨架代码时优先按此文件控制范围。
 - `docs/adr/`：记录会影响模块边界、安全或长期演进的具体决策；Provisional 表示暂定方案，达到复审条件时必须重新评估。
 
-阅读顺序建议：`original_task` → `product_design` → `arch_design_draft` → `arch_design_detail` → `code_skeleton_design`。
+完整设计阅读顺序建议：`original_task` → `product_design` → `arch_design_draft` → `arch_design_detail` → `code_skeleton_design`。执行当前基本 Mock 骨架时只需先读本文件和 `basic_mock_skeleton_execution_plan.md`，其余文档按计划中的路由按需读取。
 
 遇到口径差异时按问题类型判断：阶段范围以 `product_design.md` 为准；明确标注“拍板”的模块决策看 `arch_design_detail.md`；代码结构、Port、Adapter、数据所有权和验收方式以 `code_skeleton_design.md` 为准。若仍冲突，不要静默混用，先指出差异并向用户确认。
 
@@ -33,6 +34,8 @@
 ## 阶段理解
 
 MS1 的目标是战略决策和可串联骨架，允许大量 Mock；不要把 MS2–MS4 或 Proposal 中的完整能力提前实现成 MS1 必需项。
+
+当前激活的实现切片以 `basic_mock_skeleton_execution_plan.md` 为准，比下面的长期 MS1 演示链路更窄：只做到“输入一句话 → 固定 node_exporter 计划 → 经过真实 MCP 调用 MockPrometheusAdapter → SSE 展示三张图并可重放”。不做图表编辑、Dashboard 保存、审批和错误场景全集。该收敛只缩小本轮实现范围，不改变长期接口边界。
 
 首条纵向演示链路是：
 
@@ -77,7 +80,7 @@ MS1 的目标是战略决策和可串联骨架，允许大量 Mock；不要把 M
 ## 实现时的确认原则
 
 - 技术基线已收敛为 Go + Eino、一个 `assistant-mcp`/四 namespace、SQLite 起步并通过 Adapter 切换 PostgreSQL。
-- `arch_design_detail.md` 的旧段落仍可能保留多 server 等历史措辞；以其“重大决策”和 `code_skeleton_design.md` v1.1 的收敛口径为准。
+- `arch_design_detail.md` 的旧段落仍可能保留多 server 等历史措辞；以其“重大决策”和 `code_skeleton_design.md` v1.3 的收敛口径为准。
 - 产品 Roadmap 在 MS1 只要求 Playbook/Alert 等结构预留，而详细 Proposal 描述了完整模块；排期必须服从产品里程碑，Proposal 只提供目标设计。
 - 如果疑问会改变模块边界、产品范围、权限模型、数据所有权或不可逆存储结构，应停止实现并直接向用户确认；不要自行补一个隐含决策。
 
