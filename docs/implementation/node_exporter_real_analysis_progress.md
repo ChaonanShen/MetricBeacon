@@ -4,7 +4,7 @@ lastUpdated: 2026-07-14
 currentGate: P2.2
 status: active
 headCommit: pending
-worktreeSummary: G0, P1 and the P2 Session workbench are complete. The browser restores paged Session history, finite Task replay and at most one active Task stream; P2 E2E persistence/replay coverage is next.
+worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E coverage are implemented. Container E2E remains unverified in this workspace because the user's existing local stack owns ports 3000, 8080 and 8081.
 
 ## Gate Status
 
@@ -14,7 +14,9 @@ worktreeSummary: G0, P1 and the P2 Session workbench are complete. The browser r
   - [x] P1.2a AI Core history pages and finite replay
   - [x] P1.2b Agent context and terminal stream behavior
   - [x] P1.3 Plugin history/replay proxy
-- [x] P2 Persistent Session workbench
+- [ ] P2 Persistent Session workbench
+  - [x] P2.1 Session reducer, page recovery, finite replay and terminal SSE handling
+  - [ ] P2.2 Container E2E execution (blocked by existing local stack port bindings)
 - [ ] P3 Real Prometheus and node_exporter
 - [ ] P4 Static Profile and constrained Eino runtime
 - [ ] P5 End-to-end closeout
@@ -39,7 +41,9 @@ worktreeSummary: G0, P1 and the P2 Session workbench are complete. The browser r
 |`make test-ai-core-domain test-sqlite`|passed|2026-07-14|Conversation context includes only the preceding twelve persisted messages in chronological order; SQLite regression suite remains green.|
 |`make test-plugin-backend`|passed|2026-07-14|Plugin Resource API proxies tenant-scoped Message/Task history and finite event replay; SSE uses a request-context-controlled client without a global timeout.|
 |`make test-frontend`|passed|2026-07-14|Session reducer merges history pages, preserves task runtimes, completes finite replay and closes the active SSE stream on a terminal event.|
+|`node --check tests/e2e/mock/api-e2e.mjs && npx playwright test --list`|passed|2026-07-14|Expanded Mock API/Playwright E2E scripts parse and test discovery succeeds.|
+|`make e2e-mock`|blocked|2026-07-14|Docker cannot bind 127.0.0.1 ports 3000, 8080 and 8081 because an existing user-managed `mini-torchbearing-*` Compose stack is running; it was not stopped.|
 
 ## Next Slice
 
-P2.2 adds Mock API and Playwright coverage for multi-turn persistence, refresh and finite terminal replay.
+Re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081; then P2 can be marked complete before P3 starts.

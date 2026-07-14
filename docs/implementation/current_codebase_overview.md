@@ -168,7 +168,7 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make lint`|Go 格式检查和前端 typecheck。|通过。|
 |`make boundary-check`、`make secret-scan`|AI Core 依赖边界和常见私钥/AKIA 模式扫描。|通过。|
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
-|`make e2e-mock`|构建前端与三个容器；API E2E 校验幂等、事件 sequence 连续性、7 次工具调用、3 张图和 SSE 重放；Playwright 再验证浏览器提交和刷新恢复。|通过：容器健康后，API 脚本与 Playwright 用例均通过（1/1）。|
+|`make e2e-mock`|构建前端与三个容器；API E2E 校验幂等、事件 sequence 连续性、三轮持久化、有限 replay 与 SSE 重放；Playwright 验证连续提交和刷新恢复。|本次变更后待重新运行：当前工作区的用户管理容器占用了 3000、8080、8081 端口。|
 
 日常开发先运行 `make check`。需要一次性验证完整链路时，执行：
 

@@ -104,3 +104,28 @@ assert.ok(events.some((event) => event.type === 'assistant.message.completed' &&
 const replayAfter = events.at(-6).sequence;
 const replay = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events?afterSequence=${replayAfter}`);
 assert.deepEqual(replay, events.filter((event) => event.sequence > replayAfter), 'SSE replay must return exactly the durable suffix');
+
+for (const message of ['show only CPU', 'show memory again']) {
+  const nextTask = await requestJSON(`${resourceBase}/tasks`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'idempotency-key': `mock-e2e-task-${crypto.randomUUID()}` },
+    body: JSON.stringify({ ...createTaskBody, message }),
+  });
+  assert.equal(nextTask.response.status, 202, `Create follow-up Task failed: ${JSON.stringify(nextTask.body)}`);
+  const nextEvents = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(nextTask.body.id)}/events?afterSequence=0`);
+  assert.equal(nextEvents.at(-1)?.type, 'task.completed', 'follow-up Task stream must terminate');
+}
+
+const messagePage = await requestJSON(`${resourceBase}/sessions/${encodeURIComponent(session.body.id)}/messages?pageSize=50`);
+assert.equal(messagePage.response.status, 200);
+assert.equal(messagePage.body.items.length, 6, 'three completed Tasks must persist three user and three assistant Messages');
+assert.equal(messagePage.body.nextPageToken, null);
+const taskPage = await requestJSON(`${resourceBase}/sessions/${encodeURIComponent(session.body.id)}/tasks?pageSize=20`);
+assert.equal(taskPage.response.status, 200);
+assert.equal(taskPage.body.items.length, 3, 'three completed Tasks must remain in Session history');
+assert.equal(taskPage.body.nextPageToken, null);
+const finiteReplay = await requestJSON(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events/replay?afterSequence=0&pageSize=200`);
+assert.equal(finiteReplay.response.status, 200);
+assert.equal(finiteReplay.body.targetSequence, events.at(-1).sequence);
+assert.deepEqual(finiteReplay.body.items.map((event) => event.sequence), events.map((event) => event.sequence));
+assert.equal(finiteReplay.body.nextPageToken, null, 'terminal Task finite replay must not keep a follow cursor');

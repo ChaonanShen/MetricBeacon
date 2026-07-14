@@ -29,6 +29,11 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expectPlotsWithinPanels(page);
   await expectNoHorizontalOverflow(page);
 
+  await page.getByLabel('分析请求').fill('只看 CPU');
+  await page.getByRole('button', { name: '开始分析' }).click();
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(6);
+  await expect(page.getByText('你：只看 CPU')).toBeVisible();
+
   const widePanels = await panelBoxes(page);
   expect(new Set(widePanels.map((box) => Math.round(box.y))).size).toBe(1);
 
@@ -48,7 +53,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   for (const title of chartTitles) {
     await expect(page.getByText(title, { exact: true })).toBeVisible();
   }
-  await expect(page.getByTestId('timeseries-panel')).toHaveCount(3);
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(6);
   await expect(page.getByText('undefined', { exact: true })).toHaveCount(0);
   await expectPlotsWithinPanels(page);
   await expectNoHorizontalOverflow(page);
