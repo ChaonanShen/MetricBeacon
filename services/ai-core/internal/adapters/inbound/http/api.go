@@ -4,6 +4,7 @@ package httpapi
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -82,6 +83,52 @@ func (a *API) GetSession(w http.ResponseWriter, r *http.Request, sessionID gener
 		return
 	}
 	writeJSON(w, http.StatusOK, sessionResponse(result))
+}
+
+func (a *API) ListSessionMessages(w http.ResponseWriter, r *http.Request, sessionID generated.SessionId, params generated.ListSessionMessagesParams) {
+	page, err := messagePageRequest(params.PageSize, params.PageToken, sessionID)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	result, err := a.Store.Messages().ListPageBySession(r.Context(), params.XMTBTenantID, sessionID, page)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	next, err := encodeListToken("messages", sessionID, result.NextAfter)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	items := make([]any, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, messageResponse(item))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "nextPageToken": next})
+}
+
+func (a *API) ListSessionTasks(w http.ResponseWriter, r *http.Request, sessionID generated.SessionId, params generated.ListSessionTasksParams) {
+	page, err := taskPageRequest(params.PageSize, params.PageToken, sessionID)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	result, err := a.Store.Tasks().ListPageBySession(r.Context(), params.XMTBTenantID, sessionID, page)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	next, err := encodeListToken("tasks", sessionID, result.NextAfter)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	items := make([]any, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, taskResponse(item))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "nextPageToken": next})
 }
 
 func (a *API) CreateTask(w http.ResponseWriter, r *http.Request, params generated.CreateTaskParams) {
@@ -182,6 +229,49 @@ func (a *API) StreamTaskEvents(w http.ResponseWriter, r *http.Request, taskID ge
 	}
 }
 
+func (a *API) ReplayTaskEvents(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.ReplayTaskEventsParams) {
+	if params.AfterSequence != nil && params.PageToken != nil {
+		writeError(w, params.XRequestID, common.NewError(common.InvalidArgument, "afterSequence and pageToken are mutually exclusive", false))
+		return
+	}
+	pageSize := pageSize(params.PageSize, 200, 200)
+	if pageSize == 0 {
+		writeError(w, params.XRequestID, common.NewError(common.InvalidArgument, "pageSize is invalid", false))
+		return
+	}
+	after, target, err := replayCursor(params.AfterSequence, params.PageToken, taskID)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	if params.PageToken == nil {
+		item, getErr := a.Store.Tasks().Get(r.Context(), params.XMTBTenantID, taskID)
+		if getErr != nil {
+			writeError(w, params.XRequestID, getErr)
+			return
+		}
+		target = item.LatestSequence
+	}
+	items, err := a.Store.TaskEvents().ReplayTo(r.Context(), params.XMTBTenantID, taskID, after, target, pageSize)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	next := any(nil)
+	if len(items) == pageSize && items[len(items)-1].Sequence < target {
+		next, err = encodeReplayToken(taskID, target, items[len(items)-1].Sequence)
+		if err != nil {
+			writeError(w, params.XRequestID, err)
+			return
+		}
+	}
+	events := make([]any, 0, len(items))
+	for _, item := range items {
+		events = append(events, taskEventResponse(item))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": events, "targetSequence": target, "nextPageToken": next})
+}
+
 func decodeJSON(r *http.Request, value any) error {
 	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
 	decoder.DisallowUnknownFields()
@@ -212,6 +302,107 @@ func parseTimeRange(value *generated.CreateTaskRequestSchema_AnalysisContext_Tim
 	return common.AbsoluteTimeRange{}, common.NewError(common.InvalidArgument, "timeRange must be absolute or relative", false)
 }
 
+type listPageToken struct {
+	Version   int    `json:"version"`
+	Resource  string `json:"resource"`
+	SessionID string `json:"sessionId"`
+	CreatedAt string `json:"createdAt"`
+	ID        string `json:"id"`
+}
+
+type taskReplayToken struct {
+	Version        int    `json:"version"`
+	Resource       string `json:"resource"`
+	TaskID         string `json:"taskId"`
+	TargetSequence int64  `json:"targetSequence"`
+	AfterSequence  int64  `json:"afterSequence"`
+}
+
+func messagePageRequest(size *int, token *string, sessionID string) (repositories.PageRequest, error) {
+	return listPageRequest(size, token, sessionID, "messages", 50, 100)
+}
+
+func taskPageRequest(size *int, token *string, sessionID string) (repositories.PageRequest, error) {
+	return listPageRequest(size, token, sessionID, "tasks", 20, 50)
+}
+
+func listPageRequest(size *int, encoded *string, sessionID, resource string, defaultSize, maximum int) (repositories.PageRequest, error) {
+	result := repositories.PageRequest{Limit: pageSize(size, defaultSize, maximum)}
+	if result.Limit == 0 {
+		return repositories.PageRequest{}, common.NewError(common.InvalidArgument, "pageSize is invalid", false)
+	}
+	if encoded == nil {
+		return result, nil
+	}
+	var token listPageToken
+	if err := decodePageToken(*encoded, &token); err != nil || token.Version != 1 || token.Resource != resource || token.SessionID != sessionID || token.ID == "" {
+		return repositories.PageRequest{}, common.NewError(common.InvalidArgument, "pageToken is invalid", false)
+	}
+	createdAt, err := time.Parse(time.RFC3339Nano, token.CreatedAt)
+	if err != nil {
+		return repositories.PageRequest{}, common.NewError(common.InvalidArgument, "pageToken is invalid", false)
+	}
+	createdAt = createdAt.UTC()
+	result.CreatedAt, result.ID = &createdAt, token.ID
+	return result, nil
+}
+
+func replayCursor(afterSequence *int, encoded *string, taskID string) (int64, int64, error) {
+	if encoded == nil {
+		if afterSequence == nil {
+			return 0, 0, nil
+		}
+		return int64(*afterSequence), 0, nil
+	}
+	var token taskReplayToken
+	if err := decodePageToken(*encoded, &token); err != nil || token.Version != 1 || token.Resource != "task_events_replay" || token.TaskID != taskID || token.AfterSequence < 0 || token.TargetSequence < token.AfterSequence {
+		return 0, 0, common.NewError(common.InvalidArgument, "pageToken is invalid", false)
+	}
+	return token.AfterSequence, token.TargetSequence, nil
+}
+
+func encodeListToken(resource, sessionID string, cursor *repositories.PageCursor) (any, error) {
+	if cursor == nil {
+		return nil, nil
+	}
+	return encodePageToken(listPageToken{Version: 1, Resource: resource, SessionID: sessionID, CreatedAt: cursor.CreatedAt.UTC().Format(time.RFC3339Nano), ID: cursor.ID})
+}
+
+func encodeReplayToken(taskID string, target, after int64) (string, error) {
+	return encodePageToken(taskReplayToken{Version: 1, Resource: "task_events_replay", TaskID: taskID, TargetSequence: target, AfterSequence: after})
+}
+
+func encodePageToken(value any) (string, error) {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return "", common.NewError(common.InternalError, "cannot encode page token", false)
+	}
+	return base64.RawURLEncoding.EncodeToString(encoded), nil
+}
+
+func decodePageToken(value string, destination any) error {
+	decoded, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return err
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(decoded)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return err
+	}
+	return nil
+}
+
+func pageSize(value *int, defaultSize, maximum int) int {
+	if value == nil {
+		return defaultSize
+	}
+	if *value < 1 || *value > maximum {
+		return 0
+	}
+	return *value
+}
+
 func identity(tenant, org, user, roles, permissions, requestID, traceID string) requestcontext.Context {
 	return requestcontext.Context{TenantID: tenant, OrgID: org, UserID: user, Roles: split(roles), Permissions: split(permissions), RequestID: requestID, TraceID: traceID}
 }
@@ -234,6 +425,12 @@ func taskResponse(value task.AnalysisTask) any {
 		failure = map[string]any{"code": value.Error.Code, "message": value.Error.Message, "retryable": value.Error.Retryable, "requestId": ""}
 	}
 	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "inputMessageId": value.InputMessageID, "datasourceUid": value.DatasourceUID, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "latestSequence": value.LatestSequence, "error": failure, "createdAt": value.CreatedAt, "startedAt": value.StartedAt, "completedAt": value.CompletedAt, "updatedAt": value.UpdatedAt, "version": value.Version}
+}
+func messageResponse(value session.Message) any {
+	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "taskId": value.TaskID, "role": value.Role, "content": value.Content, "createdAt": value.CreatedAt}
+}
+func taskEventResponse(event task.TaskEvent) any {
+	return map[string]any{"eventId": event.EventID, "taskId": event.TaskID, "sessionId": event.SessionID, "sequence": event.Sequence, "type": event.Type, "timestamp": event.Timestamp, "payload": json.RawMessage(event.Payload)}
 }
 
 func writeEvent(w http.ResponseWriter, event task.TaskEvent) error {

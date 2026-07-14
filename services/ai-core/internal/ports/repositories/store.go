@@ -18,12 +18,28 @@ type SessionRepository interface {
 type MessageRepository interface {
 	Append(context.Context, session.Message) error
 	ListBySession(context.Context, string, string) ([]session.Message, error)
+	ListPageBySession(context.Context, string, string, PageRequest) (Page[session.Message], error)
 }
 type TaskRepository interface {
 	Create(context.Context, task.AnalysisTask) error
 	Get(context.Context, string, string) (task.AnalysisTask, error)
 	ListNonTerminal(context.Context) ([]task.AnalysisTask, error)
+	ListPageBySession(context.Context, string, string, PageRequest) (Page[task.AnalysisTask], error)
 	Update(context.Context, task.AnalysisTask, int64) error
+}
+type PageRequest struct {
+	Limit     int
+	CreatedAt *time.Time
+	ID        string
+}
+type Page[T any] struct {
+	Items     []T
+	HasMore   bool
+	NextAfter *PageCursor
+}
+type PageCursor struct {
+	CreatedAt time.Time
+	ID        string
 }
 type ToolCallRepository interface {
 	Create(context.Context, task.ToolCallRecord) error

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/api/task-event-replay-page.schema.json",
+  "title": "TaskEventReplayPage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items", "targetSequence", "nextPageToken"],
+  "properties": {
+    "items": {"type": "array", "items": {"$ref": "../../events/task-events.schema.json"}},
+    "targetSequence": {"type": "integer", "minimum": 0},
+    "nextPageToken": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]}
+  }
+}

@@ -38,6 +38,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plugins/mini-torchbearing-app/resources/sessions/{sessionId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a Session's Message history */
+        get: operations["listSessionMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plugins/mini-torchbearing-app/resources/sessions/{sessionId}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a Session's Task history */
+        get: operations["listSessionTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plugins/mini-torchbearing-app/resources/tasks": {
         parameters: {
             query?: never;
@@ -89,6 +123,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plugins/mini-torchbearing-app/resources/tasks/{taskId}/events/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a finite durable TaskEvent replay page */
+        get: operations["replayTaskEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -96,7 +147,11 @@ export interface components {
         CreateSessionRequest: components["schemas"]["create-session-request.schema"];
         CreateTaskRequest: components["schemas"]["create-task-request.schema"];
         Session: components["schemas"]["session.schema"];
+        Message: components["schemas"]["message.schema"];
         Task: components["schemas"]["task.schema"];
+        MessagePage: components["schemas"]["message-page.schema"];
+        TaskPage: components["schemas"]["task-page.schema"];
+        TaskEventReplayPage: components["schemas"]["task-event-replay-page.schema"];
         Chart: components["schemas"]["chart.schema"];
         ChartExecution: components["schemas"]["execution.schema"];
         TaskEvent: components["schemas"]["task-events.schema"];
@@ -145,22 +200,21 @@ export interface components {
             updatedAt: string;
             version: number;
         };
-        /** CreateTaskRequest */
-        "create-task-request.schema": {
+        /** Message */
+        "message.schema": {
+            id: string;
             sessionId: string;
-            message: string;
-            analysisContext: {
-                /** @constant */
-                datasourceUid: "mock-prometheus";
-                timeRange?: {
-                    /** Format: date-time */
-                    from: string;
-                    /** Format: date-time */
-                    to: string;
-                } | {
-                    relativeDuration: string;
-                };
-            };
+            taskId: string;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** MessagePage */
+        "message-page.schema": {
+            items: components["schemas"]["message.schema"][];
+            nextPageToken: string | null;
         };
         /** AnalysisTask */
         "task.schema": {
@@ -192,6 +246,28 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             version: number;
+        };
+        /** TaskPage */
+        "task-page.schema": {
+            items: components["schemas"]["task.schema"][];
+            nextPageToken: string | null;
+        };
+        /** CreateTaskRequest */
+        "create-task-request.schema": {
+            sessionId: string;
+            message: string;
+            analysisContext: {
+                /** @constant */
+                datasourceUid: "mock-prometheus";
+                timeRange?: {
+                    /** Format: date-time */
+                    from: string;
+                    /** Format: date-time */
+                    to: string;
+                } | {
+                    relativeDuration: string;
+                };
+            };
         };
         taskSnapshot: {
             id: string;
@@ -493,6 +569,12 @@ export interface components {
             type?: "task.failed";
             payload?: components["schemas"]["taskFailed"];
         });
+        /** TaskEventReplayPage */
+        "task-event-replay-page.schema": {
+            items: components["schemas"]["task-events.schema"][];
+            targetSequence: number;
+            nextPageToken: string | null;
+        };
         query: {
             refId: string;
             expression: string;
@@ -585,6 +667,10 @@ export interface components {
         IdempotencyKey: string;
         RequestId: string;
         AfterSequence: number;
+        PageSizeMessages: number;
+        PageSizeTasks: number;
+        PageSizeReplay: number;
+        PageToken: string;
         LastEventId: number;
     };
     requestBodies: never;
@@ -640,6 +726,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["session.schema"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
+    listSessionMessages: {
+        parameters: {
+            query?: {
+                pageSize?: components["parameters"]["PageSizeMessages"];
+                pageToken?: components["parameters"]["PageToken"];
+            };
+            header?: {
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Message page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["message-page.schema"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
+    listSessionTasks: {
+        parameters: {
+            query?: {
+                pageSize?: components["parameters"]["PageSizeTasks"];
+                pageToken?: components["parameters"]["PageToken"];
+            };
+            header?: {
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Task page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["task-page.schema"];
                 };
             };
             default: components["responses"]["ErrorResponse"];
@@ -720,6 +862,35 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": components["schemas"]["task-events.schema"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
+    replayTaskEvents: {
+        parameters: {
+            query?: {
+                afterSequence?: components["parameters"]["AfterSequence"];
+                pageSize?: components["parameters"]["PageSizeReplay"];
+                pageToken?: components["parameters"]["PageToken"];
+            };
+            header?: {
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Finite replay page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["task-event-replay-page.schema"];
                 };
             };
             default: components["responses"]["ErrorResponse"];

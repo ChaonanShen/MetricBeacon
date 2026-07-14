@@ -35,6 +35,32 @@ paths:
       responses:
         '200': {description: Session snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
         default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/sessions/{sessionId}/messages:
+    get:
+      summary: List a Session's Message history
+      x-mtb-timeout-ms: 10000
+      operationId: listSessionMessages
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/PageSizeMessages'
+        - $ref: '#/components/parameters/PageToken'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': {description: Message page, content: {application/json: {schema: {$ref: '#/components/schemas/MessagePage'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/sessions/{sessionId}/tasks:
+    get:
+      summary: List a Session's Task history
+      x-mtb-timeout-ms: 10000
+      operationId: listSessionTasks
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/PageSizeTasks'
+        - $ref: '#/components/parameters/PageToken'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': {description: Task page, content: {application/json: {schema: {$ref: '#/components/schemas/TaskPage'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
   /api/plugins/mini-torchbearing-app/resources/tasks:
     post:
       summary: Create an asynchronous analysis Task
@@ -78,6 +104,20 @@ paths:
             text/event-stream:
               schema: {$ref: '#/components/schemas/TaskEvent'}
         default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/tasks/{taskId}/events/replay:
+    get:
+      summary: Read a finite durable TaskEvent replay page
+      x-mtb-timeout-ms: 10000
+      operationId: replayTaskEvents
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/AfterSequence'
+        - $ref: '#/components/parameters/PageSizeReplay'
+        - $ref: '#/components/parameters/PageToken'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': {description: Finite replay page, content: {application/json: {schema: {$ref: '#/components/schemas/TaskEventReplayPage'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
 components:
   parameters:
     SessionId: {name: sessionId, in: path, required: true, schema: {type: string, minLength: 1}}
@@ -85,12 +125,20 @@ components:
     IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1}}
     RequestId: {name: X-Request-ID, in: header, required: false, schema: {type: string, minLength: 1}}
     AfterSequence: {name: afterSequence, in: query, required: false, schema: {type: integer, minimum: 0}}
+    PageSizeMessages: {name: pageSize, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+    PageSizeTasks: {name: pageSize, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
+    PageSizeReplay: {name: pageSize, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 200, default: 200}}
+    PageToken: {name: pageToken, in: query, required: false, schema: {type: string, minLength: 1}}
     LastEventId: {name: Last-Event-ID, in: header, required: false, schema: {type: integer, minimum: 0}}
   schemas:
     CreateSessionRequest: {$ref: '../schemas/api/create-session-request.schema.json'}
     CreateTaskRequest: {$ref: '../schemas/api/create-task-request.schema.json'}
     Session: {$ref: '../schemas/session/session.schema.json'}
+    Message: {$ref: '../schemas/session/message.schema.json'}
     Task: {$ref: '../schemas/task/task.schema.json'}
+    MessagePage: {$ref: '../schemas/api/message-page.schema.json'}
+    TaskPage: {$ref: '../schemas/api/task-page.schema.json'}
+    TaskEventReplayPage: {$ref: '../schemas/api/task-event-replay-page.schema.json'}
     Chart: {$ref: '../schemas/chart/chart.schema.json'}
     ChartExecution: {$ref: '../schemas/chart/execution.schema.json'}
     TaskEvent: {$ref: '../events/task-events.schema.json'}

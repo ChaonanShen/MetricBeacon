@@ -74,6 +74,9 @@ func (r messageRepository) Append(ctx context.Context, value session.Message) er
 func (r messageRepository) ListBySession(ctx context.Context, tenantID, sessionID string) ([]session.Message, error) {
 	return r.store.listMessagesBySession(ctx, tenantID, sessionID)
 }
+func (r messageRepository) ListPageBySession(ctx context.Context, tenantID, sessionID string, page repositories.PageRequest) (repositories.Page[session.Message], error) {
+	return r.store.listMessagePageBySession(ctx, tenantID, sessionID, page)
+}
 
 type taskRepository struct{ store *Store }
 
@@ -85,6 +88,9 @@ func (r taskRepository) Get(ctx context.Context, tenantID, taskID string) (task.
 }
 func (r taskRepository) ListNonTerminal(ctx context.Context) ([]task.AnalysisTask, error) {
 	return r.store.listNonTerminalTasks(ctx)
+}
+func (r taskRepository) ListPageBySession(ctx context.Context, tenantID, sessionID string, page repositories.PageRequest) (repositories.Page[task.AnalysisTask], error) {
+	return r.store.listTaskPageBySession(ctx, tenantID, sessionID, page)
 }
 func (r taskRepository) Update(ctx context.Context, value task.AnalysisTask, expectedVersion int64) error {
 	return r.store.updateTask(ctx, value, expectedVersion)
@@ -145,6 +151,9 @@ func (r eventStore) Append(ctx context.Context, draft task.EventDraft) (task.Tas
 }
 func (r eventStore) Replay(ctx context.Context, tenantID, taskID string, afterSequence int64, limit int) ([]task.TaskEvent, error) {
 	return r.store.replayEvents(ctx, tenantID, taskID, afterSequence, limit)
+}
+func (r eventStore) ReplayTo(ctx context.Context, tenantID, taskID string, afterSequence, targetSequence int64, limit int) ([]task.TaskEvent, error) {
+	return r.store.replayEventsTo(ctx, tenantID, taskID, afterSequence, targetSequence, limit)
 }
 func (r eventStore) LatestSequence(ctx context.Context, tenantID, taskID string) (int64, error) {
 	return r.store.latestSequence(ctx, tenantID, taskID)
@@ -270,6 +279,46 @@ func (s *Store) listMessagesBySession(ctx context.Context, tenantID, sessionID s
 	return messages, nil
 }
 
+func (s *Store) listMessagePageBySession(ctx context.Context, tenantID, sessionID string, page repositories.PageRequest) (repositories.Page[session.Message], error) {
+	limit, err := validatePageRequest(page, 100)
+	if err != nil {
+		return repositories.Page[session.Message]{}, err
+	}
+	if err := s.ensureSession(ctx, tenantID, sessionID); err != nil {
+		return repositories.Page[session.Message]{}, err
+	}
+	query := `SELECT id, tenant_id, session_id, task_id, role, content, created_at FROM messages WHERE tenant_id = ? AND session_id = ?`
+	args := []any{tenantID, sessionID}
+	if page.CreatedAt != nil {
+		query += ` AND (created_at < ? OR (created_at = ? AND id < ?))`
+		cursor := storageTimestamp(*page.CreatedAt)
+		args = append(args, cursor, cursor, page.ID)
+	}
+	query += ` ORDER BY created_at DESC, id DESC LIMIT ?`
+	args = append(args, limit+1)
+	rows, err := s.executor().QueryContext(ctx, query, args...)
+	if err != nil {
+		return repositories.Page[session.Message]{}, mapError(err)
+	}
+	defer rows.Close()
+	items := make([]session.Message, 0, limit+1)
+	for rows.Next() {
+		var item session.Message
+		var createdAt string
+		if err := rows.Scan(&item.ID, &item.TenantID, &item.SessionID, &item.TaskID, &item.Role, &item.Content, &createdAt); err != nil {
+			return repositories.Page[session.Message]{}, mapError(err)
+		}
+		if item.CreatedAt, err = parseTimestamp(createdAt); err != nil {
+			return repositories.Page[session.Message]{}, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return repositories.Page[session.Message]{}, mapError(err)
+	}
+	return pageMessages(items, limit), nil
+}
+
 func (s *Store) createTask(ctx context.Context, value task.AnalysisTask) error {
 	if err := validateTask(value); err != nil {
 		return err
@@ -311,6 +360,42 @@ func (s *Store) listNonTerminalTasks(ctx context.Context) ([]task.AnalysisTask, 
 		return nil, mapError(err)
 	}
 	return values, nil
+}
+
+func (s *Store) listTaskPageBySession(ctx context.Context, tenantID, sessionID string, page repositories.PageRequest) (repositories.Page[task.AnalysisTask], error) {
+	limit, err := validatePageRequest(page, 50)
+	if err != nil {
+		return repositories.Page[task.AnalysisTask]{}, err
+	}
+	if err := s.ensureSession(ctx, tenantID, sessionID); err != nil {
+		return repositories.Page[task.AnalysisTask]{}, err
+	}
+	query := `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND session_id = ?`
+	args := []any{tenantID, sessionID}
+	if page.CreatedAt != nil {
+		query += ` AND (created_at < ? OR (created_at = ? AND id < ?))`
+		cursor := storageTimestamp(*page.CreatedAt)
+		args = append(args, cursor, cursor, page.ID)
+	}
+	query += ` ORDER BY created_at DESC, id DESC LIMIT ?`
+	args = append(args, limit+1)
+	rows, err := s.executor().QueryContext(ctx, query, args...)
+	if err != nil {
+		return repositories.Page[task.AnalysisTask]{}, mapError(err)
+	}
+	defer rows.Close()
+	items := make([]task.AnalysisTask, 0, limit+1)
+	for rows.Next() {
+		item, err := scanTask(rows)
+		if err != nil {
+			return repositories.Page[task.AnalysisTask]{}, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return repositories.Page[task.AnalysisTask]{}, mapError(err)
+	}
+	return pageTasks(items, limit), nil
 }
 
 func (s *Store) updateTask(ctx context.Context, value task.AnalysisTask, expectedVersion int64) error {
@@ -603,7 +688,11 @@ func (s *Store) appendEventInTransaction(ctx context.Context, draft task.EventDr
 }
 
 func (s *Store) replayEvents(ctx context.Context, tenantID, taskID string, afterSequence int64, limit int) ([]task.TaskEvent, error) {
-	if tenantID == "" || taskID == "" || afterSequence < 0 || limit < 1 {
+	return s.replayEventsTo(ctx, tenantID, taskID, afterSequence, int64(^uint64(0)>>1), limit)
+}
+
+func (s *Store) replayEventsTo(ctx context.Context, tenantID, taskID string, afterSequence, targetSequence int64, limit int) ([]task.TaskEvent, error) {
+	if tenantID == "" || taskID == "" || afterSequence < 0 || targetSequence < afterSequence || limit < 1 {
 		return nil, common.NewError(common.InvalidArgument, "event replay parameters are invalid", false)
 	}
 	if limit > maxReplayBatch {
@@ -612,7 +701,7 @@ func (s *Store) replayEvents(ctx context.Context, tenantID, taskID string, after
 	if err := s.ensureTask(ctx, tenantID, taskID); err != nil {
 		return nil, err
 	}
-	rows, err := s.executor().QueryContext(ctx, `SELECT event_id, tenant_id, task_id, session_id, sequence, type, timestamp, payload_json FROM task_events WHERE tenant_id = ? AND task_id = ? AND sequence > ? ORDER BY sequence LIMIT ?`, tenantID, taskID, afterSequence, limit)
+	rows, err := s.executor().QueryContext(ctx, `SELECT event_id, tenant_id, task_id, session_id, sequence, type, timestamp, payload_json FROM task_events WHERE tenant_id = ? AND task_id = ? AND sequence > ? AND sequence <= ? ORDER BY sequence LIMIT ?`, tenantID, taskID, afterSequence, targetSequence, limit)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -867,6 +956,37 @@ func validateTask(value task.AnalysisTask) error {
 		return common.NewError(common.InvalidArgument, "task is invalid", false)
 	}
 	return nil
+}
+
+func validatePageRequest(value repositories.PageRequest, maximum int) (int, error) {
+	if value.Limit < 1 || value.Limit > maximum || (value.CreatedAt == nil && value.ID != "") || (value.CreatedAt != nil && value.ID == "") {
+		return 0, common.NewError(common.InvalidArgument, "page request is invalid", false)
+	}
+	return value.Limit, nil
+}
+
+func pageMessages(items []session.Message, limit int) repositories.Page[session.Message] {
+	page := repositories.Page[session.Message]{Items: items}
+	if len(page.Items) <= limit {
+		return page
+	}
+	page.Items = page.Items[:limit]
+	last := page.Items[len(page.Items)-1]
+	page.HasMore = true
+	page.NextAfter = &repositories.PageCursor{CreatedAt: last.CreatedAt, ID: last.ID}
+	return page
+}
+
+func pageTasks(items []task.AnalysisTask, limit int) repositories.Page[task.AnalysisTask] {
+	page := repositories.Page[task.AnalysisTask]{Items: items}
+	if len(page.Items) <= limit {
+		return page
+	}
+	page.Items = page.Items[:limit]
+	last := page.Items[len(page.Items)-1]
+	page.HasMore = true
+	page.NextAfter = &repositories.PageCursor{CreatedAt: last.CreatedAt, ID: last.ID}
+	return page
 }
 
 func validateToolCall(value task.ToolCallRecord) error {

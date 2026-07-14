@@ -77,6 +77,24 @@ func (e ErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for MessageSchemaRole.
+const (
+	Assistant MessageSchemaRole = "assistant"
+	User      MessageSchemaRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the MessageSchemaRole enum.
+func (e MessageSchemaRole) Valid() bool {
+	switch e {
+	case Assistant:
+		return true
+	case User:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SessionSchemaStatus.
 const (
 	Active SessionSchemaStatus = "active"
@@ -351,6 +369,25 @@ type Message struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
+// MessagePageSchema defines model for message-page.schema.
+type MessagePageSchema struct {
+	Items         []MessageSchema `json:"items"`
+	NextPageToken *string         `json:"nextPageToken"`
+}
+
+// MessageSchema defines model for message.schema.
+type MessageSchema struct {
+	Content   string            `json:"content"`
+	CreatedAt time.Time         `json:"createdAt"`
+	Id        string            `json:"id"`
+	Role      MessageSchemaRole `json:"role"`
+	SessionId string            `json:"sessionId"`
+	TaskId    string            `json:"taskId"`
+}
+
+// MessageSchemaRole defines model for MessageSchema.Role.
+type MessageSchemaRole string
+
 // MetricCandidates defines model for metricCandidates.
 type MetricCandidates struct {
 	Candidates []Candidate `json:"candidates"`
@@ -383,6 +420,13 @@ type StatusChangedPreviousStatus string
 
 // StatusChangedStatus defines model for StatusChanged.Status.
 type StatusChangedStatus string
+
+// TaskEventReplayPageSchema defines model for task-event-replay-page.schema.
+type TaskEventReplayPageSchema struct {
+	Items          []TaskEventsSchema `json:"items"`
+	NextPageToken  *string            `json:"nextPageToken"`
+	TargetSequence int                `json:"targetSequence"`
+}
 
 // TaskEventsSchema defines model for task-events.schema.
 type TaskEventsSchema struct {
@@ -475,6 +519,12 @@ type TaskEventsSchema11 struct {
 type TaskEventsSchema12 struct {
 	Payload *TaskFailed `json:"payload,omitempty"`
 	Type    interface{} `json:"type,omitempty"`
+}
+
+// TaskPageSchema defines model for task-page.schema.
+type TaskPageSchema struct {
+	Items         []TaskSchema `json:"items"`
+	NextPageToken *string      `json:"nextPageToken"`
 }
 
 // TaskSchema defines model for task.schema.
@@ -578,6 +628,18 @@ type LastEventId = int
 // OrgId defines model for OrgId.
 type OrgId = string
 
+// PageSizeMessages defines model for PageSizeMessages.
+type PageSizeMessages = int
+
+// PageSizeReplay defines model for PageSizeReplay.
+type PageSizeReplay = int
+
+// PageSizeTasks defines model for PageSizeTasks.
+type PageSizeTasks = int
+
+// PageToken defines model for PageToken.
+type PageToken = string
+
 // Permissions defines model for Permissions.
 type Permissions = string
 
@@ -643,6 +705,42 @@ type GetSessionParams struct {
 	Traceparent     *TraceParent `json:"traceparent,omitempty"`
 }
 
+// ListSessionMessagesParams defines parameters for ListSessionMessages.
+type ListSessionMessagesParams struct {
+	PageSize     *PageSizeMessages `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken    *PageToken        `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID TenantId          `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId             `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId            `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
+
+// ListSessionTasksParams defines parameters for ListSessionTasks.
+type ListSessionTasksParams struct {
+	PageSize     *PageSizeTasks `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken    *PageToken     `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID TenantId       `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId          `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId         `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
+
 // CreateTaskParams defines parameters for CreateTask.
 type CreateTaskParams struct {
 	XMTBTenantID TenantId `json:"X-MTB-Tenant-ID"`
@@ -689,6 +787,25 @@ type StreamTaskEventsParams struct {
 	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
 	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
 	LastEventID     *LastEventId `json:"Last-Event-ID,omitempty"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
+
+// ReplayTaskEventsParams defines parameters for ReplayTaskEvents.
+type ReplayTaskEventsParams struct {
+	AfterSequence *AfterSequence  `form:"afterSequence,omitempty" json:"afterSequence,omitempty"`
+	PageSize      *PageSizeReplay `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken     *PageToken      `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID  TenantId        `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID     OrgId           `json:"X-MTB-Org-ID"`
+	XMTBUserID    UserId          `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
 	XRequestID      RequestId    `json:"X-Request-ID"`
 	XTraceID        TraceId      `json:"X-Trace-ID"`
 	Traceparent     *TraceParent `json:"traceparent,omitempty"`
@@ -2011,6 +2128,12 @@ type ServerInterface interface {
 	// Get a tenant-scoped Session
 	// (GET /v1/sessions/{sessionId})
 	GetSession(w http.ResponseWriter, r *http.Request, sessionId SessionId, params GetSessionParams)
+	// List tenant-scoped Session Messages by stable descending keyset page
+	// (GET /v1/sessions/{sessionId}/messages)
+	ListSessionMessages(w http.ResponseWriter, r *http.Request, sessionId SessionId, params ListSessionMessagesParams)
+	// List tenant-scoped Session Tasks by stable descending keyset page
+	// (GET /v1/sessions/{sessionId}/tasks)
+	ListSessionTasks(w http.ResponseWriter, r *http.Request, sessionId SessionId, params ListSessionTasksParams)
 	// Create an asynchronous tenant-scoped Task
 	// (POST /v1/tasks)
 	CreateTask(w http.ResponseWriter, r *http.Request, params CreateTaskParams)
@@ -2020,6 +2143,9 @@ type ServerInterface interface {
 	// Replay and follow durable tenant-scoped TaskEvents
 	// (GET /v1/tasks/{taskId}/events)
 	StreamTaskEvents(w http.ResponseWriter, r *http.Request, taskId TaskId, params StreamTaskEventsParams)
+	// Read a finite durable TaskEvent replay page with a fixed target sequence
+	// (GET /v1/tasks/{taskId}/events/replay)
+	ReplayTaskEvents(w http.ResponseWriter, r *http.Request, taskId TaskId, params ReplayTaskEventsParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -2487,6 +2613,492 @@ func (siw *ServerInterfaceWrapper) GetSession(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSession(w, r, sessionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSessionMessages operation middleware
+func (siw *ServerInterfaceWrapper) ListSessionMessages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sessionId" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sessionId", r.PathValue("sessionId"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sessionId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, InternalServiceIdentityScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSessionMessagesParams
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pageSize", r.URL.Query(), &params.PageSize, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pageSize"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "pageToken" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pageToken", r.URL.Query(), &params.PageToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pageToken"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageToken", Err: err})
+		}
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-MTB-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Tenant-ID")]; found {
+		var XMTBTenantID TenantId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Tenant-ID", valueList[0], &XMTBTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XMTBTenantID = XMTBTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Tenant-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Org-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Org-ID")]; found {
+		var XMTBOrgID OrgId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Org-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Org-ID", valueList[0], &XMTBOrgID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Org-ID", Err: err})
+			return
+		}
+
+		params.XMTBOrgID = XMTBOrgID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Org-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Org-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-User-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-User-ID")]; found {
+		var XMTBUserID UserId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-User-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-User-ID", valueList[0], &XMTBUserID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-User-ID", Err: err})
+			return
+		}
+
+		params.XMTBUserID = XMTBUserID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-User-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-User-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Roles" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Roles")]; found {
+		var XMTBRoles Roles
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Roles", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Roles", valueList[0], &XMTBRoles, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Roles", Err: err})
+			return
+		}
+
+		params.XMTBRoles = XMTBRoles
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Roles is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Roles", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Permissions" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Permissions")]; found {
+		var XMTBPermissions Permissions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Permissions", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Permissions", valueList[0], &XMTBPermissions, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Permissions", Err: err})
+			return
+		}
+
+		params.XMTBPermissions = XMTBPermissions
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Permissions is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Permissions", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Request-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-ID")]; found {
+		var XRequestID RequestId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Request-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-ID", valueList[0], &XRequestID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Request-ID", Err: err})
+			return
+		}
+
+		params.XRequestID = XRequestID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Request-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Request-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Trace-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Trace-ID")]; found {
+		var XTraceID TraceId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Trace-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Trace-ID", valueList[0], &XTraceID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Trace-ID", Err: err})
+			return
+		}
+
+		params.XTraceID = XTraceID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Trace-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Trace-ID", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "traceparent" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("traceparent")]; found {
+		var Traceparent TraceParent
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "traceparent", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "traceparent", valueList[0], &Traceparent, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "traceparent", Err: err})
+			return
+		}
+
+		params.Traceparent = &Traceparent
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSessionMessages(w, r, sessionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSessionTasks operation middleware
+func (siw *ServerInterfaceWrapper) ListSessionTasks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sessionId" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sessionId", r.PathValue("sessionId"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sessionId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, InternalServiceIdentityScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSessionTasksParams
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pageSize", r.URL.Query(), &params.PageSize, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pageSize"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "pageToken" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pageToken", r.URL.Query(), &params.PageToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pageToken"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageToken", Err: err})
+		}
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-MTB-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Tenant-ID")]; found {
+		var XMTBTenantID TenantId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Tenant-ID", valueList[0], &XMTBTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XMTBTenantID = XMTBTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Tenant-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Org-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Org-ID")]; found {
+		var XMTBOrgID OrgId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Org-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Org-ID", valueList[0], &XMTBOrgID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Org-ID", Err: err})
+			return
+		}
+
+		params.XMTBOrgID = XMTBOrgID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Org-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Org-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-User-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-User-ID")]; found {
+		var XMTBUserID UserId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-User-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-User-ID", valueList[0], &XMTBUserID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-User-ID", Err: err})
+			return
+		}
+
+		params.XMTBUserID = XMTBUserID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-User-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-User-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Roles" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Roles")]; found {
+		var XMTBRoles Roles
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Roles", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Roles", valueList[0], &XMTBRoles, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Roles", Err: err})
+			return
+		}
+
+		params.XMTBRoles = XMTBRoles
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Roles is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Roles", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Permissions" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Permissions")]; found {
+		var XMTBPermissions Permissions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Permissions", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Permissions", valueList[0], &XMTBPermissions, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Permissions", Err: err})
+			return
+		}
+
+		params.XMTBPermissions = XMTBPermissions
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Permissions is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Permissions", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Request-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-ID")]; found {
+		var XRequestID RequestId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Request-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-ID", valueList[0], &XRequestID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Request-ID", Err: err})
+			return
+		}
+
+		params.XRequestID = XRequestID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Request-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Request-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Trace-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Trace-ID")]; found {
+		var XTraceID TraceId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Trace-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Trace-ID", valueList[0], &XTraceID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Trace-ID", Err: err})
+			return
+		}
+
+		params.XTraceID = XTraceID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Trace-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Trace-ID", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "traceparent" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("traceparent")]; found {
+		var Traceparent TraceParent
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "traceparent", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "traceparent", valueList[0], &Traceparent, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "traceparent", Err: err})
+			return
+		}
+
+		params.Traceparent = &Traceparent
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSessionTasks(w, r, sessionId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3193,6 +3805,262 @@ func (siw *ServerInterfaceWrapper) StreamTaskEvents(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ReplayTaskEvents operation middleware
+func (siw *ServerInterfaceWrapper) ReplayTaskEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "taskId" -------------
+	var taskId TaskId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "taskId", r.PathValue("taskId"), &taskId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "taskId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, InternalServiceIdentityScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReplayTaskEventsParams
+
+	// ------------- Optional query parameter "afterSequence" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "afterSequence", r.URL.Query(), &params.AfterSequence, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "afterSequence"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "afterSequence", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pageSize", r.URL.Query(), &params.PageSize, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pageSize"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "pageToken" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pageToken", r.URL.Query(), &params.PageToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pageToken"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageToken", Err: err})
+		}
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-MTB-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Tenant-ID")]; found {
+		var XMTBTenantID TenantId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Tenant-ID", valueList[0], &XMTBTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XMTBTenantID = XMTBTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Tenant-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Org-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Org-ID")]; found {
+		var XMTBOrgID OrgId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Org-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Org-ID", valueList[0], &XMTBOrgID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Org-ID", Err: err})
+			return
+		}
+
+		params.XMTBOrgID = XMTBOrgID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Org-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Org-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-User-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-User-ID")]; found {
+		var XMTBUserID UserId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-User-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-User-ID", valueList[0], &XMTBUserID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-User-ID", Err: err})
+			return
+		}
+
+		params.XMTBUserID = XMTBUserID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-User-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-User-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Roles" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Roles")]; found {
+		var XMTBRoles Roles
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Roles", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Roles", valueList[0], &XMTBRoles, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Roles", Err: err})
+			return
+		}
+
+		params.XMTBRoles = XMTBRoles
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Roles is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Roles", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Permissions" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Permissions")]; found {
+		var XMTBPermissions Permissions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Permissions", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Permissions", valueList[0], &XMTBPermissions, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Permissions", Err: err})
+			return
+		}
+
+		params.XMTBPermissions = XMTBPermissions
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Permissions is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Permissions", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Request-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-ID")]; found {
+		var XRequestID RequestId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Request-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-ID", valueList[0], &XRequestID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Request-ID", Err: err})
+			return
+		}
+
+		params.XRequestID = XRequestID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Request-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Request-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Trace-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Trace-ID")]; found {
+		var XTraceID TraceId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Trace-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Trace-ID", valueList[0], &XTraceID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Trace-ID", Err: err})
+			return
+		}
+
+		params.XTraceID = XTraceID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Trace-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Trace-ID", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "traceparent" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("traceparent")]; found {
+		var Traceparent TraceParent
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "traceparent", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "traceparent", valueList[0], &Traceparent, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "traceparent", Err: err})
+			return
+		}
+
+		params.Traceparent = &Traceparent
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplayTaskEvents(w, r, taskId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -3317,9 +4185,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/sessions", wrapper.CreateSession)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/sessions/{sessionId}", wrapper.GetSession)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/sessions/{sessionId}/messages", wrapper.ListSessionMessages)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/sessions/{sessionId}/tasks", wrapper.ListSessionTasks)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/tasks", wrapper.CreateTask)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/tasks/{taskId}", wrapper.GetTask)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/tasks/{taskId}/events", wrapper.StreamTaskEvents)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/tasks/{taskId}/events/replay", wrapper.ReplayTaskEvents)
 
 	return m
 }

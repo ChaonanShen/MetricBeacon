@@ -9,6 +9,7 @@ import (
 type Store interface {
 	Append(context.Context, task.EventDraft) (task.TaskEvent, error)
 	Replay(context.Context, string, string, int64, int) ([]task.TaskEvent, error)
+	ReplayTo(context.Context, string, string, int64, int64, int) ([]task.TaskEvent, error)
 	LatestSequence(context.Context, string, string) (int64, error)
 }
 

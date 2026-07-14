@@ -78,6 +78,24 @@ func (e ErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for MessageSchemaRole.
+const (
+	Assistant MessageSchemaRole = "assistant"
+	User      MessageSchemaRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the MessageSchemaRole enum.
+func (e MessageSchemaRole) Valid() bool {
+	switch e {
+	case Assistant:
+		return true
+	case User:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SessionSchemaStatus.
 const (
 	Active SessionSchemaStatus = "active"
@@ -352,6 +370,25 @@ type Message struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
+// MessagePageSchema defines model for message-page.schema.
+type MessagePageSchema struct {
+	Items         []MessageSchema `json:"items"`
+	NextPageToken *string         `json:"nextPageToken"`
+}
+
+// MessageSchema defines model for message.schema.
+type MessageSchema struct {
+	Content   string            `json:"content"`
+	CreatedAt time.Time         `json:"createdAt"`
+	Id        string            `json:"id"`
+	Role      MessageSchemaRole `json:"role"`
+	SessionId string            `json:"sessionId"`
+	TaskId    string            `json:"taskId"`
+}
+
+// MessageSchemaRole defines model for MessageSchema.Role.
+type MessageSchemaRole string
+
 // MetricCandidates defines model for metricCandidates.
 type MetricCandidates struct {
 	Candidates []Candidate `json:"candidates"`
@@ -384,6 +421,13 @@ type StatusChangedPreviousStatus string
 
 // StatusChangedStatus defines model for StatusChanged.Status.
 type StatusChangedStatus string
+
+// TaskEventReplayPageSchema defines model for task-event-replay-page.schema.
+type TaskEventReplayPageSchema struct {
+	Items          []TaskEventsSchema `json:"items"`
+	NextPageToken  *string            `json:"nextPageToken"`
+	TargetSequence int                `json:"targetSequence"`
+}
 
 // TaskEventsSchema defines model for task-events.schema.
 type TaskEventsSchema struct {
@@ -476,6 +520,12 @@ type TaskEventsSchema11 struct {
 type TaskEventsSchema12 struct {
 	Payload *TaskFailed `json:"payload,omitempty"`
 	Type    interface{} `json:"type,omitempty"`
+}
+
+// TaskPageSchema defines model for task-page.schema.
+type TaskPageSchema struct {
+	Items         []TaskSchema `json:"items"`
+	NextPageToken *string      `json:"nextPageToken"`
 }
 
 // TaskSchema defines model for task.schema.
@@ -579,6 +629,18 @@ type LastEventId = int
 // OrgId defines model for OrgId.
 type OrgId = string
 
+// PageSizeMessages defines model for PageSizeMessages.
+type PageSizeMessages = int
+
+// PageSizeReplay defines model for PageSizeReplay.
+type PageSizeReplay = int
+
+// PageSizeTasks defines model for PageSizeTasks.
+type PageSizeTasks = int
+
+// PageToken defines model for PageToken.
+type PageToken = string
+
 // Permissions defines model for Permissions.
 type Permissions = string
 
@@ -644,6 +706,42 @@ type GetSessionParams struct {
 	Traceparent     *TraceParent `json:"traceparent,omitempty"`
 }
 
+// ListSessionMessagesParams defines parameters for ListSessionMessages.
+type ListSessionMessagesParams struct {
+	PageSize     *PageSizeMessages `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken    *PageToken        `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID TenantId          `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId             `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId            `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
+
+// ListSessionTasksParams defines parameters for ListSessionTasks.
+type ListSessionTasksParams struct {
+	PageSize     *PageSizeTasks `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken    *PageToken     `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID TenantId       `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId          `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId         `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
+
 // CreateTaskParams defines parameters for CreateTask.
 type CreateTaskParams struct {
 	XMTBTenantID TenantId `json:"X-MTB-Tenant-ID"`
@@ -690,6 +788,25 @@ type StreamTaskEventsParams struct {
 	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
 	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
 	LastEventID     *LastEventId `json:"Last-Event-ID,omitempty"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
+
+// ReplayTaskEventsParams defines parameters for ReplayTaskEvents.
+type ReplayTaskEventsParams struct {
+	AfterSequence *AfterSequence  `form:"afterSequence,omitempty" json:"afterSequence,omitempty"`
+	PageSize      *PageSizeReplay `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken     *PageToken      `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID  TenantId        `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID     OrgId           `json:"X-MTB-Org-ID"`
+	XMTBUserID    UserId          `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
 	XRequestID      RequestId    `json:"X-Request-ID"`
 	XTraceID        TraceId      `json:"X-Trace-ID"`
 	Traceparent     *TraceParent `json:"traceparent,omitempty"`
@@ -2085,6 +2202,12 @@ type ClientInterface interface {
 	// GetSession request
 	GetSession(ctx context.Context, sessionId SessionId, params *GetSessionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListSessionMessages request
+	ListSessionMessages(ctx context.Context, sessionId SessionId, params *ListSessionMessagesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSessionTasks request
+	ListSessionTasks(ctx context.Context, sessionId SessionId, params *ListSessionTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateTaskWithBody request with any body
 	CreateTaskWithBody(ctx context.Context, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2095,6 +2218,9 @@ type ClientInterface interface {
 
 	// StreamTaskEvents request
 	StreamTaskEvents(ctx context.Context, taskId TaskId, params *StreamTaskEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplayTaskEvents request
+	ReplayTaskEvents(ctx context.Context, taskId TaskId, params *ReplayTaskEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) Healthz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2157,6 +2283,30 @@ func (c *Client) GetSession(ctx context.Context, sessionId SessionId, params *Ge
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListSessionMessages(ctx context.Context, sessionId SessionId, params *ListSessionMessagesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSessionMessagesRequest(c.Server, sessionId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListSessionTasks(ctx context.Context, sessionId SessionId, params *ListSessionTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSessionTasksRequest(c.Server, sessionId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) CreateTaskWithBody(ctx context.Context, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateTaskRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
@@ -2195,6 +2345,18 @@ func (c *Client) GetTask(ctx context.Context, taskId TaskId, params *GetTaskPara
 
 func (c *Client) StreamTaskEvents(ctx context.Context, taskId TaskId, params *StreamTaskEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStreamTaskEventsRequest(c.Server, taskId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReplayTaskEvents(ctx context.Context, taskId TaskId, params *ReplayTaskEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplayTaskEventsRequest(c.Server, taskId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2401,6 +2563,308 @@ func NewGetSessionRequest(server string, sessionId SessionId, params *GetSession
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Tenant-ID", params.XMTBTenantID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Tenant-ID", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Org-ID", params.XMTBOrgID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Org-ID", headerParam1)
+
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-User-ID", params.XMTBUserID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-User-ID", headerParam2)
+
+		var headerParam3 string
+
+		headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Roles", params.XMTBRoles, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Roles", headerParam3)
+
+		var headerParam4 string
+
+		headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Permissions", params.XMTBPermissions, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Permissions", headerParam4)
+
+		var headerParam5 string
+
+		headerParam5, err = runtime.StyleParamWithOptions("simple", false, "X-Request-ID", params.XRequestID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Request-ID", headerParam5)
+
+		var headerParam6 string
+
+		headerParam6, err = runtime.StyleParamWithOptions("simple", false, "X-Trace-ID", params.XTraceID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Trace-ID", headerParam6)
+
+		if params.Traceparent != nil {
+			var headerParam7 string
+
+			headerParam7, err = runtime.StyleParamWithOptions("simple", false, "traceparent", *params.Traceparent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("traceparent", headerParam7)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListSessionMessagesRequest generates requests for ListSessionMessages
+func NewListSessionMessagesRequest(server string, sessionId SessionId, params *ListSessionMessagesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sessionId", sessionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/sessions/%s/messages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageSize", *params.PageSize, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageToken", *params.PageToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Tenant-ID", params.XMTBTenantID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Tenant-ID", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Org-ID", params.XMTBOrgID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Org-ID", headerParam1)
+
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-User-ID", params.XMTBUserID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-User-ID", headerParam2)
+
+		var headerParam3 string
+
+		headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Roles", params.XMTBRoles, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Roles", headerParam3)
+
+		var headerParam4 string
+
+		headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Permissions", params.XMTBPermissions, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Permissions", headerParam4)
+
+		var headerParam5 string
+
+		headerParam5, err = runtime.StyleParamWithOptions("simple", false, "X-Request-ID", params.XRequestID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Request-ID", headerParam5)
+
+		var headerParam6 string
+
+		headerParam6, err = runtime.StyleParamWithOptions("simple", false, "X-Trace-ID", params.XTraceID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Trace-ID", headerParam6)
+
+		if params.Traceparent != nil {
+			var headerParam7 string
+
+			headerParam7, err = runtime.StyleParamWithOptions("simple", false, "traceparent", *params.Traceparent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("traceparent", headerParam7)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListSessionTasksRequest generates requests for ListSessionTasks
+func NewListSessionTasksRequest(server string, sessionId SessionId, params *ListSessionTasksParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "sessionId", sessionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/sessions/%s/tasks", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageSize", *params.PageSize, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageToken", *params.PageToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -2878,6 +3342,169 @@ func NewStreamTaskEventsRequest(server string, taskId TaskId, params *StreamTask
 	return req, nil
 }
 
+// NewReplayTaskEventsRequest generates requests for ReplayTaskEvents
+func NewReplayTaskEventsRequest(server string, taskId TaskId, params *ReplayTaskEventsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "taskId", taskId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/tasks/%s/events/replay", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.AfterSequence != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "afterSequence", *params.AfterSequence, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageSize", *params.PageSize, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageToken", *params.PageToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Tenant-ID", params.XMTBTenantID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Tenant-ID", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Org-ID", params.XMTBOrgID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Org-ID", headerParam1)
+
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-User-ID", params.XMTBUserID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-User-ID", headerParam2)
+
+		var headerParam3 string
+
+		headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Roles", params.XMTBRoles, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Roles", headerParam3)
+
+		var headerParam4 string
+
+		headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Permissions", params.XMTBPermissions, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Permissions", headerParam4)
+
+		var headerParam5 string
+
+		headerParam5, err = runtime.StyleParamWithOptions("simple", false, "X-Request-ID", params.XRequestID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Request-ID", headerParam5)
+
+		var headerParam6 string
+
+		headerParam6, err = runtime.StyleParamWithOptions("simple", false, "X-Trace-ID", params.XTraceID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Trace-ID", headerParam6)
+
+		if params.Traceparent != nil {
+			var headerParam7 string
+
+			headerParam7, err = runtime.StyleParamWithOptions("simple", false, "traceparent", *params.Traceparent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("traceparent", headerParam7)
+		}
+
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -2935,6 +3562,12 @@ type ClientWithResponsesInterface interface {
 	// GetSessionWithResponse request
 	GetSessionWithResponse(ctx context.Context, sessionId SessionId, params *GetSessionParams, reqEditors ...RequestEditorFn) (*GetSessionResponse, error)
 
+	// ListSessionMessagesWithResponse request
+	ListSessionMessagesWithResponse(ctx context.Context, sessionId SessionId, params *ListSessionMessagesParams, reqEditors ...RequestEditorFn) (*ListSessionMessagesResponse, error)
+
+	// ListSessionTasksWithResponse request
+	ListSessionTasksWithResponse(ctx context.Context, sessionId SessionId, params *ListSessionTasksParams, reqEditors ...RequestEditorFn) (*ListSessionTasksResponse, error)
+
 	// CreateTaskWithBodyWithResponse request with any body
 	CreateTaskWithBodyWithResponse(ctx context.Context, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
 
@@ -2945,6 +3578,9 @@ type ClientWithResponsesInterface interface {
 
 	// StreamTaskEventsWithResponse request
 	StreamTaskEventsWithResponse(ctx context.Context, taskId TaskId, params *StreamTaskEventsParams, reqEditors ...RequestEditorFn) (*StreamTaskEventsResponse, error)
+
+	// ReplayTaskEventsWithResponse request
+	ReplayTaskEventsWithResponse(ctx context.Context, taskId TaskId, params *ReplayTaskEventsParams, reqEditors ...RequestEditorFn) (*ReplayTaskEventsResponse, error)
 }
 
 type HealthzResponse struct {
@@ -3068,6 +3704,68 @@ func (r GetSessionResponse) ContentType() string {
 	return ""
 }
 
+type ListSessionMessagesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MessagePageSchema
+	JSONDefault  *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSessionMessagesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSessionMessagesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSessionMessagesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListSessionTasksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TaskPageSchema
+	JSONDefault  *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSessionTasksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSessionTasksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSessionTasksResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateTaskResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3160,6 +3858,37 @@ func (r StreamTaskEventsResponse) ContentType() string {
 	return ""
 }
 
+type ReplayTaskEventsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TaskEventReplayPageSchema
+	JSONDefault  *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplayTaskEventsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplayTaskEventsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReplayTaskEventsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // HealthzWithResponse request returning *HealthzResponse
 func (c *ClientWithResponses) HealthzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthzResponse, error) {
 	rsp, err := c.Healthz(ctx, reqEditors...)
@@ -3204,6 +3933,24 @@ func (c *ClientWithResponses) GetSessionWithResponse(ctx context.Context, sessio
 	return ParseGetSessionResponse(rsp)
 }
 
+// ListSessionMessagesWithResponse request returning *ListSessionMessagesResponse
+func (c *ClientWithResponses) ListSessionMessagesWithResponse(ctx context.Context, sessionId SessionId, params *ListSessionMessagesParams, reqEditors ...RequestEditorFn) (*ListSessionMessagesResponse, error) {
+	rsp, err := c.ListSessionMessages(ctx, sessionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSessionMessagesResponse(rsp)
+}
+
+// ListSessionTasksWithResponse request returning *ListSessionTasksResponse
+func (c *ClientWithResponses) ListSessionTasksWithResponse(ctx context.Context, sessionId SessionId, params *ListSessionTasksParams, reqEditors ...RequestEditorFn) (*ListSessionTasksResponse, error) {
+	rsp, err := c.ListSessionTasks(ctx, sessionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSessionTasksResponse(rsp)
+}
+
 // CreateTaskWithBodyWithResponse request with arbitrary body returning *CreateTaskResponse
 func (c *ClientWithResponses) CreateTaskWithBodyWithResponse(ctx context.Context, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error) {
 	rsp, err := c.CreateTaskWithBody(ctx, params, contentType, body, reqEditors...)
@@ -3237,6 +3984,15 @@ func (c *ClientWithResponses) StreamTaskEventsWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseStreamTaskEventsResponse(rsp)
+}
+
+// ReplayTaskEventsWithResponse request returning *ReplayTaskEventsResponse
+func (c *ClientWithResponses) ReplayTaskEventsWithResponse(ctx context.Context, taskId TaskId, params *ReplayTaskEventsParams, reqEditors ...RequestEditorFn) (*ReplayTaskEventsResponse, error) {
+	rsp, err := c.ReplayTaskEvents(ctx, taskId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplayTaskEventsResponse(rsp)
 }
 
 // ParseHealthzResponse parses an HTTP response from a HealthzWithResponse call
@@ -3347,6 +4103,72 @@ func ParseGetSessionResponse(rsp *http.Response) (*GetSessionResponse, error) {
 	return response, nil
 }
 
+// ParseListSessionMessagesResponse parses an HTTP response from a ListSessionMessagesWithResponse call
+func ParseListSessionMessagesResponse(rsp *http.Response) (*ListSessionMessagesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSessionMessagesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MessagePageSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSessionTasksResponse parses an HTTP response from a ListSessionTasksWithResponse call
+func ParseListSessionTasksResponse(rsp *http.Response) (*ListSessionTasksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSessionTasksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TaskPageSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCreateTaskResponse parses an HTTP response from a CreateTaskWithResponse call
 func ParseCreateTaskResponse(rsp *http.Response) (*CreateTaskResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -3427,6 +4249,39 @@ func ParseStreamTaskEventsResponse(rsp *http.Response) (*StreamTaskEventsRespons
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReplayTaskEventsResponse parses an HTTP response from a ReplayTaskEventsWithResponse call
+func ParseReplayTaskEventsResponse(rsp *http.Response) (*ReplayTaskEventsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplayTaskEventsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TaskEventReplayPageSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
