@@ -20,5 +20,10 @@ The completed detailed plan is
 its completion verification record is
 [`node_exporter_real_analysis_progress.md`](node_exporter_real_analysis_progress.md).
 
+The proposed next UI slice is
+[`three_pane_workbench_execution_plan.md`](three_pane_workbench_execution_plan.md).
+It is currently `draft-review`: it records the bounded three-pane layout work
+but does not authorize implementation until promoted to `active`.
+
 The related stable product and architecture material is in
 [`../design/README.md`](../design/README.md); ADRs remain in [`../adr/`](../adr/).
