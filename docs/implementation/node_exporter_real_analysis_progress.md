@@ -21,6 +21,7 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
   - [x] P3.1 Shared `prometheus-main` datasource UID, canonical-expression contract and migration
   - [x] P3.2 Shared node_exporter registry and PromQL AST policy
   - [x] P3.3 Real Prometheus HTTP Adapter, driver config and readiness probe
+  - [ ] P3.4 Real-metrics Compose topology (implemented; container E2E awaits port availability)
 - [ ] P4 Static Profile and constrained Eino runtime
 - [ ] P5 End-to-end closeout
 
@@ -50,7 +51,8 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 |`make test-assistant-mcp test-ai-mcp`|passed|2026-07-14|P3.2 accepts only the three registered normalized PromQL expressions and rejects out-of-registry ASTs before Mock fixture access.|
 |`make test-assistant-mcp`|passed|2026-07-14|P3.3 `httptest` coverage verifies the opt-in HTTP driver, canonical query POST, local validation, response/series limits, non-finite filtering, timeout/status/error mapping, redirect refusal and Prometheus readiness behavior.|
 |`make check`|passed|2026-07-14|P3.3 passes generated-client reproducibility, contract validation, Go/TypeScript tests, formatting, boundaries and secret scan.|
+|`sh -n scripts/run-real-metrics-e2e.sh && node --check tests/e2e/mock/api-e2e.mjs && docker compose -f compose.mock-e2e.yaml -f compose.real-metrics-e2e.yaml config`|passed|2026-07-14|P3.4 validates the real-metrics script syntax, optional real-series assertion and merged Compose topology without starting containers.|
 
 ## Next Slice
 
-Implement P3.4's real-metrics Compose topology. Re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081; that pending P2 container gate remains required for final closeout.
+Run P3.4's `make e2e-real-metrics` and re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081. Those pending container gates remain required for final closeout; P4 implementation can proceed independently.

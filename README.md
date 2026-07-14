@@ -1,15 +1,13 @@
 # mini-torchbearing
 
-Grafana 内嵌的自然语言指标分析工作台。当前已完成确定性的 `node_exporter` Mock
-闭环；文档状态、阅读路由和下一阶段方向见
+Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性的 `node_exporter` Mock
+闭环，并已提供可显式启用的本地真实 Prometheus/node_exporter 指标链路；文档状态、阅读路由和下一阶段方向见
 [`docs/CLAUDE.md`](docs/CLAUDE.md)。
 
 ## 当前状态
 
-基本 Mock 闭环已经实现：输入任意非空消息会产生固定的 node_exporter CPU、内存和负载三图。
-下一阶段拟先建立持久化多轮对话，再逐步接入真实 Prometheus/node_exporter 与最小 Eino Agent。
-真实 Agent/LLM、Prometheus 和 Grafana Dashboard 写入目前都还没有实现。当前路线图仍处于评审
-状态，不代表已经授权执行；范围、安全边界和建议 Gate 见
+基本 Mock 闭环和持久化多轮工作台已经实现：输入任意非空消息会产生 node_exporter CPU、内存和负载三图。
+`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 和 Grafana Dashboard 写入尚未实现。当前路线图正在执行，范围、安全边界和 Gate 见
 [`docs/implementation/node_exporter_real_analysis_plan.md`](docs/implementation/node_exporter_real_analysis_plan.md)。
 
 ## 模块边界
@@ -40,7 +38,7 @@ cd apps/grafana-plugin/frontend && npm ci
 
 ## 本地演示
 
-分别启动 `assistant-mcp`（`:8081`）和 AI Core（`:8080`），或运行 `make e2e-mock` 构建 Compose；浏览器只通过 Grafana Plugin Resource API 访问系统。
+分别启动 `assistant-mcp`（`:8081`）和 AI Core（`:8080`），或运行 `make e2e-mock` 构建 Mock Compose；浏览器只通过 Grafana Plugin Resource API 访问系统。运行 `make e2e-real-metrics` 会在相同栈上叠加 Prometheus 和 node_exporter，并轮询 `up=1` 及至少两个 CPU idle scrape 后才发起真实查询。node_exporter 观察的是 Docker Linux VM/容器宿主的视图，不是 macOS 内核。
 
 ### Docker/Colima 前置检查
 

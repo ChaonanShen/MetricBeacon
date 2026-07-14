@@ -100,6 +100,14 @@ assert.equal(events.filter((event) => event.type === 'chart.created').length, 3)
 assert.equal(events.filter((event) => event.type === 'chart.execution_completed').length, 3);
 assert.equal(events.at(-1)?.type, 'task.completed');
 assert.ok(events.some((event) => event.type === 'assistant.message.completed' && event.payload.message.content.includes('CPU、内存和系统负载')));
+if (process.env.REAL_METRICS === '1') {
+  const executions = events.filter((event) => event.type === 'chart.execution_completed').map((event) => event.payload.execution);
+  assert.equal(executions.length, 3);
+  for (const execution of executions) {
+    assert.ok(execution.seriesCount > 0, 'real Prometheus query returned no series');
+    assert.ok(execution.series.every((series) => series.points.length > 0), 'real Prometheus query returned an empty series');
+  }
+}
 
 const replayAfter = events.at(-6).sequence;
 const replay = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events?afterSequence=${replayAfter}`);

@@ -35,7 +35,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`apps/grafana-plugin/frontend`|React/Grafana 工作台：创建或恢复 Session、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|提交新消息保留已有对话与图表，活动 Task 阻止并发提交；未实现图表编辑和 Dashboard 写入。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
-|`scripts/`、`Makefile`、`tests/e2e/`|工程门禁、代码生成、契约/边界检查与端到端验收入口。|`compose.mock-e2e.yaml` 启动 assistant-mcp、AI Core 与 Grafana 三个容器。|
+|`scripts/`、`Makefile`、`tests/e2e/`|工程门禁、代码生成、契约/边界检查与端到端验收入口。|`compose.mock-e2e.yaml` 启动 Mock 栈；`compose.real-metrics-e2e.yaml` 叠加 Prometheus 与 node_exporter，E2E 在真实 CPU 数据已有两个 scrape 后才提交任务。|
 
 ## 关键数据与依赖边界
 
@@ -53,7 +53,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 
 ## 尚未实现的范围
 
-当前默认仍覆盖一个固定 Mock 场景；真实 Prometheus 查询可通过服务端 HTTP driver 显式启用，真实 Agent/LLM 尚未实现。以下是明确保留的后续能力，而非现有功能：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。对应的部分 Port 或 Schema 已预留，但不能按“已实现”理解。
+当前默认仍覆盖一个固定 Mock 场景；`make e2e-real-metrics` 可用本地 Prometheus/node_exporter 验证受限的真实查询（node_exporter 观察 Docker Linux VM/容器宿主，而非 macOS 内核）。真实 Agent/LLM 尚未实现。以下是明确保留的后续能力，而非现有功能：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。对应的部分 Port 或 Schema 已预留，但不能按“已实现”理解。
 
 ## 上手使用
 

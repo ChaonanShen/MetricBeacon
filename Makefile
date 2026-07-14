@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 .PHONY: bootstrap-check generate generated-client-diff validate-contracts lint test \
 	test-adapters test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp \
-	test-plugin-backend test-frontend smoke e2e-mock check boundary-check secret-scan
+	test-plugin-backend test-frontend smoke e2e-mock e2e-real-metrics check boundary-check secret-scan
 
 bootstrap-check:
 	@./scripts/bootstrap-check.sh
@@ -46,6 +46,9 @@ smoke: test-ai-mcp test-plugin-backend test-frontend
 
 e2e-mock:
 	@./scripts/run-mock-e2e.sh
+
+e2e-real-metrics:
+	@./scripts/run-real-metrics-e2e.sh
 
 boundary-check:
 	@./scripts/check-boundaries.sh
