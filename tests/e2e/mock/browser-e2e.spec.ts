@@ -6,7 +6,7 @@ const realMetrics = process.env.REAL_METRICS === '1';
 const chartTitles = ['CPU 使用率', '内存可用率', '系统负载'];
 
 test('submits, restores, and renders the complete mock workbench', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1800, height: 900 });
   const login = await page.context().request.post('/login', { data: { user, password } });
   expect(login.ok()).toBeTruthy();
 
@@ -45,12 +45,21 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(page.getByTestId('timeseries-panel')).toHaveCount(4);
   await expect(page.getByText('你：只看 CPU')).toBeVisible();
 
+  const groups = page.getByTestId('chart-group');
+  await expect(groups).toHaveCount(2);
+  await expect(groups.nth(0)).toContainText('帮我看看最近 5 分钟');
+  await expect(groups.nth(1)).toContainText('只看 CPU');
+  await expect(groups.nth(0).getByTestId('timeseries-panel')).toHaveCount(3);
+  await expect(groups.nth(1).getByTestId('timeseries-panel')).toHaveCount(1);
+
   await expectThreePaneDesktopLayout(page);
   const widePanels = await panelBoxes(page);
-  expect(new Set(widePanels.map((box) => Math.round(box.y))).size).toBeGreaterThan(1);
-  expect(new Set(widePanels.map((box) => Math.round(box.x))).size).toBeGreaterThanOrEqual(2);
+  expect(new Set(widePanels.map((box) => Math.round(box.x))).size).toBeLessThanOrEqual(2);
+  expect(widePanels[2].y).toBeGreaterThan(widePanels[0].y);
+  expect(widePanels[2].width).toBeGreaterThan(widePanels[0].width * 1.8);
+  expect(widePanels[3].y).toBeGreaterThan(widePanels[2].y + widePanels[2].height);
 
-  await page.getByRole('button', { name: '详情' }).nth(2).click();
+  await page.getByRole('button', { name: '详情' }).nth(1).click();
   const contextPane = page.getByTestId('context-pane');
   await expect(contextPane.getByText('内存可用率', { exact: true })).toBeVisible();
   await expect(contextPane.getByText('PromQL', { exact: true })).toBeVisible();
@@ -78,11 +87,14 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
     await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
   }
   await expect(page.getByTestId('timeseries-panel')).toHaveCount(4);
+  await expect(page.getByTestId('chart-group')).toHaveCount(2);
+  await expect(page.getByTestId('chart-group').nth(0)).toContainText('帮我看看最近 5 分钟');
+  await expect(page.getByTestId('chart-group').nth(1)).toContainText('只看 CPU');
   await expect(page.getByText('undefined', { exact: true })).toHaveCount(0);
   await expectPlotsWithinPanels(page);
   await expectNoHorizontalOverflow(page);
 
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1800, height: 900 });
   await page.goto('/a/mini-torchbearing-app/workbench?theme=dark&sessionId=missing-session&taskId=missing-task');
   await expect(page).toHaveURL((url) => url.searchParams.get('theme') === 'dark' && !url.searchParams.has('sessionId') && !url.searchParams.has('taskId'));
   await expect(page.getByRole('status')).toHaveText('已清除当前运行环境中不存在的旧会话，请重新提交分析。');

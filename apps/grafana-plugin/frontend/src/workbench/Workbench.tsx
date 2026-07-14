@@ -5,8 +5,8 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { resourceClient, type CreateTask, type GeneratedTaskEvent, type Task } from '../api/resource';
 import { formatResourceError, isResourceNotFound } from '../api/resource-error';
-import { ChartCanvas } from './ChartCanvas';
-import { defaultChartId, deriveChartGroups } from './chart-groups';
+import { ChartCanvas, type ChartCanvasHandle } from './ChartCanvas';
+import { autoFocusTarget, deriveChartGroups } from './chart-groups';
 import { ContextPane } from './ContextPane';
 import { ConversationPane } from './ConversationPane';
 import { createTaskInput } from './query-input';
@@ -28,6 +28,8 @@ export function Workbench(_props: AppRootProps) {
   const replayedTasks = useRef(new Set<string>());
   const idempotencyKey = useRef<string>();
   const pendingTask = useRef<CreateTask>();
+  const chartCanvas = useRef<ChartCanvasHandle>(null);
+  const autoFocusedTask = useRef<string>();
   const session = useQuery({
     queryKey: ['mini-torchbearing-session', sessionId],
     queryFn: () => resourceClient.getSession(sessionId!),
@@ -127,13 +129,17 @@ export function Workbench(_props: AppRootProps) {
   });
   const loadMore = useMutation({
     mutationFn: async () => {
+      chartCanvas.current?.captureScrollSnapshot();
       const [messages, tasks] = await Promise.all([
         state.messageNextPageToken ? resourceClient.listMessages(sessionId!, state.messageNextPageToken) : Promise.resolve({ items: [], nextPageToken: state.messageNextPageToken }),
         state.taskNextPageToken ? resourceClient.listTasks(sessionId!, state.taskNextPageToken) : Promise.resolve({ items: [], nextPageToken: state.taskNextPageToken }),
       ]);
       return { messages, tasks };
     },
-    onSuccess: ({ messages, tasks }) => dispatch({ type: 'history.loaded', messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken }),
+    onSuccess: ({ messages, tasks }) => {
+      dispatch({ type: 'history.loaded', messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken });
+      requestAnimationFrame(() => requestAnimationFrame(() => chartCanvas.current?.restoreAfterPrepend()));
+    },
   });
   const submit = () => { if (message.trim() && !activeTask) create.mutate(); };
   const staleSession = session.isError && isResourceNotFound(session.error);
@@ -142,9 +148,16 @@ export function Workbench(_props: AppRootProps) {
   const groups = deriveChartGroups(state.taskOrder.map((taskID) => state.tasksById[taskID]), messages, state.runtimeByTaskId);
   const charts = groups.flatMap((group) => group.charts.map((chart) => ({ taskID: group.taskId, ...chart })));
   const chartIDs = charts.map(({ chart }) => chart.id).join(',');
+  const allHistoryReplayed = state.taskOrder.length > 0 && state.taskOrder.every((taskId) => state.replayedTaskIds[taskId]);
   useEffect(() => {
-    setSelectedChartId((current) => current && charts.some(({ chart }) => chart.id === current) ? current : defaultChartId(groups));
-  }, [chartIDs]);
+    setSelectedChartId((current) => current && charts.some(({ chart }) => chart.id === current) ? current : undefined);
+    const target = autoFocusTarget(groups, state.activeTaskId, autoFocusedTask.current, allHistoryReplayed, selectedChartId);
+    if (target) {
+      if (target.behavior === 'smooth') autoFocusedTask.current = target.taskId;
+      setSelectedChartId(target.chartId);
+      requestAnimationFrame(() => chartCanvas.current?.scrollTaskIntoView(target.taskId, target.behavior));
+    }
+  }, [allHistoryReplayed, chartIDs, state.activeTaskId]);
   const selectedChart = charts.find(({ chart }) => chart.id === selectedChartId);
   const contextTask = selectedChart ? state.tasksById[selectedChart.taskID] : activeTask ?? state.tasksById[state.taskOrder[0]];
 
@@ -154,7 +167,7 @@ export function Workbench(_props: AppRootProps) {
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
         <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
       </Box>
-      <ChartCanvas groups={groups} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />
+      <ChartCanvas ref={chartCanvas} groups={groups} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
         <ContextPane sessionTitle={session.data?.title} task={contextTask} runtime={contextTask ? state.runtimeByTaskId[contextTask.id] : undefined} selectedChart={selectedChart} />
       </Box>
