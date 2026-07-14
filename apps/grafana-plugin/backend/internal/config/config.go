@@ -13,7 +13,7 @@ type Config struct {
 }
 
 func Load() Config {
-	return Config{Timeout: duration("AI_CORE_TIMEOUT", 10*time.Second), MaxResponse: size("AI_CORE_MAX_RESPONSE_BYTES", 1<<20)}
+	return Config{Timeout: duration("AI_CORE_TIMEOUT", 10*time.Second), MaxResponse: size("AI_CORE_MAX_RESPONSE_BYTES", 4<<20)}
 }
 func env(key, fallback string) string {
 	if value := strings.TrimSpace(os.Getenv(key)); value != "" {

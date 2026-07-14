@@ -12,6 +12,7 @@ func Wire(config config.Config) (*handlers.ResourceHandler, error) {
 		NewClient: func(endpoint string) (generated.ClientInterface, error) {
 			return aicore.New(endpoint, config.Timeout)
 		},
-		MaxResponse: config.MaxResponse,
+		NewStreamClient: aicore.NewStream,
+		MaxResponse:     config.MaxResponse,
 	}, nil
 }

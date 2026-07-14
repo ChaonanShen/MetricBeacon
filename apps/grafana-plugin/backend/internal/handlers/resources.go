@@ -22,9 +22,12 @@ import (
 type ResourceHandler struct {
 	// Client is an optional fixed client, primarily useful for isolated tests.
 	// Production requests should resolve the endpoint from Grafana App settings.
-	Client      generated.ClientInterface
-	NewClient   func(endpoint string) (generated.ClientInterface, error)
-	MaxResponse int64
+	Client    generated.ClientInterface
+	NewClient func(endpoint string) (generated.ClientInterface, error)
+	// NewStreamClient creates a client without a global timeout. It is used only
+	// for the SSE follow endpoint, whose lifecycle is request-context driven.
+	NewStreamClient func(endpoint string) (generated.ClientInterface, error)
+	MaxResponse     int64
 }
 
 type appSettings struct {
@@ -41,7 +44,8 @@ func (h *ResourceHandler) CallResource(ctx context.Context, request *backend.Cal
 	if !ok {
 		return h.sendError(sender, http.StatusUnauthorized, "unauthenticated", "Grafana user context is required", "", false)
 	}
-	client, err := h.clientFor(request)
+	streaming := request.Method == http.MethodGet && strings.HasPrefix(strings.Trim(strings.SplitN(request.Path, "?", 2)[0], "/"), "tasks/") && strings.HasSuffix(strings.Trim(strings.SplitN(request.Path, "?", 2)[0], "/"), "/events")
+	client, err := h.clientFor(request, streaming)
 	if err != nil {
 		return h.sendError(sender, http.StatusServiceUnavailable, "dependency_unavailable", "AI Core endpoint is not configured in Grafana App settings", requestContext.RequestID, false)
 	}
@@ -51,8 +55,14 @@ func (h *ResourceHandler) CallResource(ctx context.Context, request *backend.Cal
 		return h.createSession(ctx, client, request, requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "sessions/") && strings.Count(path, "/") == 1:
 		return h.getSession(ctx, client, strings.TrimPrefix(path, "sessions/"), requestContext, sender)
+	case request.Method == http.MethodGet && strings.HasPrefix(path, "sessions/") && strings.HasSuffix(path, "/messages"):
+		return h.listMessages(ctx, client, request, strings.TrimSuffix(strings.TrimPrefix(path, "sessions/"), "/messages"), requestContext, sender)
+	case request.Method == http.MethodGet && strings.HasPrefix(path, "sessions/") && strings.HasSuffix(path, "/tasks"):
+		return h.listTasks(ctx, client, request, strings.TrimSuffix(strings.TrimPrefix(path, "sessions/"), "/tasks"), requestContext, sender)
 	case request.Method == http.MethodPost && path == "tasks":
 		return h.createTask(ctx, client, request, requestContext, sender)
+	case request.Method == http.MethodGet && strings.HasPrefix(path, "tasks/") && strings.HasSuffix(path, "/events/replay"):
+		return h.replayEvents(ctx, client, request, strings.TrimSuffix(strings.TrimPrefix(path, "tasks/"), "/events/replay"), requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "tasks/") && strings.HasSuffix(path, "/events"):
 		return h.streamEvents(ctx, client, request, strings.TrimSuffix(strings.TrimPrefix(path, "tasks/"), "/events"), requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "tasks/") && strings.Count(path, "/") == 1:
@@ -62,21 +72,25 @@ func (h *ResourceHandler) CallResource(ctx context.Context, request *backend.Cal
 	}
 }
 
-func (h *ResourceHandler) clientFor(request *backend.CallResourceRequest) (generated.ClientInterface, error) {
+func (h *ResourceHandler) clientFor(request *backend.CallResourceRequest, streaming bool) (generated.ClientInterface, error) {
 	if request != nil && request.PluginContext.AppInstanceSettings != nil {
 		var settings appSettings
 		if err := json.Unmarshal(request.PluginContext.AppInstanceSettings.JSONData, &settings); err != nil {
 			return nil, err
 		}
 		endpoint := strings.TrimSpace(settings.AICoreEndpoint)
-		if endpoint == "" || h.NewClient == nil {
+		newClient := h.NewClient
+		if streaming && h.NewStreamClient != nil {
+			newClient = h.NewStreamClient
+		}
+		if endpoint == "" || newClient == nil {
 			return nil, errors.New("aiCoreEndpoint is missing")
 		}
 		parsed, err := url.Parse(endpoint)
 		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil {
 			return nil, errors.New("aiCoreEndpoint must be an HTTP(S) URL without credentials")
 		}
-		return h.NewClient(strings.TrimRight(endpoint, "/"))
+		return newClient(strings.TrimRight(endpoint, "/"))
 	}
 	if h.Client != nil {
 		return h.Client, nil
@@ -96,6 +110,22 @@ func (h *ResourceHandler) getSession(ctx context.Context, client generated.Clien
 	response, err := client.GetSession(ctx, sessionID, getSessionParams(identity))
 	return h.forward(sender, response, err, identity.RequestID, false)
 }
+func (h *ResourceHandler) listMessages(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, sessionID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	params, err := messagePageParams(request, identity)
+	if err != nil {
+		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid message page parameters", identity.RequestID, false)
+	}
+	response, err := client.ListSessionMessages(ctx, sessionID, params)
+	return h.forward(sender, response, err, identity.RequestID, false)
+}
+func (h *ResourceHandler) listTasks(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, sessionID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	params, err := taskPageParams(request, identity)
+	if err != nil {
+		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid task page parameters", identity.RequestID, false)
+	}
+	response, err := client.ListSessionTasks(ctx, sessionID, params)
+	return h.forward(sender, response, err, identity.RequestID, false)
+}
 func (h *ResourceHandler) createTask(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
 	key := request.GetHTTPHeader("Idempotency-Key")
 	if key == "" {
@@ -110,6 +140,14 @@ func (h *ResourceHandler) createTask(ctx context.Context, client generated.Clien
 }
 func (h *ResourceHandler) getTask(ctx context.Context, client generated.ClientInterface, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
 	response, err := client.GetTask(ctx, taskID, getTaskParams(identity))
+	return h.forward(sender, response, err, identity.RequestID, false)
+}
+func (h *ResourceHandler) replayEvents(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	params, err := replayParams(request, identity)
+	if err != nil {
+		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid event replay parameters", identity.RequestID, false)
+	}
+	response, err := client.ReplayTaskEvents(ctx, taskID, params)
 	return h.forward(sender, response, err, identity.RequestID, false)
 }
 func (h *ResourceHandler) streamEvents(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
@@ -176,6 +214,34 @@ func sessionParams(identity requestcontext.Context) *generated.CreateSessionPara
 func getSessionParams(identity requestcontext.Context) *generated.GetSessionParams {
 	return &generated.GetSessionParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
 }
+func messagePageParams(request *backend.CallResourceRequest, identity requestcontext.Context) (*generated.ListSessionMessagesParams, error) {
+	query, err := resourceQuery(request)
+	if err != nil {
+		return nil, err
+	}
+	params := &generated.ListSessionMessagesParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+	if err := setPageSize(query, "pageSize", 100, func(value int) { params.PageSize = &value }); err != nil {
+		return nil, err
+	}
+	if err := setPageToken(query, func(value string) { params.PageToken = &value }); err != nil {
+		return nil, err
+	}
+	return params, nil
+}
+func taskPageParams(request *backend.CallResourceRequest, identity requestcontext.Context) (*generated.ListSessionTasksParams, error) {
+	query, err := resourceQuery(request)
+	if err != nil {
+		return nil, err
+	}
+	params := &generated.ListSessionTasksParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+	if err := setPageSize(query, "pageSize", 50, func(value int) { params.PageSize = &value }); err != nil {
+		return nil, err
+	}
+	if err := setPageToken(query, func(value string) { params.PageToken = &value }); err != nil {
+		return nil, err
+	}
+	return params, nil
+}
 func taskParams(identity requestcontext.Context, key string) *generated.CreateTaskParams {
 	return &generated.CreateTaskParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), IdempotencyKey: key, XRequestID: identity.RequestID, XTraceID: identity.TraceID}
 }
@@ -184,11 +250,11 @@ func getTaskParams(identity requestcontext.Context) *generated.GetTaskParams {
 }
 func eventParams(request *backend.CallResourceRequest, identity requestcontext.Context) (*generated.StreamTaskEventsParams, error) {
 	params := &generated.StreamTaskEventsParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
-	parsed, err := url.Parse(request.URL)
+	parsed, err := resourceQuery(request)
 	if err != nil {
 		return nil, err
 	}
-	if value := parsed.Query().Get("afterSequence"); value != "" {
+	if value := parsed.Get("afterSequence"); value != "" {
 		number, err := strconv.Atoi(value)
 		if err != nil || number < 0 {
 			return nil, err
@@ -203,6 +269,77 @@ func eventParams(request *backend.CallResourceRequest, identity requestcontext.C
 		params.LastEventID = &number
 	}
 	return params, nil
+}
+func replayParams(request *backend.CallResourceRequest, identity requestcontext.Context) (*generated.ReplayTaskEventsParams, error) {
+	query, err := resourceQuery(request)
+	if err != nil {
+		return nil, err
+	}
+	params := &generated.ReplayTaskEventsParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+	if err := setNonNegativeInteger(query, "afterSequence", func(value int) { params.AfterSequence = &value }); err != nil {
+		return nil, err
+	}
+	if err := setPageSize(query, "pageSize", 200, func(value int) { params.PageSize = &value }); err != nil {
+		return nil, err
+	}
+	if err := setPageToken(query, func(value string) { params.PageToken = &value }); err != nil {
+		return nil, err
+	}
+	if params.AfterSequence != nil && params.PageToken != nil {
+		return nil, errors.New("afterSequence and pageToken are mutually exclusive")
+	}
+	return params, nil
+}
+func resourceQuery(request *backend.CallResourceRequest) (url.Values, error) {
+	if request == nil {
+		return nil, errors.New("request is nil")
+	}
+	parsed, err := url.Parse(request.URL)
+	if err != nil {
+		return nil, err
+	}
+	return parsed.Query(), nil
+}
+func setPageSize(query url.Values, key string, maximum int, set func(int)) error {
+	values, exists := query[key]
+	if !exists {
+		return nil
+	}
+	if len(values) != 1 {
+		return errors.New("invalid page size")
+	}
+	value, err := strconv.Atoi(values[0])
+	if err != nil || value < 1 || value > maximum {
+		return errors.New("invalid page size")
+	}
+	set(value)
+	return nil
+}
+func setNonNegativeInteger(query url.Values, key string, set func(int)) error {
+	values, exists := query[key]
+	if !exists {
+		return nil
+	}
+	if len(values) != 1 || values[0] == "" {
+		return errors.New("invalid query parameter")
+	}
+	value, err := strconv.Atoi(values[0])
+	if err != nil || value < 0 {
+		return errors.New("invalid query parameter")
+	}
+	set(value)
+	return nil
+}
+func setPageToken(query url.Values, set func(string)) error {
+	values, exists := query["pageToken"]
+	if !exists {
+		return nil
+	}
+	if len(values) != 1 || strings.TrimSpace(values[0]) == "" {
+		return errors.New("invalid page token")
+	}
+	set(values[0])
+	return nil
 }
 func decode(raw []byte, destination any) error {
 	decoder := json.NewDecoder(bytes.NewReader(raw))

@@ -33,7 +33,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|工具先做权限和 Schema 校验，再调用 Prometheus Port；该服务不拥有 AI Core 的任务或数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`|Mock Prometheus Port 实现。|唯一允许读取 `data/mock-scenarios` 的代码；按请求的 PromQL 返回固定 fixture。真实 HTTP Adapter 目前显式 `not_implemented`。|
 |`apps/grafana-plugin/frontend`|React/Grafana 工作台：创建 Session/Task、消费 Resource API、以连续 sequence 消费/重连 SSE、还原 URL、把执行结果映射为 Grafana DataFrame 与时序图。|当前页面只展示输入、状态、助手文本与三张图；未实现图表编辑和 Dashboard 写入。|
-|`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置、代理请求与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
+|`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
 |`scripts/`、`Makefile`、`tests/e2e/`|工程门禁、代码生成、契约/边界检查与端到端验收入口。|`compose.mock-e2e.yaml` 启动 assistant-mcp、AI Core 与 Grafana 三个容器。|
 
@@ -41,7 +41,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 
 - AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。每条 Message 已持久化关联其 Task：User Message 与 `Task.inputMessageId` 双向一致，Assistant Message 也归属产生它的 Task；迁移会拒绝无法无歧义关联的旧数据。
 - 同一 tenant/Session 最多允许一个非终态 Task，SQLite partial unique index 是并发竞争的最终约束。工具审计以内部稳定 source call ID 关联 start/completed/failed 记录，Mock Runtime 使用可重复的 source call ID。
-- AI Core 内部 API 已提供按 `createdAt DESC,id DESC` 的 Session Message/Task keyset 分页，以及固定 `targetSequence` 的有限 JSON TaskEvent replay。page token 绑定资源类型及 Session/Task，不能跨接口或跨资源复用；当前浏览器仍只通过尚待补齐代理的 Plugin Resource API 访问这些能力。
+- AI Core 与 Plugin Resource API 都提供按 `createdAt DESC,id DESC` 的 Session Message/Task keyset 分页，以及固定 `targetSequence` 的有限 JSON TaskEvent replay。page token 绑定资源类型及 Session/Task，不能跨接口或跨资源复用；Plugin 由 Grafana 身份上下文覆盖浏览器伪造的身份头。
 - 每轮 AgentRuntime 接收当前 User Message 之外、按时间正序的最近至多 12 条持久化 User/Assistant 消息，并按完整消息边界限制在 12,000 个 Unicode 字符内；当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
 - SSE 事件带有 Task、Session 和单调递增 sequence。事件先写入 durable store，客户端可通过 `afterSequence` 或 `Last-Event-ID` 获取断线后的后缀。

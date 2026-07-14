@@ -141,6 +141,104 @@ func TestResourceHandlerStreamsSSEBytesWithoutRewriting(t *testing.T) {
 	}
 }
 
+func TestResourceHandlerProxiesHistoryAndFiniteReplayWithGrafanaIdentity(t *testing.T) {
+	requests := make(map[string]*http.Request)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests[r.URL.Path] = r.Clone(r.Context())
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/sessions/session_1/messages":
+			_, _ = w.Write([]byte(`{"items":[],"nextPageToken":"next-message"}`))
+		case "/v1/sessions/session_1/tasks":
+			_, _ = w.Write([]byte(`{"items":[],"nextPageToken":"next-task"}`))
+		case "/v1/tasks/task_1/events/replay":
+			_, _ = w.Write([]byte(`{"items":[],"targetSequence":3,"nextPageToken":null}`))
+		default:
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+	client, err := generated.NewClient(upstream.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := &ResourceHandler{Client: client, MaxResponse: 4 << 20}
+	pluginContext := backend.PluginContext{OrgID: 7, User: &backend.User{Login: "grafana-user", Role: "Viewer"}}
+	for _, request := range []*backend.CallResourceRequest{
+		{Method: http.MethodGet, Path: "sessions/session_1/messages", URL: "?pageSize=50&pageToken=message-token", Headers: map[string][]string{"X-MTB-Tenant-ID": {"forged"}}, PluginContext: pluginContext},
+		{Method: http.MethodGet, Path: "sessions/session_1/tasks", URL: "?pageSize=20&pageToken=task-token", Headers: map[string][]string{"X-MTB-User-ID": {"forged"}}, PluginContext: pluginContext},
+		{Method: http.MethodGet, Path: "tasks/task_1/events/replay", URL: "?pageSize=200&pageToken=replay-token", Headers: map[string][]string{"X-MTB-Org-ID": {"forged"}}, PluginContext: pluginContext},
+	} {
+		sender := &captureSender{}
+		if err := handler.CallResource(context.Background(), request, sender); err != nil {
+			t.Fatal(err)
+		}
+		if len(sender.responses) != 1 || sender.responses[0].Status != http.StatusOK {
+			t.Fatalf("responses for %s: %#v", request.Path, sender.responses)
+		}
+	}
+	for path, wantQuery := range map[string]string{
+		"/v1/sessions/session_1/messages": "pageSize=50&pageToken=message-token",
+		"/v1/sessions/session_1/tasks":    "pageSize=20&pageToken=task-token",
+		"/v1/tasks/task_1/events/replay":  "pageSize=200&pageToken=replay-token",
+	} {
+		request := requests[path]
+		if request == nil || request.URL.RawQuery != wantQuery {
+			t.Fatalf("request for %s = %#v, want query %q", path, request, wantQuery)
+		}
+		if request.Header.Get("X-MTB-Tenant-ID") != "org:7" || request.Header.Get("X-MTB-User-ID") != "grafana-user" {
+			t.Fatalf("Grafana identity was not used for %s: %#v", path, request.Header)
+		}
+	}
+}
+
+func TestResourceHandlerRejectsInvalidFiniteReplayParameters(t *testing.T) {
+	handler := &ResourceHandler{Client: mustClient(t, "http://127.0.0.1:1")}
+	request := &backend.CallResourceRequest{Method: http.MethodGet, Path: "tasks/task_1/events/replay", URL: "?afterSequence=1&pageToken=cursor", PluginContext: backend.PluginContext{OrgID: 1, User: &backend.User{Login: "grafana-user", Role: "Viewer"}}}
+	sender := &captureSender{}
+	if err := handler.CallResource(context.Background(), request, sender); err != nil {
+		t.Fatal(err)
+	}
+	if len(sender.responses) != 1 || sender.responses[0].Status != http.StatusBadRequest || !strings.Contains(string(sender.responses[0].Body), "Invalid event replay parameters") {
+		t.Fatalf("responses: %#v", sender.responses)
+	}
+}
+
+func TestResourceHandlerUsesDedicatedClientForSSE(t *testing.T) {
+	var unaryCalls, streamCalls int
+	handler := &ResourceHandler{
+		NewClient: func(endpoint string) (generated.ClientInterface, error) {
+			unaryCalls++
+			return generated.NewClient("http://127.0.0.1:1")
+		},
+		NewStreamClient: func(endpoint string) (generated.ClientInterface, error) {
+			streamCalls++
+			return generated.NewClient("http://127.0.0.1:1")
+		},
+	}
+	settings, err := json.Marshal(appSettings{AICoreEndpoint: "http://127.0.0.1:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := &backend.CallResourceRequest{Method: http.MethodGet, Path: "tasks/task_1/events", PluginContext: backend.PluginContext{OrgID: 1, User: &backend.User{Login: "grafana-user", Role: "Viewer"}, AppInstanceSettings: &backend.AppInstanceSettings{JSONData: settings}}}
+	sender := &captureSender{}
+	if err := handler.CallResource(context.Background(), request, sender); err != nil {
+		t.Fatal(err)
+	}
+	if streamCalls != 1 || unaryCalls != 0 {
+		t.Fatalf("unary calls=%d, stream calls=%d", unaryCalls, streamCalls)
+	}
+}
+
+func mustClient(t *testing.T, endpoint string) generated.ClientInterface {
+	t.Helper()
+	client, err := generated.NewClient(endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client
+}
+
 type captureSender struct {
 	responses []*backend.CallResourceResponse
 }
