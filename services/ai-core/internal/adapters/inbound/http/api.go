@@ -147,7 +147,12 @@ func (a *API) CreateTask(w http.ResponseWriter, r *http.Request, params generate
 		writeError(w, params.XRequestID, err)
 		return
 	}
-	result, err := a.Commands.CreateTask(r.Context(), identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID), commands.CreateTaskInput{SessionID: body.SessionId, Message: body.Message, DatasourceUID: datasourceUID, TimeRange: timeRange, IdempotencyKey: params.IdempotencyKey, RequestHash: canonicalTaskRequestHash(params.XMTBTenantID, body)})
+	stepSeconds, err := parseResolution(body.AnalysisContext.Resolution)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	result, err := a.Commands.CreateTask(r.Context(), identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID), commands.CreateTaskInput{SessionID: body.SessionId, Message: body.Message, DatasourceUID: datasourceUID, TimeRange: timeRange, StepSeconds: stepSeconds, IdempotencyKey: params.IdempotencyKey, RequestHash: canonicalTaskRequestHash(params.XMTBTenantID, body)})
 	if err != nil {
 		writeError(w, params.XRequestID, err)
 		return
@@ -297,22 +302,39 @@ func decodeJSON(r *http.Request, value any) error {
 	return nil
 }
 
-func parseTimeRange(value *generated.CreateTaskRequestSchema_AnalysisContext_TimeRange) (common.AbsoluteTimeRange, error) {
-	now := time.Now().UTC()
+func parseTimeRange(value *generated.CreateTaskRequestSchema_AnalysisContext_TimeRange) (commands.RequestedTimeRange, error) {
 	if value == nil {
-		return common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
+		return commands.RequestedTimeRange{}, nil
 	}
 	if absolute, err := value.AsCreateTaskRequestSchemaAnalysisContextTimeRange0(); err == nil && !absolute.From.IsZero() && !absolute.To.IsZero() {
-		return common.NewAbsoluteTimeRange(absolute.From, absolute.To)
+		resolved, rangeErr := common.NewAbsoluteTimeRange(absolute.From, absolute.To)
+		if rangeErr != nil {
+			return commands.RequestedTimeRange{}, rangeErr
+		}
+		return commands.RequestedTimeRange{Absolute: &resolved}, nil
 	}
 	if relative, err := value.AsCreateTaskRequestSchemaAnalysisContextTimeRange1(); err == nil && relative.RelativeDuration != "" {
 		duration, parseErr := time.ParseDuration(relative.RelativeDuration)
 		if parseErr != nil || duration <= 0 {
-			return common.AbsoluteTimeRange{}, common.NewError(common.InvalidArgument, "relativeDuration must be a positive Go duration", false)
+			return commands.RequestedTimeRange{}, common.NewError(common.InvalidArgument, "relativeDuration must be a positive Go duration", false)
 		}
-		return common.NewAbsoluteTimeRange(now.Add(-duration), now)
+		return commands.RequestedTimeRange{RelativeDuration: duration}, nil
 	}
-	return common.AbsoluteTimeRange{}, common.NewError(common.InvalidArgument, "timeRange must be absolute or relative", false)
+	return commands.RequestedTimeRange{}, common.NewError(common.InvalidArgument, "timeRange must be absolute or relative", false)
+}
+
+func parseResolution(value *generated.CreateTaskRequestSchema_AnalysisContext_Resolution) (*int, error) {
+	if value == nil {
+		return nil, nil
+	}
+	if explicit, err := value.AsCreateTaskRequestSchemaAnalysisContextResolution1(); err == nil && int(explicit.StepSeconds) > 0 {
+		step := int(explicit.StepSeconds)
+		return &step, nil
+	}
+	if automatic, err := value.AsCreateTaskRequestSchemaAnalysisContextResolution0(); err == nil && fmt.Sprint(automatic.Mode) == "auto" {
+		return nil, nil
+	}
+	return nil, common.NewError(common.InvalidArgument, "resolution must be auto or a supported stepSeconds value", false)
 }
 
 type listPageToken struct {
@@ -437,7 +459,7 @@ func taskResponse(value task.AnalysisTask) any {
 	if value.Error != nil {
 		failure = map[string]any{"code": value.Error.Code, "message": value.Error.Message, "retryable": value.Error.Retryable, "requestId": ""}
 	}
-	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "inputMessageId": value.InputMessageID, "datasourceUid": value.DatasourceUID, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "latestSequence": value.LatestSequence, "error": failure, "createdAt": value.CreatedAt, "startedAt": value.StartedAt, "completedAt": value.CompletedAt, "updatedAt": value.UpdatedAt, "version": value.Version}
+	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "inputMessageId": value.InputMessageID, "datasourceUid": value.DatasourceUID, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}, "latestSequence": value.LatestSequence, "error": failure, "createdAt": value.CreatedAt, "startedAt": value.StartedAt, "completedAt": value.CompletedAt, "updatedAt": value.UpdatedAt, "version": value.Version}
 }
 func messageResponse(value session.Message) any {
 	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "taskId": value.TaskID, "role": value.Role, "content": value.Content, "createdAt": value.CreatedAt}

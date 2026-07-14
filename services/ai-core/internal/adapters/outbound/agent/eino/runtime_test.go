@@ -20,6 +20,7 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 )
 
 func TestRuntimeKeepsRawSeriesOutOfModelInput(t *testing.T) {
@@ -205,7 +206,7 @@ func identity() requestcontext.Context {
 }
 
 func request() dto.AgentRunRequest {
-	return dto.AgentRunRequest{TaskID: "task-a", SessionID: "session-a", UserMessage: "只看 CPU", DatasourceUID: "prometheus-main", TimeRange: common.AbsoluteTimeRange{From: time.Unix(0, 0).UTC(), To: time.Unix(300, 0).UTC()}}
+	return dto.AgentRunRequest{TaskID: "task-a", SessionID: "session-a", UserMessage: "只看 CPU", DatasourceUID: "prometheus-main", TimeRange: common.AbsoluteTimeRange{From: time.Unix(0, 0).UTC(), To: time.Unix(300, 0).UTC()}, QueryPlan: task.LegacyQueryPlan()}
 }
 
 func assertCode(t *testing.T, err error, want common.ErrorCode) {

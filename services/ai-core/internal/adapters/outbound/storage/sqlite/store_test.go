@@ -84,7 +84,7 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 		t.Fatalf("unexpected tool calls: %#v, %v", toolCalls, err)
 	}
 
-	query := chart.QuerySpec{RefID: "A", Expression: "up", Legend: "{{instance}}", DatasourceUID: "prometheus-main", TimeRange: data.timeRange}
+	query := chart.QuerySpec{RefID: "A", Expression: "up", Legend: "{{instance}}", DatasourceUID: "prometheus-main", TimeRange: data.timeRange, StepSeconds: 300}
 	draft, err := chart.New("chart_1", tenantID, data.session.ID, data.task.ID, "CPU usage", "percent", []chart.QuerySpec{query}, data.now)
 	if err != nil {
 		t.Fatal(err)
@@ -93,13 +93,14 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	execution := chart.Execution{
-		ID:          "execution_1",
-		TenantID:    tenantID,
-		ChartID:     draft.ID,
-		QueryRefID:  "A",
-		Status:      chart.ExecutionSuccess,
-		DurationMS:  12,
-		SampleRange: data.timeRange,
+		ID:                "execution_1",
+		TenantID:          tenantID,
+		ChartID:           draft.ID,
+		QueryRefID:        "A",
+		Status:            chart.ExecutionSuccess,
+		DurationMS:        12,
+		SampleRange:       data.timeRange,
+		ActualSampleRange: &common.TimeBounds{From: data.timeRange.From, To: data.timeRange.From},
 		Series: []chart.Series{{
 			Name:   "node-a",
 			Labels: map[string]string{"instance": "node-a"},
@@ -116,7 +117,7 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 		t.Fatalf("unexpected charts: %#v, %v", charts, err)
 	}
 	executions, err := store.ChartExecutions().ListByChart(ctx, tenantID, draft.ID)
-	if err != nil || len(executions) != 1 || len(executions[0].Series) != 1 {
+	if err != nil || len(executions) != 1 || len(executions[0].Series) != 1 || executions[0].ActualSampleRange == nil || executions[0].ActualSampleRange.From != data.timeRange.From {
 		t.Fatalf("unexpected executions: %#v, %v", executions, err)
 	}
 
@@ -252,11 +253,11 @@ func TestMultiTurnMigrationBackfillsMessagesAndSourceCallIDs(t *testing.T) {
 		t.Fatalf("tool calls: %#v, %v", calls, err)
 	}
 	loadedTask, err := store.Tasks().Get(ctx, tenantID, "task_1")
-	if err != nil || loadedTask.DatasourceUID != "prometheus-main" {
+	if err != nil || loadedTask.DatasourceUID != "prometheus-main" || loadedTask.QueryPlan != task.LegacyQueryPlan() {
 		t.Fatalf("task datasource: %#v, %v", loadedTask, err)
 	}
 	charts, err := store.Charts().ListByTask(ctx, tenantID, "task_1")
-	if err != nil || len(charts) != 1 || charts[0].Queries[0].DatasourceUID != "prometheus-main" {
+	if err != nil || len(charts) != 1 || charts[0].Queries[0].DatasourceUID != "prometheus-main" || charts[0].Queries[0].StepSeconds != 300 {
 		t.Fatalf("chart datasource: %#v, %v", charts, err)
 	}
 }
@@ -291,7 +292,7 @@ func TestOnlyOneConcurrentActiveTaskCanBeCreatedForSession(t *testing.T) {
 			<-start
 			taskID := fmt.Sprintf("task_concurrent_%d", index)
 			message, _ := session.NewMessage(fmt.Sprintf("message_concurrent_%d", index), tenantID, analysisSession.ID, taskID, session.RoleUser, "show cpu", now)
-			item, _ := task.New(taskID, tenantID, analysisSession.ID, message.ID, "prometheus-main", timeRange, now)
+			item, _ := task.New(taskID, tenantID, analysisSession.ID, message.ID, "prometheus-main", timeRange, task.LegacyQueryPlan(), now)
 			errs <- store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 				if err := tx.Messages().Append(ctx, message); err != nil {
 					return err
@@ -394,7 +395,7 @@ func createTaskFixture(t *testing.T, ctx context.Context, store repositories.App
 	if err != nil {
 		t.Fatal(err)
 	}
-	analysisTask, err := task.New("task_1", tenantID, analysisSession.ID, message.ID, "prometheus-main", timeRange, now)
+	analysisTask, err := task.New("task_1", tenantID, analysisSession.ID, message.ID, "prometheus-main", timeRange, task.LegacyQueryPlan(), now)
 	if err != nil {
 		t.Fatal(err)
 	}

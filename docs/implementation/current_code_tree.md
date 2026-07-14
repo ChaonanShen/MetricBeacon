@@ -43,9 +43,9 @@ mini-torchbearing/
 │   ├── ai-core/                           # 核心业务服务（Go）
 │   │   ├── cmd/server/                    # HTTP 服务入口
 │   │   ├── internal/
-│   │   │   ├── domain/                    # 纯领域：Session、Task、Chart、Execution
+│   │   │   ├── domain/                    # 纯领域：Session、Task/QueryPlan、Chart、Execution
 │   │   │   ├── application/
-│   │   │   │   ├── commands/              # Session/Task 命令服务
+│   │   │   │   ├── commands/              # Session/Task 命令与有限查询参数解析
 │   │   │   │   ├── workflows/             # 分析工作流与事件持久化
 │   │   │   │   └── dto/                   # 应用层数据传递对象
 │   │   │   ├── ports/                     # 存储、Agent、MCP、时钟等抽象接口
@@ -54,7 +54,7 @@ mini-torchbearing/
 │   │   │   │   └── outbound/              # SQLite、MCP、Mock Agent、Eino Agent、时钟/ID
 │   │   │   │       └── agent/eino/         # 受限 Eino AgentRuntime、严格 Tool 与本地摘要隔离
 │   │   │   └── bootstrap/                 # 服务依赖组装
-│   │   ├── migrations/sqlite/             # SQLite 数据库迁移（含多轮关联和 datasource UID 前移）
+│   │   ├── migrations/sqlite/             # SQLite 迁移（含 QueryPlan/step/实际样本范围回填）
 │   │   └── Dockerfile
 │   │
 │   └── assistant-mcp/                     # MCP 工具服务（Go）

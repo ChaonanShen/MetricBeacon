@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	_ "modernc.org/sqlite"
@@ -36,7 +37,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	db.SetMaxOpenConns(4)
 	db.SetMaxIdleConns(4)
 
-	store := &Store{db: db}
+	store := &Store{db: db, writeMu: &sync.Mutex{}}
 	if err := store.migrate(ctx); err != nil {
 		_ = db.Close()
 		return nil, err

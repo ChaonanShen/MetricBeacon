@@ -26,8 +26,8 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`packages/generated-clients`、`packages/generated-contracts`|契约生成物。前者是 AI Core HTTP Client，后者是 Grafana MCP 工具类型。|由 `scripts/generate-clients.sh` 生成，`make generated-client-diff` 检查生成结果可复现。|
 |`packages/request-context-go`|跨服务传递的租户、组织、用户、角色、权限、请求与 Trace 上下文。|Plugin Backend 从 Grafana 请求上下文生成它；浏览器传入的身份头不会被信任。|
 |`packages/testkit-go`|测试用的确定性时钟与 ID 生成器。|仅为测试可重复性服务。|
-|`services/ai-core/internal/domain`|核心领域模型和状态规则：Session/Message、AnalysisTask/TaskEvent/ToolCall、Chart/Execution、时间范围与领域错误。|不依赖数据库、MCP、Grafana 或模型 SDK。|
-|`services/ai-core/internal/application` 与 `internal/ports`|命令服务和分析工作流；Port 定义存储、事件通知、Agent、工具、时钟和 ID 等外部能力。|工作流先持久化状态/事件，再通知 SSE；重启后将不能安全续跑的任务标记为失败。|
+|`services/ai-core/internal/domain`|核心领域模型和状态规则：Session/Message、AnalysisTask/TaskEvent/ToolCall、Chart/Execution、绝对时间范围、有效 QueryPlan 与领域错误。|QueryPlan 只接受注册 step 和 CPU rate window；不依赖数据库、MCP、Grafana 或模型 SDK。|
+|`services/ai-core/internal/application` 与 `internal/ports`|命令服务、有限查询意图解析和分析工作流；Port 定义存储、事件通知、Agent、工具、时钟和 ID 等外部能力。|Task 创建前使用注入时钟解析最近 30 秒至 6 小时、auto/显式 step 与 CPU window；工作流先持久化状态/事件，再通知 SSE。下游 MCP/Agent 仍待按该计划完成动态 view/window 执行。|
 |`services/ai-core/internal/adapters`|将 Port 接到具体实现：SQLite、内存通知器、MCP 客户端、系统时钟/随机 ID、确定性 Mock Agent 与受限 Eino Agent。HTTP 入站 Adapter 暴露会话、任务、读取与 SSE 重放接口。|AI Core 是 Session、Task、Event、Chart 和 SQLite 数据的唯一所有者。它不直接读取 fixture，也不承载 Grafana 鉴权。|
 |`services/ai-core/internal/bootstrap`|组装依赖：SQLite Store、Mock 或显式 opt-in Eino/DeepSeek Agent、MCP Gateway、工作流、HTTP API。|默认 `AI_CORE_AGENT_DRIVER=mock` 不读取 API key；`eino` 启动时必须有 Profile 与 key，固定模型/任务/MCP 限制，`/readyz` 只检查 SQLite 和 MCP 工具，不请求模型。|
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|工具先做权限和 Schema 校验，再调用 Prometheus Port；该服务不拥有 AI Core 的任务或数据库。|
@@ -40,8 +40,8 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 
 ## 关键数据与依赖边界
 
-- AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。每条 Message 已持久化关联其 Task：User Message 与 `Task.inputMessageId` 双向一致，Assistant Message 也归属产生它的 Task；迁移会拒绝无法无歧义关联的旧数据。
-- 同一 tenant/Session 最多允许一个非终态 Task，SQLite partial unique index 是并发竞争的最终约束。工具审计以内部稳定 source call ID 关联 start/completed/failed 记录，Mock Runtime 使用可重复的 source call ID。
+- AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。`0004` 为 Task 回填并持久化有效 step/CPU rate window，为历史 Chart query 回填 step，并为 Execution 增加可空的实际样本范围。每条 Message 已持久化关联其 Task：User Message 与 `Task.inputMessageId` 双向一致，Assistant Message 也归属产生它的 Task；迁移会拒绝无法无歧义关联的旧数据。
+- 同一 tenant/Session 最多允许一个非终态 Task，SQLite partial unique index 是并发竞争的最终约束；进程内顶层写事务串行进入 SQLite，避免锁竞争掩盖该业务冲突。工具审计以内部稳定 source call ID 关联 start/completed/failed 记录，Mock Runtime 使用可重复的 source call ID。
 - AI Core 与 Plugin Resource API 都提供按 `createdAt DESC,id DESC` 的 Session Message/Task keyset 分页，以及固定 `targetSequence` 的有限 JSON TaskEvent replay。page token 绑定资源类型及 Session/Task，不能跨接口或跨资源复用；Plugin 由 Grafana 身份上下文覆盖浏览器伪造的身份头。
 - 前端以 Session 级 Message/Task/runtimes 状态恢复工作台，历史事件重放至固定目标序列；只有非终态 Task 建立一个 SSE，收到终态事件后关闭。重复事件会忽略，sequence 间隙会从最后连续序列重连。若 URL Session 在当前独立 AI Core volume 中明确不存在，前端会清除两个 workbench 路由 ID 和旧 reducer/replay/幂等状态；网络、权限与依赖错误不会触发该恢复，而会显示安全分类。
 - 每轮 AgentRuntime 接收当前 User Message 之外、按时间正序的最近至多 12 条持久化 User/Assistant 消息，并按完整消息边界限制在 12,000 个 Unicode 字符内；当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
@@ -54,7 +54,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 
 ## 尚未实现的范围
 
-当前默认仍覆盖一个固定 Mock 场景；`make e2e-real-metrics` 可用本地 Prometheus/node_exporter 验证受限的真实查询（node_exporter 观察 Docker Linux VM/容器宿主，而非 macOS 内核）。真实 Agent 是显式 opt-in：配置 key 后由 Bootstrap 构造受限 Eino/DeepSeek Runtime；有凭证的容器 smoke 已验证概览、CPU 追问、工具配对、持久化 replay 与泄漏检查。以下是明确保留的后续能力，而非现有功能：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。对应的部分 Port 或 Schema 已预留，但不能按“已实现”理解。
+当前已完成有界查询参数的契约、AI Core 解析与持久化，尚未完成 MCP 动态 PromQL 渲染、Agent view-only Tool、本地可信回复和 Workbench 控件；因此现有运行模式还不能按新的 QueryPlan 完整执行。`make e2e-real-metrics` 可用本地 Prometheus/node_exporter 验证当前受限真实查询（node_exporter 观察 Docker Linux VM/容器宿主，而非 macOS 内核）。以下仍是明确的非目标：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。
 
 ## 上手使用
 

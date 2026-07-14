@@ -40,7 +40,8 @@ func New(store repositories.ApplicationStore, notifier events.Notifier, workflow
 type CreateSessionInput struct{ Title, IdempotencyKey string }
 type CreateTaskInput struct {
 	SessionID, Message, DatasourceUID, IdempotencyKey string
-	TimeRange                                         common.AbsoluteTimeRange
+	TimeRange                                         RequestedTimeRange
+	StepSeconds                                       *int
 	// RequestHash identifies the canonical caller intent before relative time
 	// is resolved. In-process callers may leave it empty and use the fallback.
 	RequestHash string
@@ -81,8 +82,12 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 	if s == nil || s.Store == nil || s.IDs == nil || s.Clock == nil {
 		return task.AnalysisTask{}, common.NewError(common.InternalError, "command service is not configured", true)
 	}
-	if identity.TenantID == "" || strings.TrimSpace(input.SessionID) == "" || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > 4_000 || strings.TrimSpace(input.DatasourceUID) == "" || input.IdempotencyKey == "" || !input.TimeRange.From.Before(input.TimeRange.To) {
+	if identity.TenantID == "" || strings.TrimSpace(input.SessionID) == "" || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > 4_000 || strings.TrimSpace(input.DatasourceUID) == "" || input.IdempotencyKey == "" {
 		return task.AnalysisTask{}, common.NewError(common.InvalidArgument, "task fields and idempotency key are required", false)
+	}
+	resolvedRange, queryPlan, err := ResolveQueryPlan(input.Message, input.TimeRange, input.StepSeconds, s.Clock.Now())
+	if err != nil {
+		return task.AnalysisTask{}, err
 	}
 	var result task.AnalysisTask
 	shouldRun := false
@@ -90,10 +95,11 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 	if requestHash == "" {
 		requestHash = hash(struct {
 			TenantID, SessionID, Message, DatasourceUID string
-			TimeRange                                   common.AbsoluteTimeRange
-		}{identity.TenantID, input.SessionID, input.Message, input.DatasourceUID, input.TimeRange})
+			TimeRange                                   RequestedTimeRange
+			StepSeconds                                 *int
+		}{identity.TenantID, input.SessionID, input.Message, input.DatasourceUID, input.TimeRange, input.StepSeconds})
 	}
-	err := s.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+	err = s.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 		key := repositories.IdempotencyKey{TenantID: identity.TenantID, Scope: "create_task", Key: input.IdempotencyKey}
 		record, err := tx.Idempotency().Reserve(ctx, key, requestHash, s.Clock.Now().Add(idempotencyTTL))
 		if err != nil {
@@ -115,7 +121,7 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 		if err = tx.Messages().Append(ctx, message); err != nil {
 			return err
 		}
-		result, err = task.New(taskID, identity.TenantID, input.SessionID, message.ID, input.DatasourceUID, input.TimeRange, s.Clock.Now())
+		result, err = task.New(taskID, identity.TenantID, input.SessionID, message.ID, input.DatasourceUID, resolvedRange, queryPlan, s.Clock.Now())
 		if err != nil {
 			return err
 		}
@@ -163,5 +169,5 @@ func hash(value any) string {
 }
 
 func taskSnapshot(value task.AnalysisTask) map[string]any {
-	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status}
+	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}}
 }

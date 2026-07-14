@@ -19,6 +19,7 @@ type QuerySpec struct {
 	Legend        string
 	DatasourceUID string
 	TimeRange     common.AbsoluteTimeRange
+	StepSeconds   int
 }
 
 type ChartDraft struct {
@@ -42,12 +43,21 @@ func New(id, tenantID, sessionID, taskID, title, unit string, queries []QuerySpe
 		return ChartDraft{}, common.NewError(common.InvalidArgument, "chart identity, title, unit and query are required", false)
 	}
 	for _, query := range queries {
-		if query.RefID == "" || query.Expression == "" || query.DatasourceUID == "" || !query.TimeRange.From.Before(query.TimeRange.To) {
+		if query.RefID == "" || query.Expression == "" || query.DatasourceUID == "" || !query.TimeRange.From.Before(query.TimeRange.To) || !validStep(query.StepSeconds) {
 			return ChartDraft{}, common.NewError(common.InvalidArgument, "chart query is invalid", false)
 		}
 	}
 	now = now.UTC()
 	return ChartDraft{ID: id, TenantID: tenantID, SessionID: sessionID, TaskID: taskID, Title: title, Visualization: "timeseries", Unit: unit, Queries: queries, Status: StatusProposed, CreatedAt: now, UpdatedAt: now, Version: 1}, nil
+}
+
+func validStep(value int) bool {
+	switch value {
+	case 5, 10, 15, 30, 60, 120, 300:
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *ChartDraft) MarkReady(executionID string, now time.Time) error {

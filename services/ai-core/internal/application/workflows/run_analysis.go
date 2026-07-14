@@ -110,7 +110,7 @@ func (w RunAnalysisWorkflow) Run(ctx context.Context, identity requestcontext.Co
 	assistantMessageID := w.IDs.NewID("message")
 	sink = &durableSink{workflow: w, identity: identity, task: &item, assistantMessageID: assistantMessageID, openCalls: make(map[string]task.ToolCallRecord)}
 	userMessage, history := w.conversationContext(ctx, item)
-	result, err := w.Runtime.Run(ctx, identity, dto.AgentRunRequest{TaskID: item.ID, SessionID: item.SessionID, UserMessage: userMessage, DatasourceUID: item.DatasourceUID, TimeRange: item.TimeRange, History: history}, sink)
+	result, err := w.Runtime.Run(ctx, identity, dto.AgentRunRequest{TaskID: item.ID, SessionID: item.SessionID, UserMessage: userMessage, DatasourceUID: item.DatasourceUID, TimeRange: item.TimeRange, QueryPlan: item.QueryPlan, History: history}, sink)
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func (w RunAnalysisWorkflow) persistResult(ctx context.Context, identity request
 			return err
 		}
 		w.notify(ctx, chartEvent)
-		execution := chart.Execution{ID: w.IDs.NewID("execution"), TenantID: item.TenantID, ChartID: draft.ID, QueryRefID: proposal.Query.RefID, Status: chart.ExecutionSuccess, Series: proposal.Execution.Series, DurationMS: proposal.Execution.DurationMS, SampleRange: item.TimeRange, Warnings: proposal.Execution.Warnings, CreatedAt: w.Clock.Now()}
+		execution := chart.Execution{ID: w.IDs.NewID("execution"), TenantID: item.TenantID, ChartID: draft.ID, QueryRefID: proposal.Query.RefID, Status: chart.ExecutionSuccess, Series: proposal.Execution.Series, DurationMS: proposal.Execution.DurationMS, SampleRange: proposal.Query.TimeRange, ActualSampleRange: actualSampleRange(proposal.Execution.Series), Warnings: proposal.Execution.Warnings, CreatedAt: w.Clock.Now()}
 		if err := draft.MarkReady(execution.ID, w.Clock.Now()); err != nil {
 			return err
 		}
@@ -448,11 +448,15 @@ func normalizePayload(value any) map[string]any {
 }
 
 func taskSnapshot(value task.AnalysisTask) map[string]any {
-	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status}
+	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}}
 }
 
 func executionWire(value chart.Execution) map[string]any {
-	return map[string]any{"id": value.ID, "queryRefId": value.QueryRefID, "status": value.Status, "seriesCount": len(value.Series), "durationMs": value.DurationMS, "sampleRange": map[string]any{"from": value.SampleRange.From, "to": value.SampleRange.To}, "series": seriesWire(value.Series), "warnings": value.Warnings, "createdAt": value.CreatedAt}
+	var actual any
+	if value.ActualSampleRange != nil {
+		actual = map[string]any{"from": value.ActualSampleRange.From, "to": value.ActualSampleRange.To}
+	}
+	return map[string]any{"id": value.ID, "queryRefId": value.QueryRefID, "status": value.Status, "seriesCount": len(value.Series), "durationMs": value.DurationMS, "sampleRange": map[string]any{"from": value.SampleRange.From, "to": value.SampleRange.To}, "actualSampleRange": actual, "series": seriesWire(value.Series), "warnings": value.Warnings, "createdAt": value.CreatedAt}
 }
 
 func seriesWire(values []chart.Series) []map[string]any {
@@ -470,9 +474,34 @@ func seriesWire(values []chart.Series) []map[string]any {
 func querySpecsWire(values []chart.QuerySpec) []map[string]any {
 	queries := make([]map[string]any, 0, len(values))
 	for _, value := range values {
-		queries = append(queries, map[string]any{"refId": value.RefID, "expression": value.Expression, "legend": value.Legend, "datasourceUid": value.DatasourceUID, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}})
+		queries = append(queries, map[string]any{"refId": value.RefID, "expression": value.Expression, "legend": value.Legend, "datasourceUid": value.DatasourceUID, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "stepSeconds": value.StepSeconds})
 	}
 	return queries
+}
+
+func actualSampleRange(series []chart.Series) *common.TimeBounds {
+	var first, last time.Time
+	for _, item := range series {
+		for _, point := range item.Points {
+			if point.Timestamp.IsZero() {
+				continue
+			}
+			if first.IsZero() || point.Timestamp.Before(first) {
+				first = point.Timestamp
+			}
+			if last.IsZero() || point.Timestamp.After(last) {
+				last = point.Timestamp
+			}
+		}
+	}
+	if first.IsZero() {
+		return nil
+	}
+	bounds, err := common.NewTimeBounds(first, last)
+	if err != nil {
+		return nil
+	}
+	return &bounds
 }
 
 // Keep time imported in this file's public contract so implementations can use

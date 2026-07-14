@@ -13,3 +13,6 @@ var MultiTurnAndToolCorrelation string
 
 //go:embed 0003_datasource_uid.sql
 var DatasourceUID string
+
+//go:embed 0004_bounded_query_plan.sql
+var BoundedQueryPlan string

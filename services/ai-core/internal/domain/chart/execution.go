@@ -23,14 +23,15 @@ const (
 )
 
 type Execution struct {
-	ID          string
-	TenantID    string
-	ChartID     string
-	QueryRefID  string
-	Status      ExecutionStatus
-	Series      []Series
-	DurationMS  int64
-	SampleRange common.AbsoluteTimeRange
-	Warnings    []string
-	CreatedAt   time.Time
+	ID                string
+	TenantID          string
+	ChartID           string
+	QueryRefID        string
+	Status            ExecutionStatus
+	Series            []Series
+	DurationMS        int64
+	SampleRange       common.AbsoluteTimeRange
+	ActualSampleRange *common.TimeBounds
+	Warnings          []string
+	CreatedAt         time.Time
 }

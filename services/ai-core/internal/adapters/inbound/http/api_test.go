@@ -58,14 +58,18 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 		t.Fatalf("task response: %d", taskResponse.StatusCode)
 	}
 	var taskBody struct {
-		ID string `json:"id"`
+		ID        string `json:"id"`
+		QueryPlan struct {
+			StepSeconds          int `json:"stepSeconds"`
+			CPURateWindowSeconds int `json:"cpuRateWindowSeconds"`
+		} `json:"queryPlan"`
 	}
 	if err := json.NewDecoder(taskResponse.Body).Decode(&taskBody); err != nil {
 		t.Fatal(err)
 	}
 	taskResponse.Body.Close()
-	if taskBody.ID == "" {
-		t.Fatal("task id is missing")
+	if taskBody.ID == "" || taskBody.QueryPlan.StepSeconds != 10 || taskBody.QueryPlan.CPURateWindowSeconds != 60 {
+		t.Fatalf("task id or resolved query plan is missing: %#v", taskBody)
 	}
 
 	retryResponse := request(t, http.MethodPost, server.URL+"/v1/tasks", body, "request-task-retry", "task-key")
@@ -220,7 +224,7 @@ func (httpRuntime) Run(ctx context.Context, _ requestcontext.Context, request dt
 	}
 	proposals := make([]dto.ChartProposal, 0, 3)
 	for _, name := range []string{"CPU 使用率", "内存可用率", "系统负载"} {
-		proposals = append(proposals, dto.ChartProposal{Title: name, Unit: "short", Query: chart.QuerySpec{RefID: "A", Expression: "node_load1", Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange}, Execution: dto.QueryExecutionResult{Status: "success"}})
+		proposals = append(proposals, dto.ChartProposal{Title: name, Unit: "short", Query: chart.QuerySpec{RefID: "A", Expression: "node_load1", Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds}, Execution: dto.QueryExecutionResult{Status: "success"}})
 	}
 	return dto.AgentRunResult{AssistantText: "fixed", Proposals: proposals}, nil
 }

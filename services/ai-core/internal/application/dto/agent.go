@@ -3,6 +3,7 @@ package dto
 import (
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 )
 
 type AgentRunRequest struct {
@@ -11,6 +12,7 @@ type AgentRunRequest struct {
 	UserMessage   string
 	DatasourceUID string
 	TimeRange     common.AbsoluteTimeRange
+	QueryPlan     task.QueryPlan
 	History       []ConversationMessage
 }
 

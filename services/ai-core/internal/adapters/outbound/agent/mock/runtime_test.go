@@ -10,13 +10,14 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 )
 
 func TestRunBuildsFixedPlanThroughPorts(t *testing.T) {
 	now := time.Date(2026, 7, 13, 10, 30, 0, 0, time.UTC)
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
 	runtime := New(catalogStub{}, queryStub{})
-	result, err := runtime.Run(context.Background(), requestcontext.Context{TenantID: "org:1", OrgID: "1", UserID: "user:1"}, dto.AgentRunRequest{TaskID: "task_1", SessionID: "session_1", UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange}, sinkStub{})
+	result, err := runtime.Run(context.Background(), requestcontext.Context{TenantID: "org:1", OrgID: "1", UserID: "user:1"}, dto.AgentRunRequest{TaskID: "task_1", SessionID: "session_1", UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange, QueryPlan: task.LegacyQueryPlan()}, sinkStub{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +29,7 @@ func TestRunBuildsFixedPlanThroughPorts(t *testing.T) {
 func TestRunRejectsMissingRequiredMetric(t *testing.T) {
 	now := time.Now().UTC()
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-time.Minute), now)
-	_, err := New(catalogStub{missing: true}, queryStub{}).Run(context.Background(), requestcontext.Context{}, dto.AgentRunRequest{UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange}, sinkStub{})
+	_, err := New(catalogStub{missing: true}, queryStub{}).Run(context.Background(), requestcontext.Context{}, dto.AgentRunRequest{UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange, QueryPlan: task.LegacyQueryPlan()}, sinkStub{})
 	var domainErr *common.DomainError
 	if !errors.As(err, &domainErr) || domainErr.Code != common.SchemaValidationFailed {
 		t.Fatalf("expected schema error, got %v", err)

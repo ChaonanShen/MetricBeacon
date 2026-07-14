@@ -25,6 +25,7 @@ type AnalysisTask struct {
 	InputMessageID string
 	DatasourceUID  string
 	TimeRange      common.AbsoluteTimeRange
+	QueryPlan      QueryPlan
 	LatestSequence int64
 	Error          *common.DomainError
 	CreatedAt      time.Time
@@ -34,15 +35,18 @@ type AnalysisTask struct {
 	Version        int64
 }
 
-func New(id, tenantID, sessionID, inputMessageID, datasourceUID string, timeRange common.AbsoluteTimeRange, now time.Time) (AnalysisTask, error) {
+func New(id, tenantID, sessionID, inputMessageID, datasourceUID string, timeRange common.AbsoluteTimeRange, queryPlan QueryPlan, now time.Time) (AnalysisTask, error) {
 	if id == "" || tenantID == "" || sessionID == "" || inputMessageID == "" || datasourceUID == "" {
 		return AnalysisTask{}, common.NewError(common.InvalidArgument, "task identity, session, input message and datasource are required", false)
 	}
 	if !timeRange.From.Before(timeRange.To) {
 		return AnalysisTask{}, common.NewError(common.InvalidArgument, "task time range is invalid", false)
 	}
+	if !queryPlan.Valid() {
+		return AnalysisTask{}, common.NewError(common.InvalidArgument, "task query plan is invalid", false)
+	}
 	now = now.UTC()
-	return AnalysisTask{ID: id, TenantID: tenantID, SessionID: sessionID, Status: StatusCreated, InputMessageID: inputMessageID, DatasourceUID: datasourceUID, TimeRange: timeRange, CreatedAt: now, UpdatedAt: now, Version: 1}, nil
+	return AnalysisTask{ID: id, TenantID: tenantID, SessionID: sessionID, Status: StatusCreated, InputMessageID: inputMessageID, DatasourceUID: datasourceUID, TimeRange: timeRange, QueryPlan: queryPlan, CreatedAt: now, UpdatedAt: now, Version: 1}, nil
 }
 
 func (t *AnalysisTask) Transition(next Status, now time.Time) error {

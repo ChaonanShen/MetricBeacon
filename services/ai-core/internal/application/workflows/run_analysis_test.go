@@ -36,7 +36,7 @@ func TestRunPersistsOrderedEventsToolCallsAndCharts(t *testing.T) {
 		t.Fatal(err)
 	}
 	message, _ := session.NewMessage("message_1", "org:1", "session_1", "task_1", session.RoleUser, "show node exporter", now)
-	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "prometheus-main", timeRange, now)
+	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "prometheus-main", timeRange, task.LegacyQueryPlan(), now)
 	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 		if err := tx.Messages().Append(ctx, message); err != nil {
 			return err
@@ -92,7 +92,7 @@ func TestRunUsesLiveCleanupContextAndPersistsFailureOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	message, _ := session.NewMessage("message_1", "org:1", "session_1", "task_1", session.RoleUser, "show node exporter", now)
-	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "prometheus-main", timeRange, now)
+	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "prometheus-main", timeRange, task.LegacyQueryPlan(), now)
 	if err := store.WithinTransaction(context.Background(), func(tx repositories.ApplicationStore) error {
 		if err := tx.Messages().Append(context.Background(), message); err != nil {
 			return err
@@ -141,7 +141,7 @@ func TestRecoverInterruptedFailsPersistedWorkWithoutRerun(t *testing.T) {
 		t.Fatal(err)
 	}
 	message, _ := session.NewMessage("message_1", "org:1", "session_1", "task_1", session.RoleUser, "show node exporter", now)
-	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "prometheus-main", timeRange, now)
+	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "prometheus-main", timeRange, task.LegacyQueryPlan(), now)
 	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 		if err := tx.Messages().Append(ctx, message); err != nil {
 			return err
@@ -193,7 +193,7 @@ func TestTransitionRollsBackWhenEventAppendFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	message, _ := session.NewMessage("message_1", "org:1", "session_1", "task_1", session.RoleUser, "show node exporter", now)
-	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "prometheus-main", timeRange, now)
+	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "prometheus-main", timeRange, task.LegacyQueryPlan(), now)
 	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 		if err := tx.Messages().Append(ctx, message); err != nil {
 			return err
@@ -235,7 +235,7 @@ func TestConversationContextUsesPreviousTwelveMessagesInChronologicalOrder(t *te
 		createdAt := now.Add(time.Duration(index) * time.Second)
 		taskID := fmt.Sprintf("task_prior_%02d", index)
 		message, _ := session.NewMessage(fmt.Sprintf("message_prior_%02d", index), "org:1", analysisSession.ID, taskID, session.RoleUser, fmt.Sprintf("old-%02d", index), createdAt)
-		item, _ := task.New(taskID, "org:1", analysisSession.ID, message.ID, "prometheus-main", timeRange, createdAt)
+		item, _ := task.New(taskID, "org:1", analysisSession.ID, message.ID, "prometheus-main", timeRange, task.LegacyQueryPlan(), createdAt)
 		item.Status = task.StatusCompleted
 		if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 			if err := tx.Messages().Append(ctx, message); err != nil {
@@ -247,7 +247,7 @@ func TestConversationContextUsesPreviousTwelveMessagesInChronologicalOrder(t *te
 		}
 	}
 	currentMessage, _ := session.NewMessage("message_current", "org:1", analysisSession.ID, "task_current", session.RoleUser, "current", now.Add(14*time.Second))
-	currentTask, _ := task.New("task_current", "org:1", analysisSession.ID, currentMessage.ID, "prometheus-main", timeRange, now.Add(14*time.Second))
+	currentTask, _ := task.New("task_current", "org:1", analysisSession.ID, currentMessage.ID, "prometheus-main", timeRange, task.LegacyQueryPlan(), now.Add(14*time.Second))
 	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 		if err := tx.Messages().Append(ctx, currentMessage); err != nil {
 			return err
@@ -278,7 +278,7 @@ func (scriptedRuntime) Run(ctx context.Context, _ requestcontext.Context, reques
 	}
 	proposals := make([]dto.ChartProposal, 0, 3)
 	for _, value := range []struct{ key, title, unit string }{{"cpu", "CPU 使用率", "percent"}, {"memory", "内存可用率", "percent"}, {"load", "系统负载", "short"}} {
-		proposals = append(proposals, dto.ChartProposal{Key: value.key, Title: value.title, Unit: value.unit, Query: chart.QuerySpec{RefID: value.key, Expression: "node_" + value.key, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange}, Execution: dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "node-a"}}}})
+		proposals = append(proposals, dto.ChartProposal{Key: value.key, Title: value.title, Unit: value.unit, Query: chart.QuerySpec{RefID: value.key, Expression: "node_" + value.key, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds}, Execution: dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "node-a"}}}})
 	}
 	return dto.AgentRunResult{AssistantText: "fixed result", Proposals: proposals}, nil
 }

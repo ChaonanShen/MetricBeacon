@@ -39,6 +39,7 @@ type Store struct {
 	db      *sql.DB
 	tx      *sql.Tx
 	txState *transactionState
+	writeMu *sync.Mutex
 }
 
 func (s *Store) Sessions() repositories.SessionRepository   { return sessionRepository{store: s} }
@@ -169,12 +170,16 @@ func (s *Store) WithinTransaction(ctx context.Context, fn func(repositories.Appl
 	if s.tx != nil {
 		return fn(s)
 	}
+	if s.writeMu != nil {
+		s.writeMu.Lock()
+		defer s.writeMu.Unlock()
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return mapError(err)
 	}
 	state := &transactionState{active: true}
-	txStore := &Store{db: s.db, tx: tx, txState: state}
+	txStore := &Store{db: s.db, tx: tx, txState: state, writeMu: s.writeMu}
 	if err := fn(txStore); err != nil {
 		_ = tx.Rollback()
 		state.deactivate()
@@ -330,7 +335,7 @@ func (s *Store) createTask(ctx context.Context, value task.AnalysisTask) error {
 	if value.Error != nil {
 		errorCode, errorMessage = string(value.Error.Code), value.Error.Message
 	}
-	_, err := s.executor().ExecContext(ctx, `INSERT INTO tasks (id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.SessionID, value.Status, value.InputMessageID, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), value.LatestSequence, errorCode, errorMessage, storageTimestamp(value.CreatedAt), nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version)
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO tasks (id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.SessionID, value.Status, value.InputMessageID, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, value.LatestSequence, errorCode, errorMessage, storageTimestamp(value.CreatedAt), nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version)
 	return mapError(err)
 }
 
@@ -338,12 +343,12 @@ func (s *Store) getTask(ctx context.Context, tenantID, taskID string) (task.Anal
 	if tenantID == "" || taskID == "" {
 		return task.AnalysisTask{}, common.NewError(common.InvalidArgument, "tenant and task are required", false)
 	}
-	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND id = ?`, tenantID, taskID)
+	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND id = ?`, tenantID, taskID)
 	return scanTask(row)
 }
 
 func (s *Store) listNonTerminalTasks(ctx context.Context) ([]task.AnalysisTask, error) {
-	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE status NOT IN (?, ?) ORDER BY created_at, id`, task.StatusCompleted, task.StatusFailed)
+	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE status NOT IN (?, ?) ORDER BY created_at, id`, task.StatusCompleted, task.StatusFailed)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -370,7 +375,7 @@ func (s *Store) listTaskPageBySession(ctx context.Context, tenantID, sessionID s
 	if err := s.ensureSession(ctx, tenantID, sessionID); err != nil {
 		return repositories.Page[task.AnalysisTask]{}, err
 	}
-	query := `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND session_id = ?`
+	query := `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND session_id = ?`
 	args := []any{tenantID, sessionID}
 	if page.CreatedAt != nil {
 		query += ` AND (created_at < ? OR (created_at = ? AND id < ?))`
@@ -409,7 +414,7 @@ func (s *Store) updateTask(ctx context.Context, value task.AnalysisTask, expecte
 	if value.Error != nil {
 		errorCode, errorMessage = string(value.Error.Code), value.Error.Message
 	}
-	result, err := s.executor().ExecContext(ctx, `UPDATE tasks SET status = ?, datasource_uid = ?, time_from = ?, time_to = ?, latest_sequence = ?, error_code = ?, error_message = ?, started_at = ?, completed_at = ?, updated_at = ?, version = ? WHERE tenant_id = ? AND id = ? AND version = ?`, value.Status, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), value.LatestSequence, errorCode, errorMessage, nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version, value.TenantID, value.ID, expectedVersion)
+	result, err := s.executor().ExecContext(ctx, `UPDATE tasks SET status = ?, datasource_uid = ?, time_from = ?, time_to = ?, step_seconds = ?, cpu_rate_window_seconds = ?, latest_sequence = ?, error_code = ?, error_message = ?, started_at = ?, completed_at = ?, updated_at = ?, version = ? WHERE tenant_id = ? AND id = ? AND version = ?`, value.Status, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, value.LatestSequence, errorCode, errorMessage, nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version, value.TenantID, value.ID, expectedVersion)
 	if err != nil {
 		return mapError(err)
 	}
@@ -552,7 +557,11 @@ func (s *Store) createChartExecution(ctx context.Context, value chart.Execution)
 	if err != nil {
 		return mapError(err)
 	}
-	_, err = s.executor().ExecContext(ctx, `INSERT INTO chart_executions (id, tenant_id, chart_id, query_ref_id, status, series_count, duration_ms, sample_from, sample_to, series_json, warnings_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.ChartID, value.QueryRefID, value.Status, len(value.Series), value.DurationMS, storageTimestamp(value.SampleRange.From), storageTimestamp(value.SampleRange.To), string(seriesJSON), string(warningsJSON), storageTimestamp(value.CreatedAt))
+	var actualFrom, actualTo any
+	if value.ActualSampleRange != nil {
+		actualFrom, actualTo = storageTimestamp(value.ActualSampleRange.From), storageTimestamp(value.ActualSampleRange.To)
+	}
+	_, err = s.executor().ExecContext(ctx, `INSERT INTO chart_executions (id, tenant_id, chart_id, query_ref_id, status, series_count, duration_ms, sample_from, sample_to, actual_sample_from, actual_sample_to, series_json, warnings_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.ChartID, value.QueryRefID, value.Status, len(value.Series), value.DurationMS, storageTimestamp(value.SampleRange.From), storageTimestamp(value.SampleRange.To), actualFrom, actualTo, string(seriesJSON), string(warningsJSON), storageTimestamp(value.CreatedAt))
 	return mapError(err)
 }
 
@@ -563,7 +572,7 @@ func (s *Store) listChartExecutionsByChart(ctx context.Context, tenantID, chartI
 	if err := s.ensureChart(ctx, tenantID, chartID); err != nil {
 		return nil, err
 	}
-	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, chart_id, query_ref_id, status, duration_ms, sample_from, sample_to, series_json, warnings_json, created_at FROM chart_executions WHERE tenant_id = ? AND chart_id = ? ORDER BY created_at, id`, tenantID, chartID)
+	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, chart_id, query_ref_id, status, duration_ms, sample_from, sample_to, actual_sample_from, actual_sample_to, series_json, warnings_json, created_at FROM chart_executions WHERE tenant_id = ? AND chart_id = ? ORDER BY created_at, id`, tenantID, chartID)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -844,7 +853,7 @@ func scanTask(scanner interface{ Scan(...any) error }) (task.AnalysisTask, error
 	var value task.AnalysisTask
 	var from, to, createdAt, updatedAt string
 	var errorCode, errorMessage, startedAt, completedAt sql.NullString
-	if err := scanner.Scan(&value.ID, &value.TenantID, &value.SessionID, &value.Status, &value.InputMessageID, &value.DatasourceUID, &from, &to, &value.LatestSequence, &errorCode, &errorMessage, &createdAt, &startedAt, &completedAt, &updatedAt, &value.Version); err != nil {
+	if err := scanner.Scan(&value.ID, &value.TenantID, &value.SessionID, &value.Status, &value.InputMessageID, &value.DatasourceUID, &from, &to, &value.QueryPlan.StepSeconds, &value.QueryPlan.CPURateWindowSeconds, &value.LatestSequence, &errorCode, &errorMessage, &createdAt, &startedAt, &completedAt, &updatedAt, &value.Version); err != nil {
 		return task.AnalysisTask{}, mapError(err)
 	}
 	var err error
@@ -929,7 +938,8 @@ func scanChart(scanner interface{ Scan(...any) error }) (chart.ChartDraft, error
 func scanExecution(scanner interface{ Scan(...any) error }) (chart.Execution, error) {
 	var value chart.Execution
 	var from, to, seriesJSON, warningsJSON, createdAt string
-	if err := scanner.Scan(&value.ID, &value.TenantID, &value.ChartID, &value.QueryRefID, &value.Status, &value.DurationMS, &from, &to, &seriesJSON, &warningsJSON, &createdAt); err != nil {
+	var actualFrom, actualTo sql.NullString
+	if err := scanner.Scan(&value.ID, &value.TenantID, &value.ChartID, &value.QueryRefID, &value.Status, &value.DurationMS, &from, &to, &actualFrom, &actualTo, &seriesJSON, &warningsJSON, &createdAt); err != nil {
 		return chart.Execution{}, mapError(err)
 	}
 	if err := json.Unmarshal([]byte(seriesJSON), &value.Series); err != nil {
@@ -945,6 +955,21 @@ func scanExecution(scanner interface{ Scan(...any) error }) (chart.Execution, er
 	if value.SampleRange.To, err = parseTimestamp(to); err != nil {
 		return chart.Execution{}, err
 	}
+	if actualFrom.Valid != actualTo.Valid {
+		return chart.Execution{}, common.NewError(common.InternalError, "chart execution actual sample range is incomplete", false)
+	}
+	if actualFrom.Valid {
+		fromValue, fromErr := parseTimestamp(actualFrom.String)
+		toValue, toErr := parseTimestamp(actualTo.String)
+		if fromErr != nil || toErr != nil {
+			return chart.Execution{}, common.NewError(common.InternalError, "chart execution actual sample range is invalid", false)
+		}
+		bounds, boundsErr := common.NewTimeBounds(fromValue, toValue)
+		if boundsErr != nil {
+			return chart.Execution{}, boundsErr
+		}
+		value.ActualSampleRange = &bounds
+	}
 	if value.CreatedAt, err = parseTimestamp(createdAt); err != nil {
 		return chart.Execution{}, err
 	}
@@ -952,7 +977,7 @@ func scanExecution(scanner interface{ Scan(...any) error }) (chart.Execution, er
 }
 
 func validateTask(value task.AnalysisTask) error {
-	if value.ID == "" || value.TenantID == "" || value.SessionID == "" || value.InputMessageID == "" || value.DatasourceUID == "" || !value.TimeRange.From.Before(value.TimeRange.To) || value.LatestSequence < 0 || value.Version < 1 || !isTaskStatus(value.Status) {
+	if value.ID == "" || value.TenantID == "" || value.SessionID == "" || value.InputMessageID == "" || value.DatasourceUID == "" || !value.TimeRange.From.Before(value.TimeRange.To) || !value.QueryPlan.Valid() || value.LatestSequence < 0 || value.Version < 1 || !isTaskStatus(value.Status) {
 		return common.NewError(common.InvalidArgument, "task is invalid", false)
 	}
 	return nil
@@ -1010,7 +1035,7 @@ func validateChart(value chart.ChartDraft) error {
 		return common.NewError(common.InvalidArgument, "chart is invalid", false)
 	}
 	for _, query := range value.Queries {
-		if query.RefID == "" || query.Expression == "" || query.Legend == "" || query.DatasourceUID == "" || !query.TimeRange.From.Before(query.TimeRange.To) {
+		if query.RefID == "" || query.Expression == "" || query.Legend == "" || query.DatasourceUID == "" || !query.TimeRange.From.Before(query.TimeRange.To) || !validQueryStep(query.StepSeconds) {
 			return common.NewError(common.InvalidArgument, "chart query is invalid", false)
 		}
 	}
@@ -1021,7 +1046,19 @@ func validateExecution(value chart.Execution) error {
 	if value.ID == "" || value.TenantID == "" || value.ChartID == "" || value.QueryRefID == "" || value.DurationMS < 0 || !value.SampleRange.From.Before(value.SampleRange.To) || (value.Status != chart.ExecutionSuccess && value.Status != chart.ExecutionFailed) {
 		return common.NewError(common.InvalidArgument, "chart execution is invalid", false)
 	}
+	if value.ActualSampleRange != nil && (value.ActualSampleRange.From.IsZero() || value.ActualSampleRange.To.IsZero() || value.ActualSampleRange.From.After(value.ActualSampleRange.To)) {
+		return common.NewError(common.InvalidArgument, "chart execution actual sample range is invalid", false)
+	}
 	return nil
+}
+
+func validQueryStep(value int) bool {
+	switch value {
+	case 5, 10, 15, 30, 60, 120, 300:
+		return true
+	default:
+		return false
+	}
 }
 
 func validateEventDraft(value task.EventDraft) error {

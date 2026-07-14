@@ -36,7 +36,6 @@ import (
 
 const (
 	maxToolSummaryBytes   = 16 << 10
-	queryStepSeconds      = 300
 	finalResponseProtocol = `
 
 ## Agent execution protocol
@@ -277,11 +276,11 @@ func (s *runState) query(ctx context.Context, raw string) (string, error) {
 	if !validation.Valid || validation.CanonicalExpression != view.CanonicalExpression {
 		return "", common.NewError(common.SchemaValidationFailed, "query validation rejected the registered expression", false)
 	}
-	execution, err := s.runtime.queries.Execute(ctx, s.identity, dto.ExecuteQueryRequest{DatasourceUID: s.request.DatasourceUID, Expression: validation.CanonicalExpression, TimeRange: s.request.TimeRange, StepSeconds: queryStepSeconds})
+	execution, err := s.runtime.queries.Execute(ctx, s.identity, dto.ExecuteQueryRequest{DatasourceUID: s.request.DatasourceUID, Expression: validation.CanonicalExpression, TimeRange: s.request.TimeRange, StepSeconds: s.request.QueryPlan.StepSeconds})
 	if err != nil {
 		return "", err
 	}
-	proposal := dto.ChartProposal{Key: view.Key, Title: view.Title, Visualization: "timeseries", Unit: view.Unit, Query: chart.QuerySpec{RefID: view.RefID, Expression: validation.CanonicalExpression, Legend: "{{instance}}", DatasourceUID: s.request.DatasourceUID, TimeRange: s.request.TimeRange}, Execution: execution}
+	proposal := dto.ChartProposal{Key: view.Key, Title: view.Title, Visualization: "timeseries", Unit: view.Unit, Query: chart.QuerySpec{RefID: view.RefID, Expression: validation.CanonicalExpression, Legend: "{{instance}}", DatasourceUID: s.request.DatasourceUID, TimeRange: s.request.TimeRange, StepSeconds: s.request.QueryPlan.StepSeconds}, Execution: execution}
 	s.mu.Lock()
 	s.proposals[view.Key] = proposal
 	s.mu.Unlock()
