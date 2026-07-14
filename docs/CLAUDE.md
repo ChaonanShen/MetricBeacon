@@ -27,8 +27,8 @@ documentation governance
 ```
 
 Skill, Playbook, Dashboard write, and alert integration remain outside this
-next slice. A dedicated execution plan must be added before implementation of
-the multi-turn/real-Agent slice begins.
+slice. Its executable scope and gate order are recorded in
+[`implementation/node_exporter_real_analysis_plan.md`](implementation/node_exporter_real_analysis_plan.md).
 
 ## Reading and conflict rules
 
@@ -51,6 +51,7 @@ Surface the conflict and obtain a decision or add an ADR.
 |---|---|---|
 | `design/` | Mostly stable | Project origin, product scope, and long-term architecture Proposals. See `design/README.md`. |
 | `implementation/code_skeleton_design.md` | Active, Implementation Blueprint | Mutable structural authority for code, contracts, Ports/Adapters, ownership, and verification. |
+| `implementation/node_exporter_real_analysis_plan.md` | Active | Current multi-turn, real Prometheus/node_exporter, and minimal Eino Agent execution plan. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
 | `implementation/chart_trio_ui_fit_plan.md` | Completed evidence | Historical chart-layout improvement record. |

@@ -9,6 +9,7 @@ Grafana 内嵌的自然语言指标分析工作台。当前已完成确定性的
 基本 Mock 闭环已经实现：输入任意非空消息会产生固定的 node_exporter CPU、内存和负载三图。
 下一阶段先建立持久化多轮对话，再逐步接入真实 Prometheus/node_exporter 与最小 Eino Agent。
 真实 Agent/LLM、Prometheus 和 Grafana Dashboard 写入目前都还没有实现。
+详细 Gate 见 [`docs/implementation/node_exporter_real_analysis_plan.md`](docs/implementation/node_exporter_real_analysis_plan.md)。
 
 ## 模块边界
 
