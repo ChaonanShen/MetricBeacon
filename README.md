@@ -7,8 +7,8 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 ## 当前状态
 
 基本 Mock 闭环和持久化多轮工作台已经实现：输入任意非空消息会产生 node_exporter CPU、内存和负载三图。
-`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 已可通过显式 `eino` 配置接入 DeepSeek，但有凭证端到端 smoke 尚未执行，Grafana Dashboard 写入也尚未实现。当前路线图正在执行，范围、安全边界和 Gate 见
-[`docs/implementation/node_exporter_real_analysis_plan.md`](docs/implementation/node_exporter_real_analysis_plan.md)。
+`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 已可通过显式 `eino` 配置接入 DeepSeek，有凭证的两轮端到端 smoke 已通过。当前正在补充分层诊断与模式切换恢复；Grafana Dashboard 写入仍未实现。范围、安全边界和 Gate 见
+[`docs/implementation/real_backend_diagnostics_execution_plan.md`](docs/implementation/real_backend_diagnostics_execution_plan.md)。
 
 ## 模块边界
 
@@ -25,6 +25,7 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 make bootstrap-check
 make test
 make check
+make diagnose-real-metrics
 make e2e-real-agent  # requires DEEPSEEK_API_KEY
 ```
 
@@ -34,12 +35,14 @@ make e2e-real-agent  # requires DEEPSEEK_API_KEY
 cd apps/grafana-plugin/frontend && npm ci
 ```
 
-进度和每个 Gate 的验证证据保存在
-[`docs/implementation/basic_mock_progress.md`](docs/implementation/basic_mock_progress.md)。
+当前诊断进度和每个 Gate 的验证证据保存在
+[`docs/implementation/real_backend_diagnostics_progress.md`](docs/implementation/real_backend_diagnostics_progress.md)。
 
 ## 本地演示
 
 分别启动 `assistant-mcp`（`:8081`）和 AI Core（`:8080`），或运行 `make e2e-mock` 构建 Mock Compose；浏览器只通过 Grafana Plugin Resource API 访问系统。运行 `make e2e-real-metrics` 会在相同栈上叠加 Prometheus 和 node_exporter，并轮询 `up=1` 及至少两个 CPU idle scrape 后才发起真实查询。node_exporter 观察的是 Docker Linux VM/容器宿主的视图，不是 macOS 内核。
+
+若只想判断真实数据断在哪一层，运行 `make diagnose-real-metrics`。它不启动 Grafana 或 AI Core：先直接检查 CPU、内存、load 三条 Prometheus 查询，再通过 assistant-mcp 的真实 transport 重复检查；输出仅包含阶段和 series/sample 计数，并在退出时清理自己的容器。
 
 ### Docker/Colima 前置检查
 

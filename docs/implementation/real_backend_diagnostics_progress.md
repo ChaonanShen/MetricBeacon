@@ -9,7 +9,7 @@
 |阶段|状态|证据|
 |-|-|-|
 |G0：激活诊断记录|完成|执行计划、进度记录和文档路由已新增；`make validate-contracts` 与 `git diff --check` 通过。|
-|P1：Prometheus 与 MCP 断点探针|待开始|—|
+|P1：Prometheus 与 MCP 断点探针|完成|`make test-diagnostics` 通过 6 个离线响应校验；`make diagnose-real-metrics` 确认三条 Prometheus vector 各 1 series/1 sample，并通过真实 MCP transport 获得 4 个指标候选、4 个 CPU labels 和三条非空 matrix。|
 |P2：DeepSeek 直连探针|待开始|—|
 |P3：模式切换恢复与收口|待开始|—|
 
@@ -24,3 +24,10 @@
 ## 边界确认
 
 诊断只调用现有只读接口，不新增业务真相源，不修改契约、SQLite、权限或模型出域范围。
+
+## P1 实现说明
+
+- `make diagnose-real-metrics` 只启动 Prometheus、node_exporter 与 assistant-mcp，使用独立 Compose project，退出时只清理自身资源。
+- 原始 Prometheus 阶段检查 CPU、内存和 load 的即时 vector，只打印视图和 series/sample 计数。
+- MCP 阶段通过真实 Streamable HTTP transport 检查指标搜索、标签与三条区间查询，只记录候选、标签和 series/sample 计数。
+- real-metrics 与 real-agent E2E 已复用同一个 target/two-scrape 等待器，避免诊断和完整验收产生不同的就绪判定。
