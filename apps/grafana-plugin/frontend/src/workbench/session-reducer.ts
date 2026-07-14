@@ -10,13 +10,14 @@ export type SessionWorkbenchState = {
   tasksById: Record<string, Task>;
   taskOrder: string[];
   runtimeByTaskId: Record<string, WorkbenchState>;
+  replayedTaskIds: Record<string, true>;
   activeTaskId?: string;
   messageNextPageToken: string | null;
   taskNextPageToken: string | null;
 };
 
 export const initialSessionWorkbenchState: SessionWorkbenchState = {
-  messagesById: {}, messageOrder: [], tasksById: {}, taskOrder: [], runtimeByTaskId: {}, messageNextPageToken: null, taskNextPageToken: null,
+  messagesById: {}, messageOrder: [], tasksById: {}, taskOrder: [], runtimeByTaskId: {}, replayedTaskIds: {}, messageNextPageToken: null, taskNextPageToken: null,
 };
 
 export type SessionAction =
@@ -51,9 +52,8 @@ export function sessionReducer(state: SessionWorkbenchState, action: SessionActi
       return { ...state, tasksById, taskOrder, runtimeByTaskId: initializeRuntimes(state.runtimeByTaskId, taskOrder), activeTaskId: action.task.id };
     }
     case 'task.replayed': {
-      const current = state.runtimeByTaskId[action.taskId] ?? initialWorkbenchState;
-      if (current.latestSequence >= action.targetSequence) return state;
-      return { ...state, runtimeByTaskId: { ...state.runtimeByTaskId, [action.taskId]: { ...current, latestSequence: action.targetSequence } } };
+      if (state.replayedTaskIds[action.taskId]) return state;
+      return { ...state, replayedTaskIds: { ...state.replayedTaskIds, [action.taskId]: true } };
     }
     case 'task.event': {
       const task = state.tasksById[action.event.taskId];

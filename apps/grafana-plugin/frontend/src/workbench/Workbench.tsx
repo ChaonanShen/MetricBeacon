@@ -28,6 +28,7 @@ export function Workbench(_props: AppRootProps) {
     enabled: Boolean(sessionId),
   });
 
+  const taskOrderKey = state.taskOrder.join(',');
   useEffect(() => {
     if (!history.data) return;
     const [messages, tasks] = history.data;
@@ -57,11 +58,12 @@ export function Workbench(_props: AppRootProps) {
     };
     void Promise.all(state.taskOrder.map((id) => replay(state.tasksById[id])));
     return () => { cancelled = true; };
-  }, [state.taskOrder, state.tasksById]);
+  }, [taskOrderKey]);
 
   const activeTask = state.activeTaskId ? state.tasksById[state.activeTaskId] : undefined;
+  const activeTaskReplayed = activeTask ? Boolean(state.replayedTaskIds[activeTask.id]) : false;
   useEffect(() => {
-    if (!activeTask || !replayedTasks.current.has(activeTask.id) || isTerminal(activeTask.status)) return;
+    if (!activeTask || !activeTaskReplayed || isTerminal(activeTask.status)) return;
     return subscribeTaskEvents(
       (after) => resourceClient.eventURL(activeTask.id, after),
       () => sequenceByTask.current[activeTask.id] ?? 0,
@@ -73,7 +75,7 @@ export function Workbench(_props: AppRootProps) {
       () => undefined,
       (event) => event.type === 'task.completed' || event.type === 'task.failed',
     ).close;
-  }, [activeTask, client, sessionId]);
+  }, [activeTask?.id, activeTask?.status, activeTaskReplayed, client, sessionId]);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -128,7 +130,7 @@ export function Workbench(_props: AppRootProps) {
     {activeTask && <p>Task 状态：{state.runtimeByTaskId[activeTask.id]?.taskStatus ?? activeTask.status}</p>}
     {state.taskOrder.map((id) => state.runtimeByTaskId[id]?.error && <p role="alert" key={`${id}-error`}>{state.runtimeByTaskId[id].error!.code}: {state.runtimeByTaskId[id].error!.message}</p>)}
     <section aria-label="分析图表">
-      <Grid minColumnWidth={44} gap={2} alignItems="stretch">
+      <Grid columns={{ xs: 1, md: 2, xl: 6 }} gap={2} alignItems="stretch">
         {charts.map(({ taskID, chart, execution }) => <ChartCard key={`${taskID}:${chart.id}`} chart={chart} execution={execution} />)}
       </Grid>
     </section>

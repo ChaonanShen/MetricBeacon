@@ -11,6 +11,7 @@ describe('sessionReducer', () => {
 
     expect(state.messageOrder).toEqual(['message-1']);
     expect(state.runtimeByTaskId['task-1'].latestSequence).toBe(0);
+    expect(state.replayedTaskIds).toEqual({});
     expect(state.activeTaskId).toBe('task-1');
     expect(state.messageNextPageToken).toBe('older-messages');
   });
@@ -22,5 +23,13 @@ describe('sessionReducer', () => {
     expect(completed.activeTaskId).toBeUndefined();
     expect(completed.tasksById['task-1'].status).toBe('completed');
     expect(completed.runtimeByTaskId['task-1'].latestSequence).toBe(1);
+  });
+
+  it('records a completed finite replay without advancing its event sequence', () => {
+    const loaded = sessionReducer(initialSessionWorkbenchState, { type: 'history.loaded', messages: [userMessage], tasks: [task], messageNextPageToken: null, taskNextPageToken: null });
+    const replayed = sessionReducer(loaded, { type: 'task.replayed', taskId: 'task-1', targetSequence: 5 });
+
+    expect(replayed.replayedTaskIds).toEqual({ 'task-1': true });
+    expect(replayed.runtimeByTaskId['task-1'].latestSequence).toBe(0);
   });
 });

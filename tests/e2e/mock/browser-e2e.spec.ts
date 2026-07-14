@@ -49,9 +49,9 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expectNoHorizontalOverflow(page);
 
   await page.reload();
-  await expect(page.getByText('已生成 node_exporter 的 CPU、内存和系统负载视图。')).toBeVisible();
+  await expect(page.getByText('已生成 node_exporter 的 CPU、内存和系统负载视图。').first()).toBeVisible();
   for (const title of chartTitles) {
-    await expect(page.getByText(title, { exact: true })).toBeVisible();
+    await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
   }
   await expect(page.getByTestId('timeseries-panel')).toHaveCount(6);
   await expect(page.getByText('undefined', { exact: true })).toHaveCount(0);

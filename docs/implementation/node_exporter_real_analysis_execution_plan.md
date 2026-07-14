@@ -323,6 +323,10 @@ README 和必要 ADR；不得 push、amend 或覆盖无关工作区修改。
    - 三轮 deterministic Mock 断言 3 个 Task、6 条消息和 9 张图；故障只通过测试 Runtime 注入。
    - 验证：`make check && make e2e-mock`。
 
+   后续修复将有限 replay 完成标记放入 reducer 状态（而非只放在 ref），使其可靠触发活动 Task 的 SSE follow；
+   replay effect 只依赖 Task ID 集合，避免每个到达事件取消尚未完成的初始 replay。Resource 客户端显式编码
+   pagination/replay query，避免 Grafana backend 参数对象被序列化为文本。多轮图表在桌面为六列、在中等视口折为两列。
+
 ### P3：真实 Prometheus
 
 7. `feat(contracts): adopt prometheus-main datasource`
