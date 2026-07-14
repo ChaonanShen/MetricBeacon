@@ -1,9 +1,9 @@
 # 自然语言单输入查询执行计划
 
-> status: draft-review
+> status: active
 > createdAt: 2026-07-15
-> implementationAuthorized: false
-> decision: pending (the currently accepted ADR-020 conflicts with the model-planned intent below and must be superseded before implementation)
+> implementationAuthorized: true
+> decision: accepted by ADR-021, which supersedes ADR-020
 > dependsOn: `bounded_node_exporter_query_parameters_execution_plan.md`、`current_codebase_overview.md`
 
 ## 1. 目标

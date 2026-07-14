@@ -1,6 +1,6 @@
 # 自然语言单输入查询进度记录
 
-> status: draft-review
+> status: active
 > createdAt: 2026-07-15
 > plan: [`natural_language_query_input_execution_plan.md`](natural_language_query_input_execution_plan.md)
 
@@ -8,7 +8,7 @@
 
 |阶段|状态|证据|
 |-|-|-|
-|G0：修订决策与计划|待执行|待新增 superseding ADR，确认同步 Agent Planner 与持久化 views 决策。|
+|G0：修订决策与计划|已完成|ADR-021 supersede ADR-020；计划已激活，蓝图与文档路由已更新。|
 |G1：契约与持久化先行|未开始|待实现与验证。|
 |G2：同步 Agent 规划与冻结执行|未开始|待实现与验证。|
 |G3：自然语言 Workbench 与端到端收口|未开始|待更新当前快照并运行完整检查。|

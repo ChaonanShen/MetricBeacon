@@ -56,12 +56,13 @@ It keeps the three-view registry while adding persisted time/resolution paramete
 [`implementation/bounded_node_exporter_query_parameters_progress.md`](implementation/bounded_node_exporter_query_parameters_progress.md), and its boundary decision is
 [`adr/ADR-019-bounded-node-exporter-query-parameters.md`](adr/ADR-019-bounded-node-exporter-query-parameters.md).
 
-The draft-review natural-language input refinement is
+The active natural-language input refinement is
 [`implementation/natural_language_query_input_execution_plan.md`](implementation/natural_language_query_input_execution_plan.md).
 It removes Workbench range/resolution authoring controls while retaining the
 bounded durable QueryPlan and local PromQL registry. Progress is tracked in
 [`implementation/natural_language_query_input_progress.md`](implementation/natural_language_query_input_progress.md), and its decision is
-[`adr/ADR-020-natural-language-only-workbench-query-intent.md`](adr/ADR-020-natural-language-only-workbench-query-intent.md).
+[`adr/ADR-021-agent-planned-bounded-query-intent.md`](adr/ADR-021-agent-planned-bounded-query-intent.md),
+which supersedes ADR-020.
 
 The draft-review grouped chart-canvas refinement is
 [`implementation/grouped_chart_canvas_execution_plan.md`](implementation/grouped_chart_canvas_execution_plan.md).
@@ -102,8 +103,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/layered_result_diagnostics_progress.md` | Completed progress record | Gate status and verification evidence for the layered-result test slice. |
 | `implementation/bounded_node_exporter_query_parameters_execution_plan.md` | Completed execution plan | Bounded query range/resolution, CPU windows, view-only Agent and truthful summaries. |
 | `implementation/bounded_node_exporter_query_parameters_progress.md` | Completed progress record | Gate status and verification evidence for the bounded-query slice. |
-| `implementation/natural_language_query_input_execution_plan.md` | Draft-review execution plan | Natural-language-only Workbench input with synchronously Agent-planned bounded query intent. |
-| `implementation/natural_language_query_input_progress.md` | Draft-review progress record | Planning baseline and future verification evidence for the natural-language input refinement. |
+| `implementation/natural_language_query_input_execution_plan.md` | Active execution plan | Natural-language-only Workbench input with synchronously Agent-planned bounded query intent. |
+| `implementation/natural_language_query_input_progress.md` | Active progress record | Gate status and verification evidence for the natural-language input refinement. |
 | `implementation/grouped_chart_canvas_execution_plan.md` | Draft-review execution plan | Chronological Task-grouped charts with a maximum two-column responsive canvas. |
 | `implementation/grouped_chart_canvas_progress.md` | Draft-review progress record | Planning baseline and future verification evidence for the grouped chart canvas. |
 | `implementation/real_backend_test_matrix.md` | Current runbook | Code-agent command order, expected result shapes and layered failure localization. |

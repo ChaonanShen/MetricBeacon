@@ -1,6 +1,6 @@
 # ADR-020: Natural-language-only Workbench query intent
 
-> Status: Accepted
+> Status: Superseded by ADR-021
 > Date: 2026-07-15
 > Supersedes: the Workbench authoring-control clause of ADR-019
 

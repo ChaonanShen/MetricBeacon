@@ -1,6 +1,7 @@
 # 当前骨架代码说明
 
-> 本文以 2026-07-14 的实际代码为准，说明已可工作的有界 node_exporter 查询闭环；长期设计请参照
+> 本文以 2026-07-14 的实际代码为准，说明已可工作的有界 node_exporter 查询闭环；正在执行的
+> 同步 Agent 意图规划变更见 [`natural_language_query_input_execution_plan.md`](natural_language_query_input_execution_plan.md)，长期设计请参照
 > [`code_skeleton_design.md`](code_skeleton_design.md)。
 
 ## 当前可演示的能力
