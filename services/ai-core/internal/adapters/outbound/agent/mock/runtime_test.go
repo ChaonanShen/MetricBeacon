@@ -14,23 +14,28 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 )
 
-func TestRunBuildsFixedPlanThroughPorts(t *testing.T) {
+func TestRunExecutesOnlyPersistedViewsInOrder(t *testing.T) {
 	now := time.Date(2026, 7, 13, 10, 30, 0, 0, time.UTC)
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
-	runtime := New(catalogStub{}, queryStub{})
-	result, err := runtime.Run(context.Background(), requestcontext.Context{TenantID: "org:1", OrgID: "1", UserID: "user:1"}, dto.AgentRunRequest{TaskID: "task_1", SessionID: "session_1", UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange, QueryPlan: task.LegacyQueryPlan()}, sinkStub{})
+	queries := &queryStub{}
+	runtime := New(catalogStub{}, queries)
+	plan, _ := task.NewQueryPlan([]string{"load", "cpu"}, 300, 300)
+	result, err := runtime.Run(context.Background(), requestcontext.Context{TenantID: "org:1", OrgID: "1", UserID: "user:1"}, dto.AgentRunRequest{TaskID: "task_1", SessionID: "session_1", UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange, QueryPlan: plan}, sinkStub{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(result.AssistantText, "30分钟") || !strings.Contains(result.AssistantText, "step=300s") || !strings.Contains(result.AssistantText, "CPU rate window=300s") || len(result.Proposals) != 3 || result.Proposals[0].Key != "cpu" || result.Proposals[0].Query.RefID != "A" || result.Proposals[2].Key != "load" {
+	if !strings.Contains(result.AssistantText, "30分钟") || !strings.Contains(result.AssistantText, "step=300s") || !strings.Contains(result.AssistantText, "CPU rate window=300s") || len(result.Proposals) != 2 || result.Proposals[0].Key != "load" || result.Proposals[1].Key != "cpu" {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+	if strings.Join(queries.views, ",") != "load,load,cpu,cpu" {
+		t.Fatalf("query calls = %#v", queries.views)
 	}
 }
 
-func TestRunRejectsMissingRequiredMetric(t *testing.T) {
+func TestRunRejectsUnknownPersistedView(t *testing.T) {
 	now := time.Now().UTC()
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-time.Minute), now)
-	_, err := New(catalogStub{missing: true}, queryStub{}).Run(context.Background(), requestcontext.Context{}, dto.AgentRunRequest{UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange, QueryPlan: task.LegacyQueryPlan()}, sinkStub{})
+	_, err := New(catalogStub{}, &queryStub{}).Run(context.Background(), requestcontext.Context{}, dto.AgentRunRequest{UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange, QueryPlan: task.QueryPlan{Views: []string{"disk"}, StepSeconds: 5, CPURateWindowSeconds: 30}}, sinkStub{})
 	var domainErr *common.DomainError
 	if !errors.As(err, &domainErr) || domainErr.Code != common.SchemaValidationFailed {
 		t.Fatalf("expected schema error, got %v", err)
@@ -50,9 +55,20 @@ func (catalogStub) GetMetricLabels(context.Context, requestcontext.Context, dto.
 	return dto.MetricLabelsResult{LabelNames: []string{"instance"}}, nil
 }
 
-type queryStub struct{}
+func TestRunCompletesUnsupportedWithoutQueryAccess(t *testing.T) {
+	now := time.Now().UTC()
+	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-time.Minute), now)
+	queries := &queryStub{}
+	result, err := New(catalogStub{}, queries).Run(context.Background(), requestcontext.Context{}, dto.AgentRunRequest{UserMessage: "disk", DatasourceUID: "prometheus-main", TimeRange: timeRange, QueryPlan: task.QueryPlan{Views: []string{}, StepSeconds: 5, CPURateWindowSeconds: 30}}, sinkStub{})
+	if err != nil || len(result.Proposals) != 0 || len(queries.views) != 0 || !strings.Contains(result.AssistantText, "仅支持") {
+		t.Fatalf("result = %#v, calls = %#v, err = %v", result, queries.views, err)
+	}
+}
 
-func (queryStub) Validate(_ context.Context, _ requestcontext.Context, request dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
+type queryStub struct{ views []string }
+
+func (q *queryStub) Validate(_ context.Context, _ requestcontext.Context, request dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
+	q.views = append(q.views, request.View)
 	return dto.QueryValidationResult{Valid: true, CanonicalExpression: canonicalForView(request.View)}, nil
 }
 
@@ -62,7 +78,8 @@ func canonicalForView(view string) string {
 	}
 	return "node_" + view
 }
-func (queryStub) Execute(_ context.Context, _ requestcontext.Context, request dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
+func (q *queryStub) Execute(_ context.Context, _ requestcontext.Context, request dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
+	q.views = append(q.views, request.View)
 	return dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "node-a", Points: []chart.Point{{Timestamp: request.TimeRange.From, Value: 10}, {Timestamp: request.TimeRange.To, Value: 20}}}}, Validation: dto.QueryValidationResult{Valid: true}}, nil
 }
 

@@ -1,4 +1,4 @@
-// Package mock implements the deterministic AgentRuntime replacement point.
+// Package mock contains deterministic outbound Agent adapters.
 package mock
 
 import (
@@ -7,6 +7,7 @@ import (
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	"mini-torchbearing.local/services/ai-core/internal/adapters/outbound/agent/localresult"
+	"mini-torchbearing.local/services/ai-core/internal/adapters/outbound/agent/profile"
 	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
@@ -14,15 +15,14 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/ports/tools"
 )
 
-type Runtime struct {
-	catalog tools.MetricCatalog
-	queries tools.QueryEngine
-}
+type Runtime struct{ queries tools.QueryEngine }
 
 var _ agent.Runtime = (*Runtime)(nil)
 
-func New(catalog tools.MetricCatalog, queries tools.QueryEngine) *Runtime {
-	return &Runtime{catalog: catalog, queries: queries}
+// New keeps the catalog argument for assembly compatibility; deterministic
+// execution no longer performs fixed search or label calls.
+func New(_ tools.MetricCatalog, queries tools.QueryEngine) *Runtime {
+	return &Runtime{queries: queries}
 }
 
 func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, request dto.AgentRunRequest, sink agent.EventSink) (dto.AgentRunResult, error) {
@@ -32,63 +32,42 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 	if err := emit(sink, ctx, "assistant.message.started", map[string]any{}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
-	if err := sink.Emit(ctx, dto.AgentEvent{Type: "assistant.message.delta", Payload: "正在生成固定的 node_exporter 分析视图…"}); err != nil {
-		return dto.AgentRunResult{}, err
-	}
-	if err := emitTool(sink, ctx, "tool.started", "mock-01-search", map[string]any{"toolName": "grafana.search_metrics"}); err != nil {
-		return dto.AgentRunResult{}, err
-	}
-	metrics, err := r.catalog.SearchMetrics(ctx, identity, dto.SearchMetricsRequest{DatasourceUID: request.DatasourceUID, Query: "node exporter cpu memory load", Limit: 10})
-	if err != nil {
-		return dto.AgentRunResult{}, err
-	}
-	if err := emitTool(sink, ctx, "tool.completed", "mock-01-search", map[string]any{"toolName": "grafana.search_metrics", "candidateCount": len(metrics.Candidates)}); err != nil {
-		return dto.AgentRunResult{}, err
-	}
-	if !containsMetrics(metrics, "node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_load1") {
-		return dto.AgentRunResult{}, common.NewError(common.SchemaValidationFailed, "metric search did not return the required node_exporter metrics", false)
-	}
-	if err := emit(sink, ctx, "metric.candidates_created", map[string]any{"candidates": metricCandidatesWire(metrics.Candidates)}); err != nil {
-		return dto.AgentRunResult{}, err
-	}
-	for index, metric := range []string{"node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_load1"} {
-		callID := []string{"mock-02-labels-cpu", "mock-03-labels-memory", "mock-04-labels-load"}[index]
-		if err := emitTool(sink, ctx, "tool.started", callID, map[string]any{"toolName": "grafana.get_metric_labels", "metricName": metric}); err != nil {
+	if len(request.QueryPlan.Views) == 0 {
+		text := "当前仅支持 node_exporter 的 CPU、内存和系统负载视图。"
+		if err := sink.Emit(ctx, dto.AgentEvent{Type: "assistant.message.delta", Payload: text}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
-		labels, err := r.catalog.GetMetricLabels(ctx, identity, dto.GetMetricLabelsRequest{DatasourceUID: request.DatasourceUID, MetricName: metric})
-		if err != nil {
-			return dto.AgentRunResult{}, err
-		}
-		if err := emitTool(sink, ctx, "tool.completed", callID, map[string]any{"toolName": "grafana.get_metric_labels", "metricName": metric, "labelCount": len(labels.LabelNames)}); err != nil {
-			return dto.AgentRunResult{}, err
-		}
-		if !contains(labels.LabelNames, "instance") {
-			return dto.AgentRunResult{}, common.NewError(common.SchemaValidationFailed, "metric labels did not include instance", false)
-		}
+		return dto.AgentRunResult{AssistantText: text}, nil
 	}
-	proposals := make([]dto.ChartProposal, 0, 3)
-	for index, spec := range []struct{ key, title, unit, refID string }{{"cpu", "CPU 使用率", "percent", "A"}, {"memory", "内存可用率", "percent", "B"}, {"load", "系统负载", "short", "C"}} {
-		callID := []string{"mock-05-query-cpu", "mock-06-query-memory", "mock-07-query-load"}[index]
-		if err := emitTool(sink, ctx, "tool.started", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key}); err != nil {
+	if err := sink.Emit(ctx, dto.AgentEvent{Type: "assistant.message.delta", Payload: "正在执行已冻结的 node_exporter 分析计划…"}); err != nil {
+		return dto.AgentRunResult{}, err
+	}
+	proposals := make([]dto.ChartProposal, 0, len(request.QueryPlan.Views))
+	for _, key := range request.QueryPlan.Views {
+		view, known := profile.ViewForKey(key)
+		if !known {
+			return dto.AgentRunResult{}, common.NewError(common.SchemaValidationFailed, "persisted query view is outside the registry", false)
+		}
+		callID := "query-" + key
+		if err := emitTool(sink, ctx, "tool.started", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": key}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
-		cpuWindow := cpuWindowForView(spec.key, request.QueryPlan.CPURateWindowSeconds)
-		validation, err := r.queries.Validate(ctx, identity, dto.ValidateQueryRequest{DatasourceUID: request.DatasourceUID, View: spec.key, CPURateWindowSeconds: cpuWindow})
+		cpuWindow := cpuWindowForView(key, request.QueryPlan.CPURateWindowSeconds)
+		validation, err := r.queries.Validate(ctx, identity, dto.ValidateQueryRequest{DatasourceUID: request.DatasourceUID, View: key, CPURateWindowSeconds: cpuWindow})
 		if err != nil {
 			return dto.AgentRunResult{}, err
 		}
 		if !validation.Valid || validation.CanonicalExpression == "" {
 			return dto.AgentRunResult{}, common.NewError(common.SchemaValidationFailed, "Prometheus query validation did not return a canonical expression", false)
 		}
-		execution, err := r.queries.Execute(ctx, identity, dto.ExecuteQueryRequest{DatasourceUID: request.DatasourceUID, View: spec.key, CPURateWindowSeconds: cpuWindow, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds})
+		execution, err := r.queries.Execute(ctx, identity, dto.ExecuteQueryRequest{DatasourceUID: request.DatasourceUID, View: key, CPURateWindowSeconds: cpuWindow, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds})
 		if err != nil {
 			return dto.AgentRunResult{}, err
 		}
-		if err := emitTool(sink, ctx, "tool.completed", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key, "seriesCount": len(execution.Series)}); err != nil {
+		if err := emitTool(sink, ctx, "tool.completed", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": key, "seriesCount": len(execution.Series)}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
-		proposals = append(proposals, dto.ChartProposal{Key: spec.key, Title: spec.title, Visualization: "timeseries", Unit: spec.unit, Query: chart.QuerySpec{RefID: spec.refID, Expression: validation.CanonicalExpression, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds}, Execution: execution})
+		proposals = append(proposals, dto.ChartProposal{Key: key, Title: view.Title, Visualization: "timeseries", Unit: view.Unit, Query: chart.QuerySpec{RefID: view.RefID, Expression: validation.CanonicalExpression, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds}, Execution: execution})
 	}
 	return dto.AgentRunResult{AssistantText: localresult.Format(request, proposals), Proposals: proposals}, nil
 }
@@ -108,39 +87,4 @@ func emitTool(sink agent.EventSink, ctx context.Context, eventType, sourceCallID
 }
 func (r *Runtime) Resume(context.Context, requestcontext.Context, dto.AgentResumeRequest, agent.EventSink) (dto.AgentRunResult, error) {
 	return dto.AgentRunResult{}, common.NewError(common.NotImplemented, "mock agent resume is not implemented", false)
-}
-func containsMetrics(result dto.SearchMetricsResult, names ...string) bool {
-	for _, name := range names {
-		found := false
-		for _, candidate := range result.Candidates {
-			if candidate.MetricName == name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
-}
-func contains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
-func metricCandidatesWire(values []dto.MetricCandidate) []map[string]any {
-	result := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		sources := make([]map[string]any, 0, len(value.Sources))
-		for _, source := range value.Sources {
-			sources = append(sources, map[string]any{"type": source.Type, "reference": source.Reference})
-		}
-		result = append(result, map[string]any{"metricName": value.MetricName, "type": value.Type, "description": value.Description, "labels": value.Labels, "score": value.Score, "sources": sources})
-	}
-	return result
 }
