@@ -6,6 +6,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { resourceClient, type CreateTask, type GeneratedTaskEvent, type Task } from '../api/resource';
 import { formatResourceError, isResourceNotFound } from '../api/resource-error';
 import { ChartCanvas } from './ChartCanvas';
+import { defaultChartId, deriveChartGroups } from './chart-groups';
 import { ContextPane } from './ContextPane';
 import { ConversationPane } from './ConversationPane';
 import { createTaskInput } from './query-input';
@@ -138,10 +139,11 @@ export function Workbench(_props: AppRootProps) {
   const staleSession = session.isError && isResourceNotFound(session.error);
   const requestError = [create.error, loadMore.error, staleSession ? undefined : session.error, staleSession ? undefined : history.error].find(Boolean);
   const messages = state.messageOrder.map((id) => state.messagesById[id]);
-  const charts = state.taskOrder.flatMap((taskID) => Object.values(state.runtimeByTaskId[taskID]?.charts ?? {}).map((chart) => ({ taskID, ...chart })));
+  const groups = deriveChartGroups(state.taskOrder.map((taskID) => state.tasksById[taskID]), messages, state.runtimeByTaskId);
+  const charts = groups.flatMap((group) => group.charts.map((chart) => ({ taskID: group.taskId, ...chart })));
   const chartIDs = charts.map(({ chart }) => chart.id).join(',');
   useEffect(() => {
-    setSelectedChartId((current) => current && charts.some(({ chart }) => chart.id === current) ? current : charts[0]?.chart.id);
+    setSelectedChartId((current) => current && charts.some(({ chart }) => chart.id === current) ? current : defaultChartId(groups));
   }, [chartIDs]);
   const selectedChart = charts.find(({ chart }) => chart.id === selectedChartId);
   const contextTask = selectedChart ? state.tasksById[selectedChart.taskID] : activeTask ?? state.tasksById[state.taskOrder[0]];
@@ -152,7 +154,7 @@ export function Workbench(_props: AppRootProps) {
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
         <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
       </Box>
-      <ChartCanvas charts={charts} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />
+      <ChartCanvas groups={groups} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
         <ContextPane sessionTitle={session.data?.title} task={contextTask} runtime={contextTask ? state.runtimeByTaskId[contextTask.id] : undefined} selectedChart={selectedChart} />
       </Box>
