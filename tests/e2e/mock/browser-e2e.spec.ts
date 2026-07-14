@@ -12,12 +12,17 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
 
   await page.goto('/a/mini-torchbearing-app/workbench');
   await expect(page.getByRole('heading', { name: 'Mini Torchbearing Workbench' })).toBeVisible();
-  await page.getByLabel('默认时间范围').selectOption('5m');
-  await page.getByLabel('采样分辨率').selectOption('5');
-  await page.getByLabel('分析请求').fill('帮我看看 node_exporter 的 CPU、内存和系统负载');
+  await expect(page.getByLabel('默认时间范围')).toHaveCount(0);
+  await expect(page.getByLabel('采样分辨率')).toHaveCount(0);
+  let submittedTask: Record<string, any> | undefined;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().includes('/resources/tasks')) submittedTask = request.postDataJSON();
+  });
+  await page.getByLabel('分析请求').fill('帮我看看最近 5 分钟 node_exporter 的 CPU、内存和系统负载，每隔 5s 一个点');
   await page.getByRole('button', { name: '开始分析' }).click();
 
   await expect(page).toHaveURL(/sessionId=[^&]+&taskId=[^&]+/);
+  expect(submittedTask?.analysisContext).toEqual({ datasourceUid: 'prometheus-main' });
   await expect(page.getByText(/已查询 node_exporter/)).toBeVisible();
   const chartCanvas = page.getByTestId('chart-canvas');
   for (const title of chartTitles) {
@@ -37,7 +42,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
 
   await page.getByLabel('分析请求').fill('只看 CPU');
   await page.getByRole('button', { name: '开始分析' }).click();
-  await expect(page.getByTestId('timeseries-panel')).toHaveCount(6);
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(4);
   await expect(page.getByText('你：只看 CPU')).toBeVisible();
 
   await expectThreePaneDesktopLayout(page);
@@ -45,7 +50,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   expect(new Set(widePanels.map((box) => Math.round(box.y))).size).toBeGreaterThan(1);
   expect(new Set(widePanels.map((box) => Math.round(box.x))).size).toBeGreaterThanOrEqual(2);
 
-  await page.getByRole('button', { name: '详情' }).nth(1).click();
+  await page.getByRole('button', { name: '详情' }).nth(2).click();
   const contextPane = page.getByTestId('context-pane');
   await expect(contextPane.getByText('内存可用率', { exact: true })).toBeVisible();
   await expect(contextPane.getByText('PromQL', { exact: true })).toBeVisible();
@@ -72,7 +77,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   for (const title of chartTitles) {
     await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
   }
-  await expect(page.getByTestId('timeseries-panel')).toHaveCount(6);
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(4);
   await expect(page.getByText('undefined', { exact: true })).toHaveCount(0);
   await expectPlotsWithinPanels(page);
   await expectNoHorizontalOverflow(page);

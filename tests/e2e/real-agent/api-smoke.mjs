@@ -65,7 +65,7 @@ async function submit(sessionID, message, expectedViews) {
   const response = await requestJSON(`${resourceBase}/tasks`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'idempotency-key': `real-agent-${crypto.randomUUID()}` },
-    body: JSON.stringify({ sessionId: sessionID, message, analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' }, resolution: { mode: 'auto' } } }),
+    body: JSON.stringify({ sessionId: sessionID, message, analysisContext: { datasourceUid: 'prometheus-main' } }),
   });
   assert.equal(response.response.status, 202, `Create Task failed: ${JSON.stringify(response.body)}`);
   const events = await terminalEvents(response.body.id);
@@ -81,8 +81,8 @@ async function submit(sessionID, message, expectedViews) {
     }))));
   }
   assert.equal(events.at(-1)?.type, 'task.completed', `agent task did not complete: ${JSON.stringify(events.at(-1))}`);
-  assert.deepEqual(response.body.queryPlan, { stepSeconds: 10, cpuRateWindowSeconds: 60 });
-  const summary = analyzeTaskEvents(events, { expectedViews });
+  assert.deepEqual(response.body.queryPlan, { views: expectedViews, stepSeconds: 10, cpuRateWindowSeconds: 60 });
+  const summary = analyzeTaskEvents(events, { expectedViews, expectedToolCalls: expectedViews.length });
   for (const line of formatTaskSummary('agent-task', summary)) console.log(line);
   assertNoSensitiveMarkers(events);
   const answer = events.find((event) => event.type === 'assistant.message.completed')?.payload.message.content;

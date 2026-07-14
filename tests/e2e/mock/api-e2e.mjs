@@ -9,11 +9,11 @@ const authorization = `Basic ${Buffer.from(`${user}:${password}`).toString('base
 const resourceBase = `${base}/api/plugins/mini-torchbearing-app/resources`;
 const realMetrics = process.env.REAL_METRICS === '1';
 const cases = [
-  { message: '查看近30s里node exporter中cpu负载数据', rangeSeconds: 30, step: 5, window: 30 },
-  { message: '查看近一分钟里node exporter中cpu负载数据变化图', rangeSeconds: 60, step: 5, window: 30 },
-  { message: '查看近30分钟内的node exporter里cpu负载变化数据', rangeSeconds: 1800, step: 10, window: 60 },
-  { message: '查看最近五分钟内cpu变化数据，每个5s画一个点，画出cpu负载变化图', rangeSeconds: 300, step: 5, window: 30 },
-  { message: '画出三种node exporter监测点数据的变化图吧', rangeSeconds: 1800, step: 10, window: 60 },
+  { message: '查看最近30秒 CPU 使用率', views: ['cpu'], rangeSeconds: 30, step: 5, window: 30 },
+  { message: '查看最近1分钟cpu的使用率变化，每隔5s采集个数据', views: ['cpu'], rangeSeconds: 60, step: 5, window: 30 },
+  { message: '最近30分钟 CPU，每隔30s采集一个点', views: ['cpu'], rangeSeconds: 1800, step: 30, window: 60 },
+  { message: '查看最近五分钟内 CPU 变化数据，每个5s画一个点', views: ['cpu'], rangeSeconds: 300, step: 5, window: 30 },
+  { message: '画出三种 node_exporter 监测数据的变化图吧', views: ['cpu', 'memory', 'load'], rangeSeconds: 1800, step: 10, window: 60 },
 ];
 
 function headers(extra = {}) {
@@ -80,7 +80,7 @@ assert.ok(session.response.ok, `Create Session failed: ${JSON.stringify(session.
 const createTaskBody = {
   sessionId: session.body.id,
   message: cases[0].message,
-  analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' }, resolution: { mode: 'auto' } },
+  analysisContext: { datasourceUid: 'prometheus-main' },
 };
 const idempotencyKey = `mock-e2e-task-${crypto.randomUUID()}`;
 const task = await requestJSON(`${resourceBase}/tasks`, {
@@ -144,11 +144,11 @@ assert.equal(finiteReplay.body.nextPageToken, null, 'terminal Task finite replay
 function assertBoundedResult(taskValue, taskEvents, expected) {
   assert.equal(taskEvents.at(-1)?.type, 'task.completed', `Task did not complete: ${JSON.stringify(taskEvents.at(-1))}`);
   assert.equal(Math.round((Date.parse(taskValue.timeRange.to) - Date.parse(taskValue.timeRange.from)) / 1000), expected.rangeSeconds);
-  assert.deepEqual(taskValue.queryPlan, { stepSeconds: expected.step, cpuRateWindowSeconds: expected.window });
-  const summary = analyzeTaskEvents(taskEvents, { expectedViews: ['cpu', 'memory', 'load'], expectedToolCalls: 7 });
+  assert.deepEqual(taskValue.queryPlan, { views: expected.views, stepSeconds: expected.step, cpuRateWindowSeconds: expected.window });
+  const summary = analyzeTaskEvents(taskEvents, { expectedViews: expected.views, expectedToolCalls: expected.views.length });
   const chartEvents = taskEvents.filter((event) => event.type === 'chart.created');
   const executionEvents = new Map(taskEvents.filter((event) => event.type === 'chart.execution_completed').map((event) => [event.payload.chartId, event.payload.execution]));
-  assert.equal(chartEvents.length, 3);
+  assert.equal(chartEvents.length, expected.views.length);
   for (const chartEvent of chartEvents) {
     const chart = chartEvent.payload.chart;
     const query = chart.queries[0];
