@@ -16,5 +16,6 @@
 |-|-|-|
 |[ADR-017](ADR-017-grafana-delegation-grant.md)|Provisional|assistant-mcp 使用短期 Delegation Grant 回调 Plugin Backend 的 Grafana 受控代理|
 |[ADR-018](ADR-018-multi-turn-real-analysis-boundaries.md)|Accepted|多轮会话、有限事件重放、受限 node_exporter 查询与模型数据隔离|
+|[ADR-019](ADR-019-bounded-node-exporter-query-parameters.md)|Accepted|三视图内的有界时间、resolution、CPU window 与极简 Agent|
 
 新增 ADR 时应至少包含：背景、决策、备选方案、影响、开放问题、复审条件和关联文档。

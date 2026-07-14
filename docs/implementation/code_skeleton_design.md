@@ -3049,6 +3049,14 @@ node_load1
 
 PromQL 是 Golden Path 的确定性输入，时间序列样本来自真实 Prometheus；测试可以校验表达式、返回类型和 series 数，但不能校验运行时样本的精确值。
 
+ADR-019 在不增加视图、指标或标签能力的前提下，将该 Golden Path 扩展为有界参数查询。Task 必须持久化
+绝对时间范围、有效 step 和 CPU rate window；允许范围为 30 秒至 6 小时，step 来自
+`5/10/15/30/60/120/300` 秒，CPU window 只允许 30/60/300 秒。模型只选择 `cpu/memory/load` view，
+不得提交 expression、时间或 step；assistant-mcp 注册表根据 view/window 渲染规范 PromQL 并执行 AST allowlist。
+Chart Query 持久化 step，Execution 同时区分请求范围和实际返回数据范围。最终事实回复由 AI Core 使用本地
+QueryPlan 与有界统计生成，不持久化未经校验的模型自由文本。详细字段、解析优先级和 Gate 见
+[`bounded_node_exporter_query_parameters_execution_plan.md`](bounded_node_exporter_query_parameters_execution_plan.md)。
+
 验收断言至少包括：
 
 1. Prometheus target `up{job="node-exporter"}` 为 1。

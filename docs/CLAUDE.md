@@ -50,6 +50,12 @@ The completed layered-result test slice is
 It adds code-agent-readable semantic checks and safe summaries above the existing connectivity probes. Progress is tracked in
 [`implementation/layered_result_diagnostics_progress.md`](implementation/layered_result_diagnostics_progress.md).
 
+The active bounded-query slice is
+[`implementation/bounded_node_exporter_query_parameters_execution_plan.md`](implementation/bounded_node_exporter_query_parameters_execution_plan.md).
+It keeps the three-view registry while adding persisted time/resolution parameters, bounded CPU windows, a view-only Agent and locally truthful result summaries. Progress is tracked in
+[`implementation/bounded_node_exporter_query_parameters_progress.md`](implementation/bounded_node_exporter_query_parameters_progress.md), and its boundary decision is
+[`adr/ADR-019-bounded-node-exporter-query-parameters.md`](adr/ADR-019-bounded-node-exporter-query-parameters.md).
+
 ## Reading and conflict rules
 
 | Question | Read first | Authority when documents disagree |
@@ -80,6 +86,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/real_backend_diagnostics_progress.md` | Completed progress record | Gate status and verification evidence for the real-backend diagnostic slice. |
 | `implementation/layered_result_diagnostics_execution_plan.md` | Completed execution plan | Layered metric semantics and durable Task result analysis. |
 | `implementation/layered_result_diagnostics_progress.md` | Completed progress record | Gate status and verification evidence for the layered-result test slice. |
+| `implementation/bounded_node_exporter_query_parameters_execution_plan.md` | Active execution plan | Bounded query range/resolution, CPU windows, view-only Agent and truthful summaries. |
+| `implementation/bounded_node_exporter_query_parameters_progress.md` | Active progress record | Gate status and verification evidence for the bounded-query slice. |
 | `implementation/real_backend_test_matrix.md` | Current runbook | Code-agent command order, expected result shapes and layered failure localization. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |

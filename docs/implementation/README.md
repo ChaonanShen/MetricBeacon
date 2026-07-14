@@ -31,5 +31,10 @@ The completed layered-result diagnostic slice is
 with evidence in
 [`layered_result_diagnostics_progress.md`](layered_result_diagnostics_progress.md).
 
+The active bounded-query slice is
+[`bounded_node_exporter_query_parameters_execution_plan.md`](bounded_node_exporter_query_parameters_execution_plan.md),
+with gate evidence in
+[`bounded_node_exporter_query_parameters_progress.md`](bounded_node_exporter_query_parameters_progress.md).
+
 The related stable product and architecture material is in
 [`../design/README.md`](../design/README.md); ADRs remain in [`../adr/`](../adr/).
