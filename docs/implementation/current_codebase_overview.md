@@ -5,6 +5,9 @@
 
 ## 当前可演示的能力
 
+> 当前正在执行 [`grouped_chart_canvas_execution_plan.md`](grouped_chart_canvas_execution_plan.md)，
+> 它将取代 `chart_trio_ui_fit_plan.md` 留下的自由多列布局；历史文件仅保留原验证证据。
+
 用户在 Grafana App Plugin 中只提交自然语言。AI Core 同步调用 Mock 或 Eino IntentPlanner，将注册 views 与可选 range/step 与 API hint/本地默认值合并，校验后冻结持久化 QueryPlan。后台仅执行这份计划的 `cpu|memory|load` views，PromQL 由 assistant-mcp 注册表编译，数值回复由实际查询结果在本地汇总。
 
 ```text

@@ -1,6 +1,6 @@
 # 对话分组宽版图表画布进度记录
 
-> status: draft-review
+> status: active
 > createdAt: 2026-07-15
 > plan: [`grouped_chart_canvas_execution_plan.md`](grouped_chart_canvas_execution_plan.md)
 
@@ -8,7 +8,7 @@
 
 |阶段|状态|证据|
 |-|-|-|
-|G0：计划激活|待授权|计划已保存为 draft-review，尚未授权业务代码修改。|
+|G0：计划激活|已完成|用户已授权按顺序执行；计划、进度、文档路由和当前快照已更新。|
 |G1：分组派生与画布结构|未开始|待实现与验证。|
 |G2：响应式宽版布局与滚动|未开始|待实现与验证。|
 |G3：端到端与文档收口|未开始|待实现与验证。|

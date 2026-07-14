@@ -64,7 +64,7 @@ bounded durable QueryPlan and local PromQL registry. Progress is tracked in
 [`adr/ADR-021-agent-planned-bounded-query-intent.md`](adr/ADR-021-agent-planned-bounded-query-intent.md),
 which supersedes ADR-020.
 
-The draft-review grouped chart-canvas refinement is
+The active grouped chart-canvas refinement is
 [`implementation/grouped_chart_canvas_execution_plan.md`](implementation/grouped_chart_canvas_execution_plan.md).
 It groups charts by conversation Task in chronological order and replaces the
 current narrow multi-column canvas with a maximum two-column responsive layout.
@@ -105,8 +105,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/bounded_node_exporter_query_parameters_progress.md` | Completed progress record | Gate status and verification evidence for the bounded-query slice. |
 | `implementation/natural_language_query_input_execution_plan.md` | Completed execution plan | Natural-language-only Workbench input with synchronously Agent-planned bounded query intent. |
 | `implementation/natural_language_query_input_progress.md` | Completed progress record | Gate status and verification evidence for the natural-language input refinement. |
-| `implementation/grouped_chart_canvas_execution_plan.md` | Draft-review execution plan | Chronological Task-grouped charts with a maximum two-column responsive canvas. |
-| `implementation/grouped_chart_canvas_progress.md` | Draft-review progress record | Planning baseline and future verification evidence for the grouped chart canvas. |
+| `implementation/grouped_chart_canvas_execution_plan.md` | Active execution plan | Chronological Task-grouped charts with a maximum two-column responsive canvas. |
+| `implementation/grouped_chart_canvas_progress.md` | Active progress record | Gate status and verification evidence for the grouped chart canvas. |
 | `implementation/real_backend_test_matrix.md` | Current runbook | Code-agent command order, expected result shapes and layered failure localization. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |

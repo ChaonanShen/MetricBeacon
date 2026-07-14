@@ -1,8 +1,8 @@
 # 对话分组宽版图表画布执行计划
 
-> status: draft-review
+> status: active
 > createdAt: 2026-07-15
-> implementationAuthorized: false
+> implementationAuthorized: true
 > decision: local Workbench UI refinement; no ADR required unless implementation expands a service or contract boundary
 > dependsOn: `three_pane_workbench_execution_plan.md`、`chart_trio_ui_fit_plan.md`、`current_codebase_overview.md`
 
