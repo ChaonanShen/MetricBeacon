@@ -1556,6 +1556,7 @@ type SessionMessage struct {
     ID              string
     TenantID        string
     SessionID       string
+    TaskID          string
     Role            MessageRole // user | assistant | tool | system
     Content         string
     RelatedChartIDs []string
@@ -1570,6 +1571,7 @@ type AnalysisTask struct {
     Type        TaskType
     Status      TaskStatus
     Intent      string
+    InputMessageID string
     PlanSummary []PlanStepSummary
     ErrorCode   string
     Version     int64
@@ -1586,6 +1588,7 @@ type AnalysisTask struct {
 - Session 的 `active_folder_uid` 可以为空和切换，但每次消费 Folder 资源前重新校验权限。
 - Fork 只能从已发布且未撤销/未过期的 `SessionSnapshot` 创建；新 Session 深拷贝快照内容，不引用原对象的可变数据。
 - 分享 Token 只向用户返回一次，数据库仅保存 hash；原始 Token 不写日志。
+- 每个 Task 恰好关联一条同 tenant/session 的 User Message；Assistant Message 至多一条且也关联产生它的 Task。`AnalysisTask.InputMessageID` 与 User Message 的 `TaskID` 必须双向一致。
 - Message 不保存模型私有推理；Tool Message 只保存脱敏摘要和 `tool_call_id`。
 - Task 只能通过第 15 节状态机迁移，终态不可恢复为运行态。
 

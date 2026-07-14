@@ -15,10 +15,10 @@ here with a scope, non-goals, sequence, and acceptance checks, and mark it
 `active`. Keep it in this directory after completion and change its status;
 paths stay stable for links and history.
 
-The current detailed proposal for the next slice is
-[`node_exporter_real_analysis_execution_plan.md`](node_exporter_real_analysis_execution_plan.md).
-It is intentionally `draft-review` until implementation is explicitly
-authorized.
+The active detailed plan is
+[`node_exporter_real_analysis_execution_plan.md`](node_exporter_real_analysis_execution_plan.md);
+its verification record is
+[`node_exporter_real_analysis_progress.md`](node_exporter_real_analysis_progress.md).
 
 The related stable product and architecture material is in
 [`../design/README.md`](../design/README.md); ADRs remain in [`../adr/`](../adr/).

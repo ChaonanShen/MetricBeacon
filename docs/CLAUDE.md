@@ -15,8 +15,8 @@ actual codebase, rather than the old design-only description, is documented in
 [`implementation/current_codebase_overview.md`](implementation/current_codebase_overview.md)
 and [`implementation/current_code_tree.md`](implementation/current_code_tree.md).
 
-The next agreed implementation direction is under roadmap review and has not
-been authorized for code execution:
+The node_exporter real-analysis slice is active. Its detailed execution plan
+is the authoritative implementation entry point:
 
 ```text
 documentation governance
@@ -31,8 +31,8 @@ Skill, Playbook, Dashboard write, and alert integration remain outside this
 slice. Its proposed scope, safety boundaries, and gate order are recorded in
 [`implementation/node_exporter_real_analysis_plan.md`](implementation/node_exporter_real_analysis_plan.md).
 [`implementation/node_exporter_real_analysis_execution_plan.md`](implementation/node_exporter_real_analysis_execution_plan.md)
-contains the detailed, decision-complete execution sequence. It remains under
-review and does not authorize implementation until it is promoted to `active`.
+contains the detailed, decision-complete execution sequence and its progress
+record is [`implementation/node_exporter_real_analysis_progress.md`](implementation/node_exporter_real_analysis_progress.md).
 
 ## Reading and conflict rules
 
@@ -55,8 +55,9 @@ Surface the conflict and obtain a decision or add an ADR.
 |---|---|---|
 | `design/` | Mostly stable | Project origin, product scope, and long-term architecture Proposals. See `design/README.md`. |
 | `implementation/code_skeleton_design.md` | Active, Implementation Blueprint | Mutable structural authority for code, contracts, Ports/Adapters, ownership, and verification. |
-| `implementation/node_exporter_real_analysis_plan.md` | Draft, under review | Proposed multi-turn, real Prometheus/node_exporter, and minimal Eino Agent roadmap; it does not authorize implementation. |
-| `implementation/node_exporter_real_analysis_execution_plan.md` | Draft, under review | Decision-complete execution plan for the roadmap. Promote it to `active` only with explicit implementation authorization. |
+| `implementation/node_exporter_real_analysis_plan.md` | Active roadmap | Scope, safety boundaries and gate order for the multi-turn, real Prometheus/node_exporter and minimal Eino Agent slice. |
+| `implementation/node_exporter_real_analysis_execution_plan.md` | Active execution plan | Decision-complete, commit-by-commit implementation sequence for the active roadmap. |
+| `implementation/node_exporter_real_analysis_progress.md` | Active progress record | Gate status and verification evidence for the active roadmap. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
 | `implementation/chart_trio_ui_fit_plan.md` | Completed evidence | Historical chart-layout improvement record. |

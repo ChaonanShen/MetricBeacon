@@ -1,9 +1,9 @@
 # node_exporter 真实分析与多轮会话路线图
 
-> status: draft-review
+> status: active
 > createdAt: 2026-07-14
 > lastReviewedAt: 2026-07-14
-> implementationAuthorized: false
+> implementationAuthorized: true
 > scope: 在已完成的确定性 Mock 闭环上，建立持久化多轮对话，并跑通真实
 > Prometheus/node_exporter 与最小 Eino Agent 的端到端演示。
 > dependsOn: `code_skeleton_design.md`、`current_codebase_overview.md`、
@@ -12,13 +12,15 @@
 ## 0. 文档定位
 
 本文是下一阶段的范围和 Gate 路线图，用来锁定能力边界、依赖顺序、风险控制与验收分层。
-它不是逐文件、逐提交的执行计划，也不代表已经授权开始修改代码。
+逐文件、逐提交的执行以已激活的
+[`node_exporter_real_analysis_execution_plan.md`](node_exporter_real_analysis_execution_plan.md)
+为准。
 
-开始实现前必须：
+实施已满足以下前置条件：
 
-1. 完成 G0 的待确认决策。
-2. 根据本路线图生成一份逐切片的详细执行计划。
-3. 将该执行计划标记为 `active` 并获得明确执行指令。
+1. G0 已在 ADR-018 锁定。
+2. 已生成逐切片的详细执行计划。
+3. 详细执行计划已标记为 `active` 并获得明确执行指令。
 
 详细执行计划应把每个 Gate 拆成可独立验证的小提交，并列出具体契约、文件、migration、测试、
 回滚点和演进文档更新项。
