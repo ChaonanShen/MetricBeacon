@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,15 +9,18 @@ import (
 	"path/filepath"
 
 	"github.com/mark3labs/mcp-go/server"
+	prometheushttp "mini-torchbearing.local/services/assistant-mcp/internal/adapters/prometheus/http"
 	mockprometheus "mini-torchbearing.local/services/assistant-mcp/internal/adapters/prometheus/mock"
+	"mini-torchbearing.local/services/assistant-mcp/internal/adapters/prometheus/registry"
 	"mini-torchbearing.local/services/assistant-mcp/internal/namespaces/grafana"
+	"mini-torchbearing.local/services/assistant-mcp/internal/ports/prometheus"
 )
 
 // Runtime holds the only inbound HTTP handler exposed by assistant-mcp.
 type Runtime struct{ Handler http.Handler }
 
 func Wire(config Config) (*Runtime, error) {
-	adapter, err := mockprometheus.New(config.FixtureDir)
+	adapter, ready, err := prometheusAdapter(config)
 	if err != nil {
 		return nil, err
 	}
@@ -38,8 +42,37 @@ func Wire(config Config) (*Runtime, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", streamable)
 	mux.HandleFunc("/healthz", healthy)
-	mux.HandleFunc("/readyz", healthy)
+	mux.HandleFunc("/readyz", func(writer http.ResponseWriter, request *http.Request) {
+		if err := ready(request.Context()); err != nil {
+			writer.Header().Set("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = writer.Write([]byte(`{"status":"unavailable"}`))
+			return
+		}
+		healthy(writer, request)
+	})
 	return &Runtime{Handler: mux}, nil
+}
+
+func prometheusAdapter(config Config) (prometheus.Port, func(context.Context) error, error) {
+	if config.PrometheusDatasourceUID != "" && config.PrometheusDatasourceUID != registry.DatasourceUID {
+		return nil, nil, fmt.Errorf("Prometheus datasource UID must be %s", registry.DatasourceUID)
+	}
+	if config.PrometheusDriver == "http" {
+		adapter, err := prometheushttp.New(config.PrometheusURL, config.PrometheusTimeout)
+		if err != nil {
+			return nil, nil, err
+		}
+		return adapter, adapter.Ready, nil
+	}
+	if config.PrometheusDriver != "" && config.PrometheusDriver != "mock" {
+		return nil, nil, fmt.Errorf("Prometheus driver must be mock or http")
+	}
+	adapter, err := mockprometheus.New(config.FixtureDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	return adapter, func(context.Context) error { return nil }, nil
 }
 
 func healthy(writer http.ResponseWriter, _ *http.Request) {

@@ -10,6 +10,7 @@ const (
 	Unauthenticated        ErrorCode = "unauthenticated"
 	PermissionDenied       ErrorCode = "permission_denied"
 	ResourceNotFound       ErrorCode = "resource_not_found"
+	AdapterNotConfigured   ErrorCode = "adapter_not_configured"
 	DependencyUnavailable  ErrorCode = "dependency_unavailable"
 	ToolNotSupported       ErrorCode = "tool_not_supported"
 	ToolTimeout            ErrorCode = "tool_timeout"

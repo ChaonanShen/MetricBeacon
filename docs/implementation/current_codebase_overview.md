@@ -31,7 +31,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`services/ai-core/internal/adapters`|将 Port 接到具体实现：SQLite、内存通知器、MCP 客户端、系统时钟/随机 ID 与确定性 Mock Agent。HTTP 入站 Adapter 暴露会话、任务、读取与 SSE 重放接口。|AI Core 是 Session、Task、Event、Chart 和 SQLite 数据的唯一所有者。它不直接读取 fixture，也不承载 Grafana 鉴权。|
 |`services/ai-core/internal/bootstrap`|组装依赖：SQLite Store、Mock Agent、MCP Gateway、工作流、HTTP API。|`/readyz` 会同时检查 SQLite 及 MCP 工具是否就绪。|
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|工具先做权限和 Schema 校验，再调用 Prometheus Port；该服务不拥有 AI Core 的任务或数据库。|
-|`services/assistant-mcp/internal/adapters/prometheus/mock`|Mock Prometheus Port 实现。|唯一允许读取 `data/mock-scenarios` 的代码；按请求的 PromQL 返回固定 fixture。真实 HTTP Adapter 目前显式 `not_implemented`。|
+|`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码；opt-in HTTP Adapter 只请求本地注册的四项 metadata、15 分钟 series 和三条规范 PromQL，并执行响应、时间范围和基数上限。|
 |`apps/grafana-plugin/frontend`|React/Grafana 工作台：创建或恢复 Session、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|提交新消息保留已有对话与图表，活动 Task 阻止并发提交；未实现图表编辑和 Dashboard 写入。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
@@ -46,14 +46,14 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 - 每轮 AgentRuntime 接收当前 User Message 之外、按时间正序的最近至多 12 条持久化 User/Assistant 消息，并按完整消息边界限制在 12,000 个 Unicode 字符内；当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
 - Mock 与后续真实 Adapter 共用逻辑数据源 UID `prometheus-main`。Task、Chart 和 MCP Tool 契约均限制为该 UID；SQLite `0003` 会前移迁移历史 Task 及 Chart query JSON 中的旧 UID。查询验证结果必须返回规范 PromQL，Mock Agent 以该规范表达式执行查询并持久化到 Chart。
-- Prometheus Adapter 层的 node_exporter 注册表是 CPU、内存和负载三条规范 PromQL 的唯一来源。它使用 Prometheus AST 解析并只接受与注册表等价的表达式（仅放宽空白和外层冗余括号）；Mock Adapter 与将来的 HTTP Adapter 共享该策略，越界表达式在访问数据前返回 `schema_validation_failed`。
+- Prometheus Adapter 层的 node_exporter 注册表是 CPU、内存和负载三条规范 PromQL 的唯一来源。它使用 Prometheus AST 解析并只接受与注册表等价的表达式（仅放宽空白和外层冗余括号）；Mock 和 opt-in HTTP Adapter 共享该策略，越界表达式在访问数据前返回 `schema_validation_failed`。HTTP Adapter 只从服务环境取得 endpoint，禁用 redirect，限制请求为 10 秒、范围为 6 小时、最多 20 series/5,000 samples/2 MiB 解压响应；`/healthz` 不访问依赖，HTTP 模式 `/readyz` 短探测 `/-/ready`。
 - SSE 事件带有 Task、Session 和单调递增 sequence。事件先写入 durable store，客户端可通过 `afterSequence` 或 `Last-Event-ID` 获取断线后的后缀。
 - 前端只能访问 Grafana Plugin Resource API；它不直连 AI Core、MCP 或 Prometheus。
 - `scripts/check-boundaries.sh` 会阻止 AI Core 的 domain/application/ports import 外部 SDK、Adapter 或 Mock fixture。
 
 ## 尚未实现的范围
 
-当前只覆盖一个固定 Mock 场景。以下是明确保留的后续能力，而非现有功能：真实 Agent/LLM、真实 Prometheus、PromQL 或图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。对应的部分 Port 或 Schema 已预留，但不能按“已实现”理解。
+当前默认仍覆盖一个固定 Mock 场景；真实 Prometheus 查询可通过服务端 HTTP driver 显式启用，真实 Agent/LLM 尚未实现。以下是明确保留的后续能力，而非现有功能：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。对应的部分 Port 或 Schema 已预留，但不能按“已实现”理解。
 
 ## 上手使用
 

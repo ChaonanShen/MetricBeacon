@@ -106,6 +106,36 @@ func TestStreamableHTTPMCPTools(t *testing.T) {
 	}
 }
 
+func TestHTTPDriverReadinessAndInvalidConfiguration(t *testing.T) {
+	prometheus := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/-/ready" {
+			t.Fatalf("unexpected readiness request: %s", request.URL.Path)
+		}
+		writer.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(prometheus.Close)
+	runtime, err := bootstrap.Wire(bootstrap.Config{PrometheusDriver: "http", PrometheusURL: prometheus.URL, PrometheusTimeout: time.Second, PrometheusDatasourceUID: "prometheus-main", SchemaDir: repositoryPath(t, "contracts/tools/grafana")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(runtime.Handler)
+	t.Cleanup(server.Close)
+	response, err := http.Get(server.URL + "/healthz")
+	if err != nil || response.StatusCode != http.StatusOK {
+		t.Fatalf("healthz should remain process-only: %v", err)
+	}
+	response.Body.Close()
+	response, err = http.Get(server.URL + "/readyz")
+	if err != nil || response.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("readyz did not report the unavailable Prometheus dependency: %v", err)
+	}
+	response.Body.Close()
+	_, err = bootstrap.Wire(bootstrap.Config{PrometheusDriver: "invalid", FixtureDir: repositoryPath(t, "data/mock-scenarios/node_exporter_overview"), SchemaDir: repositoryPath(t, "contracts/tools/grafana")})
+	if err == nil {
+		t.Fatal("invalid Prometheus driver was accepted")
+	}
+}
+
 func newClient(t *testing.T, endpoint string, headers map[string]string) *client.Client {
 	t.Helper()
 	transport, err := transport.NewStreamableHTTP(endpoint, transport.WithHTTPHeaders(headers))
