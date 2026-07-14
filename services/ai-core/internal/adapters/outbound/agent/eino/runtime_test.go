@@ -26,7 +26,7 @@ import (
 func TestRuntimeKeepsRawSeriesOutOfModelInput(t *testing.T) {
 	model := &scriptedModel{responses: []*schema.Message{
 		schema.AssistantMessage("", []schema.ToolCall{{ID: "query-cpu", Type: "function", Function: schema.FunctionCall{Name: "query_prometheus", Arguments: `{"view":"cpu"}`}}}),
-		schema.AssistantMessage(`{"status":"completed","views":["cpu"]}`, nil),
+		schema.AssistantMessage(`{"status":"completed","views":["cpu"],"answer":"MODEL TEXT MUST NOT PERSIST"}`, nil),
 	}}
 	queries := &fakeQueries{execution: dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "private-label", Labels: map[string]string{"instance": "http://private.example/secret"}, Points: []chart.Point{{Timestamp: time.Unix(1, 0), Value: 31}, {Timestamp: time.Unix(2, 0), Value: 37}}}}, Warnings: []string{"sensitive upstream warning"}}}
 	runtime := newRuntime(t, model, &fakeCatalog{}, queries)
@@ -38,7 +38,7 @@ func TestRuntimeKeepsRawSeriesOutOfModelInput(t *testing.T) {
 	if len(result.Proposals) != 1 || result.Proposals[0].Key != "cpu" || result.Proposals[0].Query.RefID != "A" {
 		t.Fatalf("unexpected chart proposals: %#v", result.Proposals)
 	}
-	if !strings.Contains(result.AssistantText, "step=300s") || !strings.Contains(result.AssistantText, "CPU rate window=300s") || !strings.Contains(result.AssistantText, "首值 31.00%") || strings.Contains(result.AssistantText, "CPU 视图已生成") {
+	if !strings.Contains(result.AssistantText, "step=300s") || !strings.Contains(result.AssistantText, "CPU rate window=300s") || !strings.Contains(result.AssistantText, "首值 31.00%") || strings.Contains(result.AssistantText, "MODEL TEXT MUST NOT PERSIST") {
 		t.Fatalf("final answer was not produced from local query facts: %s", result.AssistantText)
 	}
 	if queries.execute.StepSeconds != 300 || queries.execute.View != "cpu" || queries.execute.CPURateWindowSeconds == nil || *queries.execute.CPURateWindowSeconds != 300 {
@@ -72,7 +72,7 @@ func TestRuntimeRejectsFinalViewsWithoutSuccessfulTools(t *testing.T) {
 	assertCode(t, err, common.DependencyUnavailable)
 }
 
-func TestRuntimeRejectsPlainTextFinalResponseAfterSuccessfulQuery(t *testing.T) {
+func TestRuntimeUsesSuccessfulQueriesAndIgnoresPlainTextFinalResponse(t *testing.T) {
 	model := &scriptedModel{responses: []*schema.Message{
 		schema.AssistantMessage("", []schema.ToolCall{{ID: "query-cpu", Type: "function", Function: schema.FunctionCall{Name: "query_prometheus", Arguments: `{"view":"cpu"}`}}}),
 		schema.AssistantMessage("CPU 视图已生成。", nil),
@@ -84,8 +84,13 @@ func TestRuntimeRejectsPlainTextFinalResponseAfterSuccessfulQuery(t *testing.T) 
 			Points: []chart.Point{{Timestamp: time.Unix(1, 0), Value: 31}},
 		}},
 	}})
-	_, err := runtime.Run(context.Background(), identity(), request(), &recordingSink{})
-	assertCode(t, err, common.DependencyUnavailable)
+	result, err := runtime.Run(context.Background(), identity(), request(), &recordingSink{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(result.AssistantText, "step=300s") || strings.Contains(result.AssistantText, "CPU 视图已生成") {
+		t.Fatalf("model plain text entered the local answer: %s", result.AssistantText)
+	}
 }
 
 func TestRuntimeStrictlyRejectsUnknownToolFieldsBeforeCatalogAccess(t *testing.T) {

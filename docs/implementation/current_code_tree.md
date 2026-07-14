@@ -1,7 +1,7 @@
 # 当前代码树（分享版）
 
 > 更新日期：2026-07-14。省略 `node_modules/`、`dist/`、`build/`、测试输出和 Go 模块缓存；
-> 该树用于说明当前 Mock 闭环的代码归属，而非逐文件清单。
+> 该树用于说明当前有界 node_exporter 查询闭环的代码归属，而非逐文件清单。
 
 ```text
 mini-torchbearing/
@@ -100,11 +100,11 @@ mini-torchbearing/
 │
 ├── tests/
 │   ├── diagnostics/                       # Prometheus/DeepSeek 探针、指标及 durable Task 语义分析与 fake 测试
-│   ├── e2e/mock/                          # Mock API 与 Playwright 浏览器 E2E
+│   ├── e2e/mock/                          # 五种有界输入的 Mock API 与 Playwright E2E
 │   │   ├── api-e2e.mjs
 │   │   ├── api-e2e.sh
 │   │   └── browser-e2e.spec.ts
-│   └── e2e/real-agent/api-smoke.mjs        # 有凭证的 Eino API smoke、replay 与泄漏检查
+│   └── e2e/real-agent/api-smoke.mjs        # view-only Eino、本地回复、replay 与泄漏检查
 │
 ├── scripts/                               # 生成、契约、边界、分层诊断及三模式 E2E 门禁脚本
 ├── docs/                                  # 架构、设计、ADR、开发计划与当前说明
@@ -123,9 +123,9 @@ mini-torchbearing/
 ```text
 浏览器 UI (apps/grafana-plugin/frontend)
   -> Grafana Plugin Backend (apps/grafana-plugin/backend)
-  -> AI Core (services/ai-core)
-  -> MCP Tool Service (services/assistant-mcp)
-  -> Mock Prometheus Fixture (data/mock-scenarios)
+  -> AI Core QueryPlan + view-only Agent (services/ai-core)
+  -> MCP Tool Service + PromQL Registry (services/assistant-mcp)
+  -> Mock Fixture 或 Prometheus/node_exporter
 ```
 
 其中 `contracts/` 是各进程间 API、事件与 Tool Schema 的单一来源；`packages/generated-*` 是由

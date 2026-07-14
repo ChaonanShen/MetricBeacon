@@ -16,8 +16,8 @@
 |4|`make diagnose-real-metrics`|原始 Prometheus 和 MCP 都返回 CPU/内存/load 的合理结果。|Prometheus scrape、PromQL、MCP transport/Adapter。|
 |5|`make diagnose-deepseek`|配置模型存在，并返回可解析的严格 `{"answer":"pong"}`。|模型凭证、endpoint、model 或供应商响应。|
 |6|`make e2e-mock`|确定性数据通过 Plugin/API/持久化/SSE/浏览器全链路。|与真实数据无关的应用链路回归。|
-|7|`make e2e-real-metrics`|固定 Agent 计划能把真实 Prometheus 数据变成三个 durable Chart。|Prometheus→MCP→AI Core 的真实数据路径。|
-|8|`make e2e-real-agent`|真实模型概览生成三图，CPU 追问生成一图，且工具和结果可持久化/重放。|Agent 选择、工具编排、模型输出或上下文。|
+|7|`make e2e-real-metrics`|五种有界范围/resolution 输入能把真实 Prometheus 数据变成 durable Chart。|QueryPlan→MCP→Prometheus 的真实数据路径。|
+|8|`make e2e-real-agent`|真实模型概览生成三图，CPU 追问生成一图，且工具、本地回复和结果可持久化/重放。|Agent 视图选择、工具编排或本地结果格式化。|
 |9|`make check`|仓库全部静态检查、单元/集成测试通过。|对应失败目标。|
 
 需要模型的第 5、8 步不会自动读取 `.env`。执行前显式加载，且不要在日志中打印变量：
@@ -80,8 +80,9 @@ Task API 的通过条件不是“收到了 assistant 文本”，而是同时满
 - 恰好一个最终 `task.completed`，没有 `task.failed`；
 - 每个 `tool.started` 有且只有一个同 source-call ID 的成功 `tool.completed`；
 - 每张 Chart 有一个成功 Execution，`seriesCount` 等于实际 series 数；
+- Task 的 QueryPlan、Chart step、Execution 实际样本范围与返回 series 一致；
 - Chart view、规范 PromQL 和 CPU/内存/load 的指标语义一致；
-- 恰好一个非空的最终 `assistant.message.completed`。
+- 恰好一个由本地 formatter 生成的最终 `assistant.message.completed`，包含有效范围/step/window 和本地样本统计。
 
 Mock/真实指标概览通常为 7 次工具调用和 3 张图；真实 Agent 概览也应选择 CPU、内存、load 三图，而
 “只看 CPU”的追问应只有 1 次查询工具调用和 1 张 CPU 图。安全输出近似如下：
@@ -101,7 +102,7 @@ Mock/真实指标概览通常为 7 次工具调用和 3 张图；真实 Agent �
 |原始 Prometheus 通过、MCP 失败|查 assistant-mcp transport、身份上下文、Real Adapter 解码或 Tool Schema。|
 |MCP 通过、真实指标 E2E 失败|查 AI Core workflow、事件持久化、Chart/Execution 组装或 Plugin 代理。|
 |DeepSeek 直连失败|查 key、endpoint、model 和供应商 HTTP；无需先改 Agent prompt。|
-|DeepSeek 直连通过、真实 Agent E2E 失败|查 Eino Agent 的受限视图选择、严格 JSON、工具配对和最终回复。|
+|DeepSeek 直连通过、真实 Agent E2E 失败|查 Eino Agent 的 view-only 工具选择和工具配对；有成功 proposal 时模型终态不参与事实回复，零 proposal 的 unsupported 路径才检查严格 JSON。|
 |API E2E 通过、浏览器失败|后端数据已经成立；查 SSE 恢复、URL Session、DataFrame mapper 或图表渲染。|
 |Mock E2E 也失败|这是公共应用链路回归，不应归因于真实 Prometheus 或模型。|
 
@@ -110,6 +111,6 @@ Mock/真实指标概览通常为 7 次工具调用和 3 张图；真实 Agent �
 
 ## 4. 本次基线证据
 
-2026-07-14 的验证中，离线诊断 34/34 通过；Mock、真实指标和真实 Agent E2E 均通过。真实 Agent 概览为
-33 events/7 tool calls/3 charts，CPU 追问为 13 events/1 tool call/1 chart。真实值落在约 CPU
-`95.87..97.13`、内存 `54.36`、load `2.32`；这些值仅是本次执行证据，不是未来运行的期望常量。
+2026-07-14 的验证中，离线诊断 35/35 通过；Mock、真实指标和真实 Agent E2E 均通过。Mock 与真实指标
+E2E 覆盖同一组五种有界输入。真实 Agent 概览为 21 events/3 query tool calls/3 charts，CPU 追问为
+13 events/1 query tool call/1 chart；这些计数和真实瞬时值仅是本次执行证据，不是未来运行的期望常量。

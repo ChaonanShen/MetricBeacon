@@ -7,6 +7,14 @@ const user = process.env.GRAFANA_ADMIN_USER ?? 'admin';
 const password = process.env.GRAFANA_ADMIN_PASSWORD ?? 'admin';
 const authorization = `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
 const resourceBase = `${base}/api/plugins/mini-torchbearing-app/resources`;
+const realMetrics = process.env.REAL_METRICS === '1';
+const cases = [
+  { message: '查看近30s里node exporter中cpu负载数据', rangeSeconds: 30, step: 5, window: 30 },
+  { message: '查看近一分钟里node exporter中cpu负载数据变化图', rangeSeconds: 60, step: 5, window: 30 },
+  { message: '查看近30分钟内的node exporter里cpu负载变化数据', rangeSeconds: 1800, step: 10, window: 60 },
+  { message: '查看最近五分钟内cpu变化数据，每个5s画一个点，画出cpu负载变化图', rangeSeconds: 300, step: 5, window: 30 },
+  { message: '画出三种node exporter监测点数据的变化图吧', rangeSeconds: 1800, step: 10, window: 60 },
+];
 
 function headers(extra = {}) {
   return { authorization, ...extra };
@@ -71,8 +79,8 @@ assert.ok(session.response.ok, `Create Session failed: ${JSON.stringify(session.
 
 const createTaskBody = {
   sessionId: session.body.id,
-  message: 'show node exporter',
-  analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' } },
+  message: cases[0].message,
+  analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' }, resolution: { mode: 'auto' } },
 };
 const idempotencyKey = `mock-e2e-task-${crypto.randomUUID()}`;
 const task = await requestJSON(`${resourceBase}/tasks`, {
@@ -100,35 +108,87 @@ assert.equal(conflict.body.error?.code, 'idempotency_conflict');
 
 const events = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events?afterSequence=0`);
 assert.ok(events.length > 0, 'Task SSE did not return any durable events');
-const taskSummary = analyzeTaskEvents(events, { expectedViews: ['cpu', 'memory', 'load'], expectedToolCalls: 7 });
+const taskSummary = assertBoundedResult(task.body, events, cases[0]);
 for (const line of formatTaskSummary('task', taskSummary)) console.log(line);
-assert.ok(events.some((event) => event.type === 'assistant.message.completed' && event.payload.message.content.includes('CPU、内存和系统负载')));
 
 const replayAfter = events.at(-6).sequence;
 const replay = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events?afterSequence=${replayAfter}`);
 assert.deepEqual(replay, events.filter((event) => event.sequence > replayAfter), 'SSE replay must return exactly the durable suffix');
 
-for (const message of ['show only CPU', 'show memory again']) {
+for (const testCase of cases.slice(1)) {
   const nextTask = await requestJSON(`${resourceBase}/tasks`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'idempotency-key': `mock-e2e-task-${crypto.randomUUID()}` },
-    body: JSON.stringify({ ...createTaskBody, message }),
+    body: JSON.stringify({ ...createTaskBody, message: testCase.message }),
   });
   assert.equal(nextTask.response.status, 202, `Create follow-up Task failed: ${JSON.stringify(nextTask.body)}`);
   const nextEvents = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(nextTask.body.id)}/events?afterSequence=0`);
-  assert.equal(nextEvents.at(-1)?.type, 'task.completed', 'follow-up Task stream must terminate');
+  const summary = assertBoundedResult(nextTask.body, nextEvents, testCase);
+  for (const line of formatTaskSummary('task', summary)) console.log(line);
 }
 
 const messagePage = await requestJSON(`${resourceBase}/sessions/${encodeURIComponent(session.body.id)}/messages?pageSize=50`);
 assert.equal(messagePage.response.status, 200);
-assert.equal(messagePage.body.items.length, 6, 'three completed Tasks must persist three user and three assistant Messages');
+assert.equal(messagePage.body.items.length, cases.length * 2, 'each completed Task must persist one user and one assistant Message');
 assert.equal(messagePage.body.nextPageToken, null);
 const taskPage = await requestJSON(`${resourceBase}/sessions/${encodeURIComponent(session.body.id)}/tasks?pageSize=20`);
 assert.equal(taskPage.response.status, 200);
-assert.equal(taskPage.body.items.length, 3, 'three completed Tasks must remain in Session history');
+assert.equal(taskPage.body.items.length, cases.length, 'all completed Tasks must remain in Session history');
 assert.equal(taskPage.body.nextPageToken, null);
 const finiteReplay = await requestJSON(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events/replay?afterSequence=0&pageSize=200`);
 assert.equal(finiteReplay.response.status, 200);
 assert.equal(finiteReplay.body.targetSequence, events.at(-1).sequence);
 assert.deepEqual(finiteReplay.body.items.map((event) => event.sequence), events.map((event) => event.sequence));
 assert.equal(finiteReplay.body.nextPageToken, null, 'terminal Task finite replay must not keep a follow cursor');
+
+function assertBoundedResult(taskValue, taskEvents, expected) {
+  assert.equal(taskEvents.at(-1)?.type, 'task.completed', `Task did not complete: ${JSON.stringify(taskEvents.at(-1))}`);
+  assert.equal(Math.round((Date.parse(taskValue.timeRange.to) - Date.parse(taskValue.timeRange.from)) / 1000), expected.rangeSeconds);
+  assert.deepEqual(taskValue.queryPlan, { stepSeconds: expected.step, cpuRateWindowSeconds: expected.window });
+  const summary = analyzeTaskEvents(taskEvents, { expectedViews: ['cpu', 'memory', 'load'], expectedToolCalls: 7 });
+  const chartEvents = taskEvents.filter((event) => event.type === 'chart.created');
+  const executionEvents = new Map(taskEvents.filter((event) => event.type === 'chart.execution_completed').map((event) => [event.payload.chartId, event.payload.execution]));
+  assert.equal(chartEvents.length, 3);
+  for (const chartEvent of chartEvents) {
+    const chart = chartEvent.payload.chart;
+    const query = chart.queries[0];
+    assert.equal(query.stepSeconds, expected.step);
+    assert.equal(Date.parse(query.timeRange.from), Date.parse(taskValue.timeRange.from));
+    assert.equal(Date.parse(query.timeRange.to), Date.parse(taskValue.timeRange.to));
+    if (chart.title === 'CPU 使用率') {
+      const suffix = expected.window === 30 ? '[30s]' : expected.window === 60 ? '[1m]' : '[5m]';
+      assert.ok(query.expression.includes(suffix), `CPU query did not use ${suffix}: ${query.expression}`);
+    }
+    const execution = executionEvents.get(chart.id);
+    assert.ok(execution, `chart ${chart.id} had no execution`);
+    assert.equal(execution.status, 'success');
+    assert.ok(execution.actualSampleRange, 'successful query did not persist its actual sample range');
+    for (const series of execution.series) assertSeries(series, taskValue.timeRange, expected);
+    const timestamps = execution.series.flatMap((series) => series.points.map((point) => Date.parse(point.timestamp)));
+    assert.equal(Date.parse(execution.actualSampleRange.from), Math.min(...timestamps));
+    assert.equal(Date.parse(execution.actualSampleRange.to), Math.max(...timestamps));
+  }
+  const answer = taskEvents.find((event) => event.type === 'assistant.message.completed')?.payload.message.content;
+  assert.equal(typeof answer, 'string');
+  assert.ok(answer.includes(`step=${expected.step}s`), `answer omitted effective step: ${answer}`);
+  assert.ok(answer.includes(`CPU rate window=${expected.window}s`), `answer omitted effective CPU window: ${answer}`);
+  assert.ok(answer.includes('实际数据'), `answer omitted actual data range: ${answer}`);
+  return summary;
+}
+
+function assertSeries(series, requestedRange, expected) {
+  assert.ok(series.points.length > 0, 'query returned an empty series');
+  const timestamps = series.points.map((point) => Date.parse(point.timestamp));
+  assert.ok(timestamps.every(Number.isFinite));
+  assert.ok(series.points.every((point) => Number.isFinite(point.value)));
+  const boundaryToleranceMs = realMetrics ? 1000 : 0;
+  assert.ok(timestamps[0] >= Date.parse(requestedRange.from) - boundaryToleranceMs && timestamps.at(-1) <= Date.parse(requestedRange.to) + boundaryToleranceMs);
+  for (let index = 1; index < timestamps.length; index += 1) {
+    assert.equal((timestamps[index] - timestamps[index - 1]) / 1000, expected.step, 'sample interval did not match effective step');
+  }
+  if (!realMetrics) {
+    assert.equal(series.points.length, Math.floor(expected.rangeSeconds / expected.step) + 1);
+    assert.equal(timestamps[0], Date.parse(requestedRange.from));
+    assert.equal(timestamps.at(-1), Date.parse(requestedRange.to));
+  }
+}

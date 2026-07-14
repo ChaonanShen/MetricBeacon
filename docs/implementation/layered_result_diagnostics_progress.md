@@ -41,7 +41,7 @@
 |-|-|
 |Mock E2E|30 events、7 tool calls、3 charts；CPU 2 series/14 samples、内存 2/14、load 2/14，终态 `task.completed`。|
 |真实指标 E2E|30 events、7 tool calls、3 charts；CPU `97.22`、内存 `54.5429`、load `2.85`，每个 view 1 series/1 sample。|
-|真实 Agent 概览|33 events、7 tool calls、3 charts；CPU `97.1296`、内存 `54.3617`、load `2.32`，终态 `task.completed`。|
+|真实 Agent 概览（该切片历史基线）|33 events、7 tool calls、3 charts；CPU `97.1296`、内存 `54.3617`、load `2.32`，终态 `task.completed`。有界查询切片完成后的最新基线改为 21 events、3 个 query tool calls、3 charts，见 `bounded_node_exporter_query_parameters_progress.md`。|
 |真实 Agent CPU 追问|13 events、1 tool call、1 chart；CPU `95.8749`，终态 `task.completed`。|
 
 以上真实数值均为执行瞬间的 Docker Linux VM 指标，只用于证明本次 E2E 得到了可解码且语义合理的真实数据。

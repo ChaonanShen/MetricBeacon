@@ -1,6 +1,6 @@
 # 有界 node_exporter 查询参数执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-14
 > implementationAuthorized: true
 > decision: [`../adr/ADR-019-bounded-node-exporter-query-parameters.md`](../adr/ADR-019-bounded-node-exporter-query-parameters.md)
@@ -191,3 +191,10 @@ Chart Query 增加必需 `stepSeconds`。Execution 保留 `sampleRange` 表示�
 - 持久化 Task、Chart、Execution、SSE replay、刷新恢复与 Assistant 文本对有效参数一致。
 - Agent/MCP/API/日志/SQLite 不泄漏 key、内部 URL、身份、raw points 或 reasoning。
 - 任意 expression、额外 view/window、越界范围/step 和超过点数预算的请求在访问 Prometheus 前失败。
+
+## 6. 完成结果
+
+本计划于 2026-07-14 完成。最终实现保持模型只通过成功的 `query_prometheus {view}` 调用选择视图；当至少一个
+查询成功时，模型终态内容不参与结果判定或持久化，AI Core 直接按成功 proposals 和本地统计生成回复。零 proposal
+的 unsupported 路径仍要求严格 JSON。完整 Gate 与三种 Compose 模式的验证证据见
+[`bounded_node_exporter_query_parameters_progress.md`](bounded_node_exporter_query_parameters_progress.md)。

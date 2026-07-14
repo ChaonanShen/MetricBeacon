@@ -6,9 +6,11 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 
 ## 当前状态
 
-基本 Mock 闭环和持久化多轮工作台已经实现：输入任意非空消息会产生 node_exporter CPU、内存和负载三图。
-`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 已可通过显式 `eino` 配置接入 DeepSeek，有凭证的两轮端到端 smoke 已通过。Prometheus、MCP、DeepSeek 分层诊断、durable Task 结果语义分析和跨模式旧 Session 恢复也已完成；Grafana Dashboard 写入仍未实现。范围、安全边界和 Gate 见
-[`docs/implementation/real_backend_diagnostics_execution_plan.md`](docs/implementation/real_backend_diagnostics_execution_plan.md)，可直接交给 code agent 执行的命令顺序、预期结果形式和故障定位见
+有界 node_exporter 查询和持久化多轮工作台已经实现：用户可选择或用有限自然语言指定最近 30 秒至 6 小时、auto/注册 step；AI Core 持久化有效 QueryPlan，assistant-mcp 只按 `cpu|memory|load` view 生成规范 PromQL，最终数值回复由本地实际样本统计产生。Mock Agent 固定生成三图，显式 `eino` 模式下 DeepSeek 只选择所需 view。
+`make e2e-mock`、`make e2e-real-metrics` 和有凭证的 `make e2e-real-agent` 已通过；Prometheus、MCP、DeepSeek 分层诊断、durable Task 结果语义分析和跨模式旧 Session 恢复也已完成。Grafana Dashboard 写入仍未实现。最终执行计划与证据见
+[`docs/implementation/bounded_node_exporter_query_parameters_execution_plan.md`](docs/implementation/bounded_node_exporter_query_parameters_execution_plan.md) 和
+[`docs/implementation/bounded_node_exporter_query_parameters_progress.md`](docs/implementation/bounded_node_exporter_query_parameters_progress.md)。独立探针设计见
+[`docs/implementation/real_backend_diagnostics_execution_plan.md`](docs/implementation/real_backend_diagnostics_execution_plan.md)，分层命令顺序、预期结果形式和故障定位见
 [`docs/implementation/real_backend_test_matrix.md`](docs/implementation/real_backend_test_matrix.md)。
 
 ## 模块边界

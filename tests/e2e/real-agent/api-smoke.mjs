@@ -7,7 +7,10 @@ const user = process.env.GRAFANA_ADMIN_USER ?? 'admin';
 const password = process.env.GRAFANA_ADMIN_PASSWORD ?? 'admin';
 const authorization = `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
 const resourceBase = `${base}/api/plugins/mini-torchbearing-app/resources`;
-const expressions = canonicalExpressions;
+const expressions = {
+  ...canonicalExpressions,
+  cpu: '100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])))',
+};
 
 function headers(extra = {}) {
   return { authorization, ...extra };
@@ -62,15 +65,28 @@ async function submit(sessionID, message, expectedViews) {
   const response = await requestJSON(`${resourceBase}/tasks`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'idempotency-key': `real-agent-${crypto.randomUUID()}` },
-    body: JSON.stringify({ sessionId: sessionID, message, analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' } } }),
+    body: JSON.stringify({ sessionId: sessionID, message, analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' }, resolution: { mode: 'auto' } } }),
   });
   assert.equal(response.response.status, 202, `Create Task failed: ${JSON.stringify(response.body)}`);
   const events = await terminalEvents(response.body.id);
   assert.ok(events.length > 0, 'agent task emitted no events');
+  if (events.at(-1)?.type !== 'task.completed') {
+    console.error('[agent-task] safeEventTrace=' + JSON.stringify(events.map((event) => ({
+      sequence: event.sequence,
+      type: event.type,
+      toolName: event.payload?.toolName,
+      chartKey: event.payload?.chartKey,
+      success: event.payload?.outputSummary?.success,
+      errorCode: event.payload?.error?.code,
+    }))));
+  }
   assert.equal(events.at(-1)?.type, 'task.completed', `agent task did not complete: ${JSON.stringify(events.at(-1))}`);
+  assert.deepEqual(response.body.queryPlan, { stepSeconds: 10, cpuRateWindowSeconds: 60 });
   const summary = analyzeTaskEvents(events, { expectedViews });
   for (const line of formatTaskSummary('agent-task', summary)) console.log(line);
   assertNoSensitiveMarkers(events);
+  const answer = events.find((event) => event.type === 'assistant.message.completed')?.payload.message.content;
+  assert.ok(answer.includes('step=10s') && answer.includes('CPU rate window=60s'), `local answer omitted effective parameters: ${answer}`);
   return { task: response.body, events, summary };
 }
 

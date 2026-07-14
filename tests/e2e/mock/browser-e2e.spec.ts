@@ -12,11 +12,13 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
 
   await page.goto('/a/mini-torchbearing-app/workbench');
   await expect(page.getByRole('heading', { name: 'Mini Torchbearing Workbench' })).toBeVisible();
-  await page.getByLabel('分析请求').fill('帮我看看 node_exporter 最近 30 分钟的 CPU、内存和系统负载');
+  await page.getByLabel('默认时间范围').selectOption('5m');
+  await page.getByLabel('采样分辨率').selectOption('5');
+  await page.getByLabel('分析请求').fill('帮我看看 node_exporter 的 CPU、内存和系统负载');
   await page.getByRole('button', { name: '开始分析' }).click();
 
   await expect(page).toHaveURL(/sessionId=[^&]+&taskId=[^&]+/);
-  await expect(page.getByText('已生成 node_exporter 的 CPU、内存和系统负载视图。')).toBeVisible();
+  await expect(page.getByText(/已查询 node_exporter/)).toBeVisible();
   const chartCanvas = page.getByTestId('chart-canvas');
   for (const title of chartTitles) {
     await expect(chartCanvas.getByText(title, { exact: true })).toBeVisible();
@@ -48,6 +50,9 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(contextPane.getByText('内存可用率', { exact: true })).toBeVisible();
   await expect(contextPane.getByText('PromQL', { exact: true })).toBeVisible();
   await expect(contextPane.getByText('序列数', { exact: true })).toBeVisible();
+  await expect(contextPane.getByText('有效采样间隔', { exact: true })).toBeVisible();
+  await expect(contextPane.getByText('CPU rate window', { exact: true })).toBeVisible();
+  await expect(contextPane.getByText('实际样本范围', { exact: true })).toBeVisible();
   await expect(contextPane.getByText(realMetrics ? '1' : '2', { exact: true })).toBeVisible();
 
   await page.getByTestId('timeseries-panel').first().locator('summary').click();
@@ -63,7 +68,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expectNoHorizontalOverflow(page);
 
   await page.reload();
-  await expect(page.getByText('已生成 node_exporter 的 CPU、内存和系统负载视图。').first()).toBeVisible();
+  await expect(page.getByText(/已查询 node_exporter/).first()).toBeVisible();
   for (const title of chartTitles) {
     await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
   }

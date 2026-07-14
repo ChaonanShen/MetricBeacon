@@ -312,12 +312,22 @@ func (s *runState) finishInvalid(ctx context.Context, callID, toolName, reason s
 }
 
 func (s *runState) finish(raw string) (dto.AgentRunResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.proposals) > 0 {
+		proposals := make([]dto.ChartProposal, 0, len(profile.Views()))
+		for _, view := range profile.Views() {
+			if proposal, ok := s.proposals[view.Key]; ok {
+				proposals = append(proposals, proposal)
+			}
+		}
+		return dto.AgentRunResult{AssistantText: localresult.Format(s.request, proposals), Proposals: proposals}, nil
+	}
+
 	var response struct {
 		Status string   `json:"status"`
 		Views  []string `json:"views"`
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if err := decodeStrict(trimJSONFence(raw), &response); err != nil {
 		return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned an invalid final response", true)
 	}
@@ -327,16 +337,10 @@ func (s *runState) finish(raw string) (dto.AgentRunResult, error) {
 		}
 		return dto.AgentRunResult{AssistantText: "当前仅支持 node_exporter 的 CPU、内存和系统负载视图。"}, nil
 	}
-	if response.Status != "completed" || len(response.Views) == 0 || !sameViews(response.Views, s.proposals) {
+	if response.Status != "completed" || len(response.Views) == 0 {
 		return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned views inconsistent with tool results", true)
 	}
-	proposals := make([]dto.ChartProposal, 0, len(profile.Views()))
-	for _, view := range profile.Views() {
-		if proposal, ok := s.proposals[view.Key]; ok {
-			proposals = append(proposals, proposal)
-		}
-	}
-	return dto.AgentRunResult{AssistantText: localresult.Format(s.request, proposals), Proposals: proposals}, nil
+	return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model declared completed views without successful queries", true)
 }
 
 func trimJSONFence(raw string) string {
@@ -444,23 +448,6 @@ func candidatesEvent(values []dto.MetricCandidate) []map[string]any {
 
 func registeredMetric(name string) bool {
 	return name == "node_cpu_seconds_total" || name == "node_memory_MemAvailable_bytes" || name == "node_memory_MemTotal_bytes" || name == "node_load1"
-}
-
-func sameViews(got []string, proposals map[string]dto.ChartProposal) bool {
-	if len(got) != len(proposals) {
-		return false
-	}
-	seen := make(map[string]struct{}, len(got))
-	for _, view := range got {
-		if _, exists := proposals[view]; !exists {
-			return false
-		}
-		if _, duplicate := seen[view]; duplicate {
-			return false
-		}
-		seen[view] = struct{}{}
-	}
-	return true
 }
 
 type strictInvokableTool struct {

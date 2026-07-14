@@ -31,7 +31,7 @@ The completed layered-result diagnostic slice is
 with evidence in
 [`layered_result_diagnostics_progress.md`](layered_result_diagnostics_progress.md).
 
-The active bounded-query slice is
+The completed bounded-query slice is
 [`bounded_node_exporter_query_parameters_execution_plan.md`](bounded_node_exporter_query_parameters_execution_plan.md),
 with gate evidence in
 [`bounded_node_exporter_query_parameters_progress.md`](bounded_node_exporter_query_parameters_progress.md).

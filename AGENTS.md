@@ -14,18 +14,19 @@ added later.
 
 ## Current delivery state
 
-The basic deterministic Mock slice is complete. It currently provides:
+The bounded node_exporter analysis slice is complete. It currently provides:
 
 ```text
-Grafana App Plugin -> Plugin Backend -> AI Core -> assistant-mcp
--> Mock Prometheus -> fixed node_exporter CPU / memory / load charts
+Grafana App Plugin -> Plugin Backend -> AI Core QueryPlan + view-only Agent
+-> assistant-mcp registry -> Mock or real Prometheus/node_exporter
+-> bounded CPU / memory / load charts + local factual summaries
 ```
 
-The next agreed direction is to establish a persistent multi-turn workbench,
-then replace adapters incrementally with real Prometheus/node_exporter and a
-minimal Eino-backed Agent. Skill, Playbook, Dashboard write, and alert
-integration are not part of that next slice unless a later execution plan
-explicitly adds them. The document statuses and reading routes live in
+The persistent multi-turn workbench, real Prometheus/node_exporter Adapter and
+minimal Eino/DeepSeek Agent are implemented. Query range/resolution is bounded,
+durable and locally enforced; the model selects only registered views. Skill,
+Playbook, Dashboard write, and alert integration remain out of scope unless a
+later execution plan explicitly adds them. Document statuses and reading routes live in
 [`docs/CLAUDE.md`](docs/CLAUDE.md).
 
 ## Non-negotiable architecture rules
