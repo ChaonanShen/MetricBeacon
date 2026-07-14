@@ -1,10 +1,10 @@
 # Node Exporter Real Analysis Progress
 
 lastUpdated: 2026-07-14
-currentGate: P4.3
+currentGate: P5.2
 status: active
 headCommit: pending
-worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E coverage are implemented. P3 has adopted the shared datasource UID, canonical-expression contract, AST registry and an opt-in real Prometheus HTTP Adapter. Container E2E remains unverified in this workspace because the user's existing local stack owns ports 3000, 8080 and 8081.
+worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E now pass, including durable multi-turn recovery and live node_exporter series. P5's DeepSeek Eino smoke harness is implemented and credential-gated; final closeout awaits a user-provided key for the external-model run.
 
 ## Gate Status
 
@@ -14,21 +14,22 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
   - [x] P1.2a AI Core history pages and finite replay
   - [x] P1.2b Agent context and terminal stream behavior
   - [x] P1.3 Plugin history/replay proxy
-- [ ] P2 Persistent Session workbench
+- [x] P2 Persistent Session workbench
   - [x] P2.1 Session reducer, page recovery, finite replay and terminal SSE handling
-  - [ ] P2.2 Container E2E execution (blocked by existing local stack port bindings)
-- [ ] P3 Real Prometheus and node_exporter
+  - [x] P2.2 Container E2E execution
+- [x] P3 Real Prometheus and node_exporter
   - [x] P3.1 Shared `prometheus-main` datasource UID, canonical-expression contract and migration
   - [x] P3.2 Shared node_exporter registry and PromQL AST policy
   - [x] P3.3 Real Prometheus HTTP Adapter, driver config and readiness probe
-  - [ ] P3.4 Real-metrics Compose topology (implemented; container E2E awaits port availability)
+  - [x] P3.4 Real-metrics Compose topology and live series E2E
 - [x] P4 Static Profile and constrained Eino runtime
   - [x] P4.1 Read-only node_exporter Profile and local view metadata
   - [x] P4.2 Constrained Eino runtime, strict tools and summary isolation
   - [x] P4.3 Explicit DeepSeek configuration and Bootstrap wiring
 - [ ] P5 End-to-end closeout
   - [x] P5.1 Credential-gated real-agent smoke harness and leak checks
-  - [ ] P5.2 Execute Mock, real-metrics and real-agent container gates
+  - [x] P5.2a Execute Mock and real-metrics container gates
+  - [ ] P5.2b Execute credentialed real-agent container gate
 
 ## Locked G0 Decisions
 
@@ -52,11 +53,13 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 |`make test-frontend`|passed|2026-07-14|Session reducer merges history pages, preserves task runtimes, completes finite replay and closes the active SSE stream on a terminal event.|
 |`node --check tests/e2e/mock/api-e2e.mjs && npx playwright test --list`|passed|2026-07-14|Expanded Mock API/Playwright E2E scripts parse and test discovery succeeds.|
 |`make e2e-mock`|blocked|2026-07-14|Docker cannot bind 127.0.0.1 ports 3000, 8080 and 8081 because an existing user-managed `mini-torchbearing-*` Compose stack is running; it was not stopped.|
+|`make e2e-mock`|passed|2026-07-14|Rebuilt the Mock Compose stack, passed the three-turn API E2E and Playwright refresh/recovery suite, then removed its containers and volume.|
 |`make validate-contracts generated-client-diff test-sqlite test-assistant-mcp test-ai-mcp`|passed|2026-07-14|P3.1 validates all generated UID/canonical-expression contracts; SQLite verifies Task and Chart query JSON forward migration from `mock-prometheus`.|
 |`make test-assistant-mcp test-ai-mcp`|passed|2026-07-14|P3.2 accepts only the three registered normalized PromQL expressions and rejects out-of-registry ASTs before Mock fixture access.|
 |`make test-assistant-mcp`|passed|2026-07-14|P3.3 `httptest` coverage verifies the opt-in HTTP driver, canonical query POST, local validation, response/series limits, non-finite filtering, timeout/status/error mapping, redirect refusal and Prometheus readiness behavior.|
 |`make check`|passed|2026-07-14|P3.3 passes generated-client reproducibility, contract validation, Go/TypeScript tests, formatting, boundaries and secret scan.|
 |`sh -n scripts/run-real-metrics-e2e.sh && node --check tests/e2e/mock/api-e2e.mjs && docker compose -f compose.mock-e2e.yaml -f compose.real-metrics-e2e.yaml config`|passed|2026-07-14|P3.4 validates the real-metrics script syntax, optional real-series assertion and merged Compose topology without starting containers.|
+|`make e2e-real-metrics`|passed|2026-07-14|Started Prometheus/node_exporter, waited for `up=1` and two CPU idle scrapes, passed the real-series API E2E and browser suite, then removed its containers and volume.|
 |`cd services/ai-core && go test ./internal/adapters/outbound/agent/profile`|passed|2026-07-14|P4.1 validates the repository Profile, fixed local view metadata and rejection of missing guidance, invalid UTF-8 and files over 64 KiB.|
 |`make test-ai-agent test-ai-core-domain test-ai-mcp`|passed|2026-07-14|P4.2 validates the Eino fake-model seam, strict tool JSON, stable source-call pairing, canonical one-view execution, final-result consistency and the absence of raw series, labels, upstream warnings and internal URLs from model inputs.|
 |`make check`|passed|2026-07-14|P4.2 passes generated-client reproducibility, contract validation, formatting, all Go/TypeScript tests including `test-ai-agent`, dependency-boundary checks and secret scan.|
@@ -67,4 +70,4 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 
 ## Next Slice
 
-P5.1 now provides `make e2e-real-agent`, which requires a user-provided `DEEPSEEK_API_KEY` and checks overview/CPU charts, durable tool pairs, replay/history restoration, real series and API/log/SQLite leak markers. Run it, P3.4's `make e2e-real-metrics`, and `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081; the credentialed and container gates remain required before final closeout.
+P5.1 provides `make e2e-real-agent`, which requires a user-provided `DEEPSEEK_API_KEY` and checks overview/CPU charts, durable tool pairs, replay/history restoration, real series and API/log/SQLite leak markers. Mock and real-metrics gates now pass; only the credentialed external-model run remains before final closeout.

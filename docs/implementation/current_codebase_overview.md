@@ -164,16 +164,17 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make test-assistant-mcp`|Mock Prometheus Adapter、MCP 接线和工具调用。|由 `make check` 通过。|
 |`make test-ai-mcp`|AI Core MCP Gateway/查询 Adapter、HTTP API、分析工作流与 SSE。|由 `make check` 通过。|
 |`make test-ai-agent`|受限 Eino Runtime：fake model、严格 Tool JSON、source-call 配对、受限查询、最终 JSON 与模型输入摘要隔离。|通过。|
-|`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、durable tool 配对、刷新/有限 replay 与 API/日志/SQLite 泄漏检查。|Harness 已验证；当前未执行，因为没有提供 DeepSeek key，且用户管理的容器占用 3000、8080、8081。|
+|`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、durable tool 配对、刷新/有限 replay 与 API/日志/SQLite 泄漏检查。|Harness 已验证；当前仅待用户提供 DeepSeek key 后执行。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
-|`make test-frontend`|Vitest 工作台状态、SSE、路由、时间范围和 DataFrame mapper；随后 TypeScript typecheck。|通过：5 个测试文件、9 个用例。|
+|`make test-frontend`|Vitest 工作台状态、SSE、路由、时间范围和 DataFrame mapper；随后 TypeScript typecheck。|通过：6 个测试文件、13 个用例。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
 |`make validate-contracts`|3 份 OpenAPI、21 份 JSON Schema 与 node_exporter fixture。|通过。|
 |`make generated-client-diff`|重新生成 Client/类型后确认 Git 无差异。|通过。|
 |`make lint`|Go 格式检查和前端 typecheck。|通过。|
 |`make boundary-check`、`make secret-scan`|AI Core 依赖边界和常见私钥/AKIA 模式扫描。|通过。|
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
-|`make e2e-mock`|构建前端与三个容器；API E2E 校验幂等、事件 sequence 连续性、三轮持久化、有限 replay 与 SSE 重放；Playwright 验证连续提交和刷新恢复。|本次变更后待重新运行：当前工作区的用户管理容器占用了 3000、8080、8081 端口。|
+|`make e2e-mock`|构建前端与三个容器；API E2E 校验幂等、事件 sequence 连续性、三轮持久化、有限 replay 与 SSE 重放；Playwright 验证连续提交和刷新恢复。|通过；结束后已删除 Compose 容器与 volume。|
+|`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后执行 API/浏览器 E2E。|通过；确认三条注册表查询均有非空真实 series，结束后已删除 Compose 容器与 volume。|
 
 日常开发先运行 `make check`。需要一次性验证完整链路时，执行：
 
