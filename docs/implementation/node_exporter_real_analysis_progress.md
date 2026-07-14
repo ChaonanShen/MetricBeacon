@@ -71,6 +71,7 @@ worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E h
 |`sh -n scripts/run-real-metrics-e2e.sh scripts/run-real-agent-e2e.sh`; live Prometheus readiness probe|passed|2026-07-14|The real-metrics and real-agent harnesses use URL-encoded GET queries: `up == 1` and a boolean two-scrape CPU condition, avoiding BusyBox `wget` POST form parsing differences.|
 |`zsh -lc 'set -a; source .env; set +a; make e2e-real-agent'`|passed|2026-07-14|DeepSeek Eino completed overview and CPU follow-up against live node_exporter data; the harness verified durable tool-pair events, history/replay recovery, terminal stream closure, and API/log/SQLite leak markers. The key was loaded only into the invoking process and was not logged or persisted.|
 |`make e2e-mock`|passed|2026-07-14|Fresh Mock Compose gate verifies explicitly encoded history/replay query parameters, reducer-owned finite replay completion, two consecutive tasks, SSE follow, refresh recovery, six-card desktop layout and two-column mid-width layout; containers and volume were removed.|
+|`make e2e-real-metrics`|passed|2026-07-14|Fresh real-metrics Compose gate waited for node_exporter target and two CPU idle scrapes, verified non-empty live series through API E2E, then verified browser task/replay/layout behavior without assuming Mock fixture instance labels; containers and volume were removed.|
 
 ## Next Slice
 

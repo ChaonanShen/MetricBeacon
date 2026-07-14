@@ -2,6 +2,7 @@ const { expect, test } = require('../../../apps/grafana-plugin/frontend/node_mod
 
 const user = process.env.GRAFANA_ADMIN_USER ?? 'admin';
 const password = process.env.GRAFANA_ADMIN_PASSWORD ?? 'admin';
+const realMetrics = process.env.REAL_METRICS === '1';
 const chartTitles = ['CPU 使用率', '内存可用率', '系统负载'];
 
 test('submits, restores, and renders the complete mock workbench', async ({ page }) => {
@@ -23,8 +24,10 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(page.getByTestId('timeseries-plot')).toHaveCount(3);
   await expect(page.getByText('PromQL', { exact: true })).toHaveCount(3);
   await expect(page.getByText('已加载', { exact: true })).toHaveCount(3);
-  await expect(page.getByText('node-a:9100', { exact: true })).toHaveCount(3);
-  await expect(page.getByText('node-b:9100', { exact: true })).toHaveCount(3);
+  if (!realMetrics) {
+    await expect(page.getByText('node-a:9100', { exact: true })).toHaveCount(3);
+    await expect(page.getByText('node-b:9100', { exact: true })).toHaveCount(3);
+  }
   await expect(page.getByText('undefined', { exact: true })).toHaveCount(0);
   await expectPlotsWithinPanels(page);
   await expectNoHorizontalOverflow(page);

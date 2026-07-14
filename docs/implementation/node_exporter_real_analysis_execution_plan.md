@@ -359,6 +359,8 @@ README 和必要 ADR；不得 push、amend 或覆盖无关工作区修改。
 
     - scrape interval 5 秒，target=`node-exporter:9100`；轮询 `up=1` 和 CPU idle 至少两个 scrape 样本，
       不使用固定 sleep。
+    - Real-metrics Playwright 明确启用该模式：保留图表、连续任务、恢复和布局验证，但不把 Mock fixture 的
+      `node-a`/`node-b` 标签误当作真实 node_exporter 的断言；真实 series 由 API E2E 校验。
     - README 说明 node_exporter 观测 Docker Linux VM/容器宿主视图，不声称是 macOS 内核。
     - 验证：`make check && make e2e-mock && make e2e-real-metrics`。
 

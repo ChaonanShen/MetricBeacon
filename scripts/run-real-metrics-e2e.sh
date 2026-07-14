@@ -30,4 +30,4 @@ done
 
 REAL_METRICS=1 "$root/tests/e2e/mock/api-e2e.sh"
 cd "$root/apps/grafana-plugin/frontend"
-npm run test:e2e
+REAL_METRICS=1 npm run test:e2e
