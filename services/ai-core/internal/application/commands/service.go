@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	"mini-torchbearing.local/services/ai-core/internal/application/workflows"
@@ -80,7 +81,7 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 	if s == nil || s.Store == nil || s.IDs == nil || s.Clock == nil {
 		return task.AnalysisTask{}, common.NewError(common.InternalError, "command service is not configured", true)
 	}
-	if identity.TenantID == "" || strings.TrimSpace(input.SessionID) == "" || strings.TrimSpace(input.Message) == "" || strings.TrimSpace(input.DatasourceUID) == "" || input.IdempotencyKey == "" || !input.TimeRange.From.Before(input.TimeRange.To) {
+	if identity.TenantID == "" || strings.TrimSpace(input.SessionID) == "" || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > 4_000 || strings.TrimSpace(input.DatasourceUID) == "" || input.IdempotencyKey == "" || !input.TimeRange.From.Before(input.TimeRange.To) {
 		return task.AnalysisTask{}, common.NewError(common.InvalidArgument, "task fields and idempotency key are required", false)
 	}
 	var result task.AnalysisTask

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"sort"
 	"time"
+	"unicode/utf8"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	"mini-torchbearing.local/services/ai-core/internal/application/dto"
@@ -108,7 +109,8 @@ func (w RunAnalysisWorkflow) Run(ctx context.Context, identity requestcontext.Co
 	}
 	assistantMessageID := w.IDs.NewID("message")
 	sink = &durableSink{workflow: w, identity: identity, task: &item, assistantMessageID: assistantMessageID, openCalls: make(map[string]task.ToolCallRecord)}
-	result, err := w.Runtime.Run(ctx, identity, dto.AgentRunRequest{TaskID: item.ID, SessionID: item.SessionID, UserMessage: w.userMessage(ctx, item), DatasourceUID: item.DatasourceUID, TimeRange: item.TimeRange}, sink)
+	userMessage, history := w.conversationContext(ctx, item)
+	result, err := w.Runtime.Run(ctx, identity, dto.AgentRunRequest{TaskID: item.ID, SessionID: item.SessionID, UserMessage: userMessage, DatasourceUID: item.DatasourceUID, TimeRange: item.TimeRange, History: history}, sink)
 	if err != nil {
 		return err
 	}
@@ -124,17 +126,39 @@ func (w RunAnalysisWorkflow) Run(ctx context.Context, identity requestcontext.Co
 	return w.emit(ctx, item, task.EventTaskCompleted, map[string]any{"task": taskSnapshot(item)})
 }
 
-func (w RunAnalysisWorkflow) userMessage(ctx context.Context, item task.AnalysisTask) string {
+func (w RunAnalysisWorkflow) conversationContext(ctx context.Context, item task.AnalysisTask) (string, []dto.ConversationMessage) {
 	messages, err := w.Store.Messages().ListBySession(ctx, item.TenantID, item.SessionID)
 	if err != nil {
-		return "analysis request"
+		return "analysis request", nil
 	}
-	for _, message := range messages {
+	current := -1
+	for index, message := range messages {
 		if message.ID == item.InputMessageID {
-			return message.Content
+			current = index
+			break
 		}
 	}
-	return "analysis request"
+	if current < 0 {
+		return "analysis request", nil
+	}
+	history := make([]dto.ConversationMessage, 0, 12)
+	characters := 0
+	for index := current - 1; index >= 0 && len(history) < 12; index-- {
+		message := messages[index]
+		if message.Role != session.RoleUser && message.Role != session.RoleAssistant {
+			continue
+		}
+		count := utf8.RuneCountInString(message.Content)
+		if characters+count > 12_000 {
+			break
+		}
+		characters += count
+		history = append(history, dto.ConversationMessage{Role: string(message.Role), Content: message.Content})
+	}
+	for left, right := 0, len(history)-1; left < right; left, right = left+1, right-1 {
+		history[left], history[right] = history[right], history[left]
+	}
+	return messages[current].Content, history
 }
 
 func (w RunAnalysisWorkflow) transition(ctx context.Context, item *task.AnalysisTask, next task.Status) error {

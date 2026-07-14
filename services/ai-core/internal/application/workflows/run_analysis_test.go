@@ -218,6 +218,52 @@ func TestTransitionRollsBackWhenEventAppendFails(t *testing.T) {
 	}
 }
 
+func TestConversationContextUsesPreviousTwelveMessagesInChronologicalOrder(t *testing.T) {
+	ctx := context.Background()
+	store, err := storage.Open(ctx, filepath.Join(t.TempDir(), "ai-core.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
+	analysisSession, _ := session.New("session_context", "org:1", "Overview", "user:1", now)
+	if err := store.Sessions().Create(ctx, analysisSession); err != nil {
+		t.Fatal(err)
+	}
+	for index := 1; index <= 13; index++ {
+		createdAt := now.Add(time.Duration(index) * time.Second)
+		taskID := fmt.Sprintf("task_prior_%02d", index)
+		message, _ := session.NewMessage(fmt.Sprintf("message_prior_%02d", index), "org:1", analysisSession.ID, taskID, session.RoleUser, fmt.Sprintf("old-%02d", index), createdAt)
+		item, _ := task.New(taskID, "org:1", analysisSession.ID, message.ID, "mock-prometheus", timeRange, createdAt)
+		item.Status = task.StatusCompleted
+		if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+			if err := tx.Messages().Append(ctx, message); err != nil {
+				return err
+			}
+			return tx.Tasks().Create(ctx, item)
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	currentMessage, _ := session.NewMessage("message_current", "org:1", analysisSession.ID, "task_current", session.RoleUser, "current", now.Add(14*time.Second))
+	currentTask, _ := task.New("task_current", "org:1", analysisSession.ID, currentMessage.ID, "mock-prometheus", timeRange, now.Add(14*time.Second))
+	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Messages().Append(ctx, currentMessage); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(ctx, currentTask)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	workflow := RunAnalysisWorkflow{Store: store}
+	userMessage, history := workflow.conversationContext(ctx, currentTask)
+	if userMessage != "current" || len(history) != 12 || history[0].Content != "old-02" || history[len(history)-1].Content != "old-13" {
+		t.Fatalf("user=%q history=%#v", userMessage, history)
+	}
+}
+
 type scriptedRuntime struct{}
 
 func (scriptedRuntime) Run(ctx context.Context, _ requestcontext.Context, request dto.AgentRunRequest, sink agent.EventSink) (dto.AgentRunResult, error) {

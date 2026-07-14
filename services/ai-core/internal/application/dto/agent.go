@@ -11,6 +11,12 @@ type AgentRunRequest struct {
 	UserMessage   string
 	DatasourceUID string
 	TimeRange     common.AbsoluteTimeRange
+	History       []ConversationMessage
+}
+
+type ConversationMessage struct {
+	Role    string
+	Content string
 }
 
 type ChartProposal struct {

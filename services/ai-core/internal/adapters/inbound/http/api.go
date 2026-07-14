@@ -216,6 +216,13 @@ func (a *API) StreamTaskEvents(w http.ResponseWriter, r *http.Request, taskID ge
 			flusher.Flush()
 			continue
 		}
+		current, err := a.Store.Tasks().Get(r.Context(), params.XMTBTenantID, taskID)
+		if err != nil {
+			return
+		}
+		if (current.Status == task.StatusCompleted || current.Status == task.StatusFailed) && after >= current.LatestSequence {
+			return
+		}
 		select {
 		case <-r.Context().Done():
 			return

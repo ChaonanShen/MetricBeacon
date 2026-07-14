@@ -1,10 +1,10 @@
 # Node Exporter Real Analysis Progress
 
 lastUpdated: 2026-07-14
-currentGate: P1.2b
+currentGate: P1.3
 status: active
 headCommit: pending
-worktreeSummary: G0, P1.1 and P1.2a are complete. AI Core now exposes tenant-scoped keyset history and finite durable replay; Plugin proxy, terminal SSE behavior and Agent history assembly remain.
+worktreeSummary: G0 and P1.2 are complete. AI Core supplies bounded persisted conversation context to AgentRuntime and closes terminal durable streams; Plugin history/replay proxy is next.
 
 ## Gate Status
 
@@ -12,7 +12,8 @@ worktreeSummary: G0, P1.1 and P1.2a are complete. AI Core now exposes tenant-sco
 - [ ] P1 Multi-turn contracts and persistence
   - [x] P1.1 Task-linked Message persistence and source-call correlation
   - [x] P1.2a AI Core history pages and finite replay
-  - [ ] P1.2b Agent context and terminal stream behavior
+  - [x] P1.2b Agent context and terminal stream behavior
+  - [ ] P1.3 Plugin history/replay proxy
 - [ ] P2 Persistent Session workbench
 - [ ] P3 Real Prometheus and node_exporter
 - [ ] P4 Static Profile and constrained Eino runtime
@@ -35,7 +36,8 @@ worktreeSummary: G0, P1.1 and P1.2a are complete. AI Core now exposes tenant-sco
 |`make test-ai-core-domain test-sqlite test-ai-mcp`|passed|2026-07-14|Domain/application, SQLite migration/backfill/concurrency, HTTP/MCP and workflow suites pass after P1.1.|
 |`make validate-contracts generated-client-diff`|passed|2026-07-14|Updated Message and ToolCall contract types validate and generated artifacts are reproducible.|
 |`make test-ai-core-domain test-sqlite test-ai-mcp test-plugin-backend test-frontend validate-contracts generated-client-diff`|passed|2026-07-14|AI Core history/replay, storage, existing Plugin and frontend suites pass; all 24 JSON Schemas validate and generated artifacts are reproducible.|
+|`make test-ai-core-domain test-sqlite`|passed|2026-07-14|Conversation context includes only the preceding twelve persisted messages in chronological order; SQLite regression suite remains green.|
 
 ## Next Slice
 
-P1.2b supplies the bounded persisted-message context to AgentRuntime and makes terminal SSE close after its durable events are drained. The Plugin proxy work follows in its own focused commit.
+P1.3 adds the Grafana Plugin Backend's tenant-derived, read-only history and finite-replay proxies. It will preserve the existing terminal SSE request behavior while exposing the new unary reads to the browser.
