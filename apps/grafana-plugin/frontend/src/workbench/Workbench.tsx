@@ -8,6 +8,7 @@ import { formatResourceError, isResourceNotFound } from '../api/resource-error';
 import { ChartCanvas } from './ChartCanvas';
 import { ContextPane } from './ContextPane';
 import { ConversationPane } from './ConversationPane';
+import { createTaskInput, type RangeOption, type ResolutionOption } from './query-options';
 import { clearWorkbenchRoute, readWorkbenchRoute, replaceWorkbenchRoute } from './route';
 import { initialSessionWorkbenchState, isTerminal, sessionReducer } from './session-reducer';
 import { subscribeTaskEvents } from './sse';
@@ -18,6 +19,8 @@ export function Workbench(_props: AppRootProps) {
   const client = useQueryClient();
   const initialRoute = useMemo(() => readWorkbenchRoute(window.location.search), []);
   const [message, setMessage] = useState('');
+  const [range, setRange] = useState<RangeOption>('30m');
+  const [resolution, setResolution] = useState<ResolutionOption>('auto');
   const [sessionId, setSessionId] = useState<string | undefined>(initialRoute.sessionId);
   const [selectedChartId, setSelectedChartId] = useState<string>();
   const [recoveryNotice, setRecoveryNotice] = useState<string>();
@@ -105,7 +108,7 @@ export function Workbench(_props: AppRootProps) {
     mutationFn: async () => {
       if (!pendingTask.current) {
         const activeSession = sessionId ? { id: sessionId } : await resourceClient.createSession('Node exporter mock analysis');
-        pendingTask.current = { sessionId: activeSession.id, message: message.trim(), analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' } } };
+        pendingTask.current = createTaskInput(activeSession.id, message, range, resolution);
         if (!sessionId) setSessionId(activeSession.id);
       }
       idempotencyKey.current ??= crypto.randomUUID();
@@ -149,7 +152,7 @@ export function Workbench(_props: AppRootProps) {
     <h2>Mini Torchbearing Workbench</h2>
     <Stack direction={{ xs: 'column', xl: 'row' }} gap={2} height={{ xs: 'auto', xl: 'calc(100dvh - 112px)' }} alignItems="stretch">
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
-        <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
+        <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} range={range} resolution={resolution} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onRangeChange={setRange} onResolutionChange={setResolution} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
       </Box>
       <ChartCanvas charts={charts} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>

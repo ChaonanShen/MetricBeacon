@@ -13,7 +13,7 @@
 |G2：QueryPlan 与持久化|完成|AI Core 已确定性解析并持久化时间范围、step 与 CPU rate window；SQLite `0004` 完成历史回填，Chart/Execution 记录有效 step 与实际样本范围。|
 |G3：MCP 注册视图查询|完成|AI Core/MCP 查询边界已改为 view/window；注册表渲染并校验 CPU 30s/1m/5m PromQL，HTTP 使用动态 step，Mock 按范围/step 确定性重采样。|
 |G4：极简 Agent 与可信回复|完成|Eino query Tool 仅接受 view，模型终态仅声明 status/views；Mock/Eino 共用本地 formatter，以有效 QueryPlan 和实际样本统计生成持久化回复。|
-|G5：Workbench 参数体验|未开始|待增加时间范围/resolution 控件和有效参数展示。|
+|G5：Workbench 参数体验|完成|左栏可选择 30s..6h 默认范围和 auto/注册 step，并提交结构化 analysisContext；右栏展示 Task/Chart 有效参数与 actual sample range。|
 |G6：端到端收口|未开始|待完成全量/E2E 验证和演进文档。|
 
 ## 当前边界
@@ -52,3 +52,10 @@ Dashboard 写入、Skill/Playbook 或模型读取原始 series 均不在本计�
 - Eino 测试确认模型 Tool 携带 `expression` 时在 QueryEngine 前拒绝，普通文本终态不再 fallback；完成视图必须与成功的本地 proposal 一致。
 - 本地 formatter 测试确认回答包含有效范围、step、CPU window、series/sample 数、first/latest/min/max/mean/delta 和实际数据范围，同时不包含 label value。
 - 模型 ToolSummary 只包含有效 QueryPlan 与聚合统计/实际范围，不包含逐点 timestamp、raw points、真实 label、内部 URL、身份或上游 warning 文本。
+
+## G5 验证证据
+
+- `cd apps/grafana-plugin/frontend && npm run typecheck`：通过。
+- `cd apps/grafana-plugin/frontend && npm test -- --run`：8 个测试文件、20 个用例通过。
+- `query-options` 测试确认 auto 与显式 5 秒均生成契约规定的结构化 `analysisContext`；UI 不复制服务端范围、点数预算或自然语言解析规则。
+- ContextPane 展示 Task `queryPlan.stepSeconds/cpuRateWindowSeconds`、Chart step 和 Execution `actualSampleRange`；没有实际样本时明确显示无可用样本。

@@ -26,6 +26,7 @@ mini-torchbearing/
 │       │   │       ├── sse.ts             # SSE 订阅、重连与 sequence 处理
 │       │   │       ├── route.ts           # Session/Task URL 恢复与旧 ID 清理
 │       │   │       ├── time-range.ts      # 图表时间范围转换
+│       │   │       ├── query-options.ts   # 有界范围/resolution 控件与请求映射
 │       │   │       └── *.test.ts          # 前端单元测试
 │       │   ├── backend/                   # Grafana Plugin SDK 后端（Go）
 │       │   │   ├── cmd/plugin/            # 后端进程入口
