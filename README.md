@@ -7,7 +7,7 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 ## 当前状态
 
 基本 Mock 闭环和持久化多轮工作台已经实现：输入任意非空消息会产生 node_exporter CPU、内存和负载三图。
-`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 和 Grafana Dashboard 写入尚未实现。当前路线图正在执行，范围、安全边界和 Gate 见
+`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；受限 Eino AgentRuntime 已有离线 fake-model 验证，但真实 Agent/LLM 的显式配置与 Bootstrap 接入尚未实现，Grafana Dashboard 写入也尚未实现。当前路线图正在执行，范围、安全边界和 Gate 见
 [`docs/implementation/node_exporter_real_analysis_plan.md`](docs/implementation/node_exporter_real_analysis_plan.md)。
 
 ## 模块边界

@@ -47,7 +47,8 @@ mini-torchbearing/
 │   │   │   ├── ports/                     # 存储、Agent、MCP、时钟等抽象接口
 │   │   │   ├── adapters/
 │   │   │   │   ├── inbound/http/          # AI Core HTTP API 与 SSE
-│   │   │   │   └── outbound/              # SQLite、MCP、Mock Agent、时钟/ID
+│   │   │   │   └── outbound/              # SQLite、MCP、Mock Agent、Eino Agent、时钟/ID
+│   │   │   │       └── agent/eino/         # 受限 Eino AgentRuntime、严格 Tool 与本地摘要隔离
 │   │   │   └── bootstrap/                 # 服务依赖组装
 │   │   ├── migrations/sqlite/             # SQLite 数据库迁移（含多轮关联和 datasource UID 前移）
 │   │   └── Dockerfile

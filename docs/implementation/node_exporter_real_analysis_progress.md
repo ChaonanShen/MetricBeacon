@@ -1,7 +1,7 @@
 # Node Exporter Real Analysis Progress
 
 lastUpdated: 2026-07-14
-currentGate: P3.3
+currentGate: P4.2
 status: active
 headCommit: pending
 worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E coverage are implemented. P3 has adopted the shared datasource UID, canonical-expression contract, AST registry and an opt-in real Prometheus HTTP Adapter. Container E2E remains unverified in this workspace because the user's existing local stack owns ports 3000, 8080 and 8081.
@@ -24,6 +24,7 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
   - [ ] P3.4 Real-metrics Compose topology (implemented; container E2E awaits port availability)
 - [ ] P4 Static Profile and constrained Eino runtime
   - [x] P4.1 Read-only node_exporter Profile and local view metadata
+  - [x] P4.2 Constrained Eino runtime, strict tools and summary isolation
 - [ ] P5 End-to-end closeout
 
 ## Locked G0 Decisions
@@ -54,7 +55,9 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 |`make check`|passed|2026-07-14|P3.3 passes generated-client reproducibility, contract validation, Go/TypeScript tests, formatting, boundaries and secret scan.|
 |`sh -n scripts/run-real-metrics-e2e.sh && node --check tests/e2e/mock/api-e2e.mjs && docker compose -f compose.mock-e2e.yaml -f compose.real-metrics-e2e.yaml config`|passed|2026-07-14|P3.4 validates the real-metrics script syntax, optional real-series assertion and merged Compose topology without starting containers.|
 |`cd services/ai-core && go test ./internal/adapters/outbound/agent/profile`|passed|2026-07-14|P4.1 validates the repository Profile, fixed local view metadata and rejection of missing guidance, invalid UTF-8 and files over 64 KiB.|
+|`make test-ai-agent test-ai-core-domain test-ai-mcp`|passed|2026-07-14|P4.2 validates the Eino fake-model seam, strict tool JSON, stable source-call pairing, canonical one-view execution, final-result consistency and the absence of raw series, labels, upstream warnings and internal URLs from model inputs.|
+|`make check`|passed|2026-07-14|P4.2 passes generated-client reproducibility, contract validation, formatting, all Go/TypeScript tests including `test-ai-agent`, dependency-boundary checks and secret scan.|
 
 ## Next Slice
 
-Run P3.4's `make e2e-real-metrics` and re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081. Those pending container gates remain required for final closeout; P4 implementation can proceed independently.
+Run P3.4's `make e2e-real-metrics` and re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081. Those pending container gates remain required for final closeout. The next independent code slice is P4.3: opt-in DeepSeek configuration and Bootstrap wiring.

@@ -2,7 +2,7 @@ SHELL := /bin/sh
 
 .PHONY: bootstrap-check generate generated-client-diff validate-contracts lint test \
 	test-adapters test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp \
-	test-plugin-backend test-frontend smoke e2e-mock e2e-real-metrics check boundary-check secret-scan
+	test-ai-agent test-plugin-backend test-frontend smoke e2e-mock e2e-real-metrics check boundary-check secret-scan
 
 bootstrap-check:
 	@./scripts/bootstrap-check.sh
@@ -20,7 +20,7 @@ lint:
 	@test -z "$$(gofmt -l services/ai-core services/assistant-mcp apps/grafana-plugin/backend packages)"
 	@cd apps/grafana-plugin/frontend && npm run typecheck
 
-test: test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp test-plugin-backend test-frontend
+test: test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp test-ai-agent test-plugin-backend test-frontend
 
 test-ai-core-domain:
 	@cd services/ai-core && go test ./internal/domain/... ./internal/application/... ./internal/ports/...
@@ -35,6 +35,9 @@ test-assistant-mcp:
 
 test-ai-mcp:
 	@cd services/ai-core && go test ./internal/adapters/outbound/tools/mcp ./internal/adapters/inbound/http ./internal/application/workflows
+
+test-ai-agent:
+	@cd services/ai-core && go test ./internal/adapters/outbound/agent/...
 
 test-plugin-backend:
 	@cd apps/grafana-plugin/backend && GOPROXY=off go test ./...
