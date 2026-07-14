@@ -1,6 +1,6 @@
 # 对话分组宽版图表画布执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
 > implementationAuthorized: true
 > decision: local Workbench UI refinement; no ADR required unless implementation expands a service or contract boundary

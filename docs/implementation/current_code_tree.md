@@ -17,7 +17,8 @@ mini-torchbearing/
 │       │   │   └── workbench/             # 分析工作台
 │       │   │       ├── Workbench.tsx      # 页面编排、任务创建、SSE 订阅与本地选择
 │       │   │       ├── ConversationPane.tsx # 对话、历史、Task 状态与输入
-│       │   │       ├── ChartCanvas.tsx    # 容器宽度驱动的图表画布与空态
+│       │   │       ├── ChartCanvas.tsx    # Task 分组、最多两列画布与滚动控制
+│       │   │       ├── chart-groups.ts    # oldest-first 分组、默认选择与滚动纯逻辑
 │       │   │       ├── ContextPane.tsx    # 只读 Session/Task/图表详情
 │       │   │       ├── ChartCard.tsx      # 时序卡片、图表状态与详情选择
 │       │   │       ├── mapper.ts          # Chart wire 数据 -> Grafana DataFrame

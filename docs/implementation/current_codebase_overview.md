@@ -5,8 +5,8 @@
 
 ## 当前可演示的能力
 
-> 当前正在执行 [`grouped_chart_canvas_execution_plan.md`](grouped_chart_canvas_execution_plan.md)，
-> 它将取代 `chart_trio_ui_fit_plan.md` 留下的自由多列布局；历史文件仅保留原验证证据。
+> 已完成的 [`grouped_chart_canvas_execution_plan.md`](grouped_chart_canvas_execution_plan.md)
+> 已取代 `chart_trio_ui_fit_plan.md` 留下的自由多列布局；历史文件仅保留原验证证据。
 
 用户在 Grafana App Plugin 中只提交自然语言。AI Core 同步调用 Mock 或 Eino IntentPlanner，将注册 views 与可选 range/step 与 API hint/本地默认值合并，校验后冻结持久化 QueryPlan。后台仅执行这份计划的 `cpu|memory|load` views，PromQL 由 assistant-mcp 注册表编译，数值回复由实际查询结果在本地汇总。
 
@@ -36,7 +36,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|查询工具只接受注册 view、可空 CPU window、范围和 step；工具先做权限和 Schema/点数预算校验，再调用 Prometheus Port。该服务不拥有 AI Core 的任务或数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码，并将 fixture 确定性重采样到请求范围/step；opt-in HTTP Adapter 只执行本地注册表生成的 CPU `[30s]/[1m]/[5m]`、内存和 load PromQL，并执行响应、时间范围、step、点数和基数上限。|
 |`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`、`agent/localresult`|只读 node_exporter Agent Profile、受限 Eino AgentRuntime 与本地结果 formatter。|Profile 限制为 UTF-8、64 KiB，并校验三视图、解释、无数据/错误、最终状态和禁止项。Eino 的 query Tool 只接受 `view`，datasource/range/step/window/PromQL 全由本地注入；模型提交 expression 会在查询前拒绝。有成功 query proposal 时，成功工具调用是权威视图选择，模型终态文本被忽略；零 proposal 的 unsupported 路径仍要求严格 JSON。完整时序留在本地，持久化事实回复由 Mock/Eino 共用 formatter 根据 QueryPlan 与本地结果生成。Bootstrap 仅在显式 `eino` driver 下构造 thinking-disabled 的 DeepSeek model，并从镜像内只读 Profile 路径加载。|
-|`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建或恢复 Session、提交有界查询默认值、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|左栏提供 30 秒至 6 小时默认范围和 auto/注册 step，消息中的明确参数仍由服务端优先；中栏按容器宽度展示图表。右栏显示有效 step/CPU window、Chart step、实际样本范围和 PromQL。有限 replay、单一 SSE、stale Session 恢复和本地选择边界保持不变；未实现图表编辑、Canvas 持久化和 Dashboard 写入。|
+|`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建/恢复 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|左栏只有自然语言输入；中栏按 Task oldest-first 分组，宽画布最多两列、奇数尾图跨行，窄容器单列，并保护新 Task/恢复/加载更早记录的选择与滚动；右栏只读显示 QueryPlan 和图表详情。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
 |`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`compose.mock-e2e.yaml` 启动 Mock 栈；`compose.real-metrics-e2e.yaml` 叠加 Prometheus 与 node_exporter。`make diagnose-real-metrics` 只启动指标侧三服务，先直接验证三条 Prometheus vector，再通过真实 MCP transport 验证搜索、标签和三条 matrix 查询；两阶段都检查 instance、递增时间、有限值、CPU/内存 0..100、load 非负和基数上限，并只输出 series/samples/min/max/latest。诊断默认使用宿主 `18081`，可与占用默认 `8081` 的手工栈共存。`make diagnose-deepseek` 则绕过业务链路验证配置模型和最小严格 JSON 回复。指标诊断与两个真实 E2E 共用 target/two-scrape 就绪判定。Real-metrics 浏览器验证图表渲染和恢复，不复用 Mock fixture 的实例标签断言；真实 series 由 API E2E 覆盖。`make e2e-real-agent` 再叠加 opt-in Eino/DeepSeek，要求显式 key，并检查概览/CPU、重放恢复、工具配对和 API/日志/SQLite 的泄漏标记。|
