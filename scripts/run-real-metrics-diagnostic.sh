@@ -2,6 +2,8 @@
 set -eu
 
 project=${COMPOSE_PROJECT_NAME:-mini-torchbearing-real-diagnostics}
+mcp_host_port=${MTB_DIAGNOSTIC_MCP_PORT:-18081}
+export ASSISTANT_MCP_HOST_PORT=$mcp_host_port
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 base_compose="$root/compose.mock-e2e.yaml"
 real_compose="$root/compose.real-metrics-e2e.yaml"
@@ -15,5 +17,5 @@ compose up --build --wait prometheus node-exporter assistant-mcp
 
 cd "$root/services/assistant-mcp"
 MTB_RUN_LIVE_MCP_DIAGNOSTIC=1 \
-	MTB_LIVE_MCP_ENDPOINT=http://127.0.0.1:8081/mcp \
+	MTB_LIVE_MCP_ENDPOINT="http://127.0.0.1:$mcp_host_port/mcp" \
 	go test ./internal/bootstrap -run '^TestLivePrometheusMCPDiagnostic$' -count=1 -v

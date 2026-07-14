@@ -1,5 +1,7 @@
 import { pathToFileURL } from 'node:url';
 
+import { formatMetricSummary, summarizeMetricSeries } from './metric-sanity.mjs';
+
 async function readStdin() {
   let raw = '';
   process.stdin.setEncoding('utf8');
@@ -26,15 +28,14 @@ export function summarizePrometheusResponse(raw, view) {
   if (!Array.isArray(result) || result.length === 0) {
     throw new Error(`${view}: Prometheus returned no series`);
   }
-  let samples = 0;
-  for (const series of result) {
+  const normalized = result.map((series) => {
     const sample = series?.value;
     if (!Array.isArray(sample) || sample.length !== 2 || !Number.isFinite(Number(sample[0])) || !Number.isFinite(Number(sample[1]))) {
       throw new Error(`${view}: Prometheus returned an invalid sample`);
     }
-    samples += 1;
-  }
-  return { view, resultType: response.data.resultType, series: result.length, samples };
+    return { labels: series.metric, points: [{ timestamp: Number(sample[0]), value: Number(sample[1]) }] };
+  });
+  return { resultType: response.data.resultType, ...summarizeMetricSeries(view, normalized) };
 }
 
 async function main() {
@@ -43,7 +44,7 @@ async function main() {
     throw new Error('view argument is required');
   }
   const summary = summarizePrometheusResponse(await readStdin(), view);
-  process.stdout.write(`[prometheus] view=${summary.view} resultType=${summary.resultType} series=${summary.series} samples=${summary.samples}\n`);
+  process.stdout.write(`${formatMetricSummary('prometheus', summary, summary.resultType)}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

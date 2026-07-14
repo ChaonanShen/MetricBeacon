@@ -97,7 +97,7 @@ mini-torchbearing/
 │           └── expected_task_events.json
 │
 ├── tests/
-│   ├── diagnostics/                       # Prometheus/DeepSeek 分层探针及 fake 响应测试
+│   ├── diagnostics/                       # Prometheus/DeepSeek 探针、指标语义分析及 fake 响应测试
 │   ├── e2e/mock/                          # Mock API 与 Playwright 浏览器 E2E
 │   │   ├── api-e2e.mjs
 │   │   ├── api-e2e.sh

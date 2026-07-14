@@ -36,7 +36,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建或恢复 Session、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|左栏保留对话与输入，中栏按容器宽度展示图表；宽屏使用较小 spacing token 保留两列，窄屏使用较宽卡片。右栏显示只读上下文和当前选择的图表详情。有限 replay 完成标记由 reducer 持有，可靠触发活动 Task 的单一 SSE；Resource client 显式编码 page/replay 参数。URL Session 在当前 AI Core 明确 404 时会清理旧会话/replay/幂等状态并允许重新提交，其他查询或 mutation 错误保持安全可见。选择只存在于本地 UI 状态，不恢复、不写 URL 或服务端；未实现图表编辑、Canvas 持久化和 Dashboard 写入。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
-|`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`compose.mock-e2e.yaml` 启动 Mock 栈；`compose.real-metrics-e2e.yaml` 叠加 Prometheus 与 node_exporter。`make diagnose-real-metrics` 只启动指标侧三服务，先直接验证三条 Prometheus vector，再通过真实 MCP transport 验证搜索、标签和三条 matrix 查询；`make diagnose-deepseek` 则绕过业务链路验证配置模型和最小严格 JSON 回复。两者都有离线响应分类测试，真实执行只输出受限摘要。指标诊断与两个真实 E2E 共用 target/two-scrape 就绪判定。Real-metrics 浏览器验证图表渲染和恢复，不复用 Mock fixture 的实例标签断言；真实 series 由 API E2E 覆盖。`make e2e-real-agent` 再叠加 opt-in Eino/DeepSeek，要求显式 key，并检查概览/CPU、重放恢复、工具配对和 API/日志/SQLite 的泄漏标记。|
+|`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`compose.mock-e2e.yaml` 启动 Mock 栈；`compose.real-metrics-e2e.yaml` 叠加 Prometheus 与 node_exporter。`make diagnose-real-metrics` 只启动指标侧三服务，先直接验证三条 Prometheus vector，再通过真实 MCP transport 验证搜索、标签和三条 matrix 查询；两阶段都检查 instance、递增时间、有限值、CPU/内存 0..100、load 非负和基数上限，并只输出 series/samples/min/max/latest。诊断默认使用宿主 `18081`，可与占用默认 `8081` 的手工栈共存。`make diagnose-deepseek` 则绕过业务链路验证配置模型和最小严格 JSON 回复。指标诊断与两个真实 E2E 共用 target/two-scrape 就绪判定。Real-metrics 浏览器验证图表渲染和恢复，不复用 Mock fixture 的实例标签断言；真实 series 由 API E2E 覆盖。`make e2e-real-agent` 再叠加 opt-in Eino/DeepSeek，要求显式 key，并检查概览/CPU、重放恢复、工具配对和 API/日志/SQLite 的泄漏标记。|
 
 ## 关键数据与依赖边界
 
@@ -216,7 +216,7 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、durable tool 配对、刷新/有限 replay 与 API/日志/SQLite 泄漏检查。|通过：调用进程从 `.env` 临时加载 key，完成两轮真实 DeepSeek/node_exporter 验收且未输出或持久化 key。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
 |`make test-frontend`|Vitest 工作台状态、SSE、路由、Resource 错误、时间范围和 DataFrame mapper；随后 TypeScript typecheck。|通过：7 个测试文件、18 个用例。|
-|`make test-diagnostics`|用 fake response/server 离线校验 Prometheus 和 DeepSeek 探针的成功/失败分类，并检查真实指标诊断与 E2E Shell 语法。|通过：10 个 Node 测试。|
+|`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义和 DeepSeek 探针的成功/失败分类，并检查真实指标诊断与 E2E Shell 语法。|通过：24 个 Node 测试。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
 |`make validate-contracts`|3 份 OpenAPI、24 份 JSON Schema 与 node_exporter fixture。|通过。|
 |`make generated-client-diff`|重新生成 Client/类型后确认 Git 无差异。|通过。|
@@ -225,7 +225,7 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
 |`make e2e-mock`|构建前端与三个容器；API E2E 校验幂等、事件 sequence 连续性、三轮持久化、有限 replay 与 SSE 重放；Playwright 验证连续提交、刷新恢复、stale-Session 恢复，以及 1440px 三栏/多行画布、详情联动和 900px 纵向布局。|通过；不存在的 Session URL 被安全清理后可创建新任务和三图。|
 |`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后执行 API/浏览器 E2E。|最终连续两轮通过；确认三条注册表查询均有非空真实 series，且浏览器 stale-Session 恢复通过；结束后已删除 Compose 容器与 volume。|
-|`make diagnose-real-metrics`|绕过 Grafana 与 AI Core，分阶段检查原始 Prometheus 与 assistant-mcp 的真实返回。|通过：三条 vector 各 1 series/1 sample；MCP 返回 4 个候选、4 个 CPU labels，三条 matrix 各 1 series/1 sample。|
+|`make diagnose-real-metrics`|绕过 Grafana 与 AI Core，分阶段检查原始 Prometheus 与 assistant-mcp 的真实返回及指标语义。|通过：三条 vector/matrix 各 1 series/1 sample；CPU 约 98.2..98.7，内存约 64.64，load 3.25，均通过语义校验。|
 |`make diagnose-deepseek`|绕过 Agent/MCP，验证配置 model 出现在 `/models` 并返回固定严格 JSON。|通过：`deepseek-v4-flash` 在 539 ms 返回 `{"status":"ok","answer":"pong"}`；未输出 key。|
 
 日常开发先运行 `make check`。三种完整链路的自动验收入口分别是：

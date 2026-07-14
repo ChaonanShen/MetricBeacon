@@ -77,24 +77,19 @@ func TestLivePrometheusMCPDiagnostic(t *testing.T) {
 			t.Fatalf("[mcp] query_prometheus view=%s returned an error", item.view)
 		}
 		var output struct {
-			Status     string `json:"status"`
-			ResultType string `json:"resultType"`
-			Series     []struct {
-				Points []json.RawMessage `json:"points"`
-			} `json:"series"`
+			Status     string             `json:"status"`
+			ResultType string             `json:"resultType"`
+			Series     []liveMetricSeries `json:"series"`
 		}
 		decodeStructured(t, result, &output)
 		if output.Status != "success" || output.ResultType != "matrix" || len(output.Series) == 0 {
 			t.Fatalf("[mcp] query_prometheus view=%s status=%s resultType=%s series=%d", item.view, output.Status, output.ResultType, len(output.Series))
 		}
-		samples := 0
-		for _, series := range output.Series {
-			if len(series.Points) == 0 {
-				t.Fatalf("[mcp] query_prometheus view=%s returned an empty series", item.view)
-			}
-			samples += len(series.Points)
+		summary, err := summarizeLiveMetric(item.view, output.Series)
+		if err != nil {
+			t.Fatalf("[mcp] query_prometheus semantic validation failed: %v", err)
 		}
-		t.Logf("[mcp] query_prometheus view=%s resultType=%s series=%d samples=%d", item.view, output.ResultType, len(output.Series), samples)
+		t.Logf("[mcp] query_prometheus view=%s resultType=%s series=%d samples=%d min=%.4f max=%.4f latest=%.4f", item.view, output.ResultType, summary.Series, summary.Samples, summary.Min, summary.Max, summary.Latest)
 	}
 }
 
