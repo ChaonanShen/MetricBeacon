@@ -25,8 +25,7 @@ export function summarizeMetricSeries(view, series, options = {}) {
   let samples = 0;
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
-  let latest = Number.NaN;
-  let latestTimestamp = Number.NEGATIVE_INFINITY;
+  const lastPoints = [];
   for (const item of series) {
     if (typeof item?.labels?.instance !== 'string' || !item.labels.instance.trim()) {
       throw new Error(`${view}: metric series was missing the instance label`);
@@ -35,7 +34,7 @@ export function summarizeMetricSeries(view, series, options = {}) {
       throw new Error(`${view}: metric series had no points`);
     }
     let previousTimestamp = Number.NEGATIVE_INFINITY;
-    for (const point of item.points) {
+    for (const [index, point] of item.points.entries()) {
       const timestamp = timestampMillis(point?.timestamp, view);
       if (timestamp <= previousTimestamp) throw new Error(`${view}: metric timestamps were not strictly increasing`);
       previousTimestamp = timestamp;
@@ -49,17 +48,19 @@ export function summarizeMetricSeries(view, series, options = {}) {
       if (samples > maxSamples) throw new Error(`${view}: metric result exceeded ${maxSamples} samples`);
       min = Math.min(min, value);
       max = Math.max(max, value);
-      if (timestamp > latestTimestamp) {
-        latestTimestamp = timestamp;
-        latest = value;
-      }
+      if (index === item.points.length - 1) lastPoints.push({ timestamp, value });
     }
   }
-  return { view, series: series.length, samples, min, max, latest };
+  const latestTimestamp = Math.max(...lastPoints.map((point) => point.timestamp));
+  const latestValues = lastPoints.filter((point) => point.timestamp === latestTimestamp).map((point) => point.value);
+  return { view, series: series.length, samples, min, max, latestMin: Math.min(...latestValues), latestMax: Math.max(...latestValues) };
 }
 
 export function formatMetricSummary(prefix, summary, resultType) {
   const number = (value) => Number(value.toFixed(4));
   const type = resultType ? ` resultType=${resultType}` : '';
-  return `[${prefix}] view=${summary.view}${type} series=${summary.series} samples=${summary.samples} min=${number(summary.min)} max=${number(summary.max)} latest=${number(summary.latest)}`;
+  const latestMin = number(summary.latestMin);
+  const latestMax = number(summary.latestMax);
+  const latest = latestMin === latestMax ? latestMin : `${latestMin}..${latestMax}`;
+  return `[${prefix}] view=${summary.view}${type} series=${summary.series} samples=${summary.samples} min=${number(summary.min)} max=${number(summary.max)} latest=${latest}`;
 }

@@ -7,6 +7,10 @@ if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
 fi
 
 project=${COMPOSE_PROJECT_NAME:-mini-torchbearing-real-agent}
+export GRAFANA_HOST_PORT=${MTB_E2E_GRAFANA_PORT:-13000}
+export AI_CORE_HOST_PORT=${MTB_E2E_AI_CORE_PORT:-18080}
+export ASSISTANT_MCP_HOST_PORT=${MTB_E2E_MCP_PORT:-18081}
+export GRAFANA_URL="http://127.0.0.1:$GRAFANA_HOST_PORT"
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 base_compose="$root/compose.mock-e2e.yaml"
 metrics_compose="$root/compose.real-metrics-e2e.yaml"

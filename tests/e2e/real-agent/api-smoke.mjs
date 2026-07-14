@@ -1,15 +1,13 @@
 import assert from 'node:assert/strict';
 
+import { analyzeTaskEvents, canonicalExpressions, formatTaskSummary } from '../../diagnostics/task-result-sanity.mjs';
+
 const base = process.env.GRAFANA_URL ?? 'http://127.0.0.1:3000';
 const user = process.env.GRAFANA_ADMIN_USER ?? 'admin';
 const password = process.env.GRAFANA_ADMIN_PASSWORD ?? 'admin';
 const authorization = `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
 const resourceBase = `${base}/api/plugins/mini-torchbearing-app/resources`;
-const expressions = {
-  cpu: '100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))',
-  memory: '100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes',
-  load: 'node_load1',
-};
+const expressions = canonicalExpressions;
 
 function headers(extra = {}) {
   return { authorization, ...extra };
@@ -60,7 +58,7 @@ async function terminalEvents(taskID) {
   }
 }
 
-async function submit(sessionID, message) {
+async function submit(sessionID, message, expectedViews) {
   const response = await requestJSON(`${resourceBase}/tasks`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'idempotency-key': `real-agent-${crypto.randomUUID()}` },
@@ -70,16 +68,10 @@ async function submit(sessionID, message) {
   const events = await terminalEvents(response.body.id);
   assert.ok(events.length > 0, 'agent task emitted no events');
   assert.equal(events.at(-1)?.type, 'task.completed', `agent task did not complete: ${JSON.stringify(events.at(-1))}`);
-  assertToolPairs(events);
+  const summary = analyzeTaskEvents(events, { expectedViews });
+  for (const line of formatTaskSummary('agent-task', summary)) console.log(line);
   assertNoSensitiveMarkers(events);
-  return { task: response.body, events };
-}
-
-function assertToolPairs(events) {
-  const started = new Set(events.filter((event) => event.type === 'tool.started').map((event) => event.payload.toolCallId));
-  const ended = new Set(events.filter((event) => event.type === 'tool.completed' || event.type === 'tool.failed').map((event) => event.payload.toolCallId));
-  assert.ok(started.size > 0, 'agent completed without any tool calls');
-  assert.deepEqual([...started].sort(), [...ended].sort(), 'every durable tool start must have one terminal event');
+  return { task: response.body, events, summary };
 }
 
 function assertNoSensitiveMarkers(value) {
@@ -93,25 +85,14 @@ function chartExpressions(events) {
   return events.filter((event) => event.type === 'chart.created').map((event) => event.payload.chart.queries[0].expression);
 }
 
-function assertRealSeries(events, expectedCount) {
-  const executions = events.filter((event) => event.type === 'chart.execution_completed').map((event) => event.payload.execution);
-  assert.equal(executions.length, expectedCount, 'unexpected chart execution count');
-  for (const execution of executions) {
-    assert.ok(execution.seriesCount > 0, 'real Prometheus query returned no series');
-    assert.ok(execution.series.every((series) => series.points.length > 0), 'real Prometheus query returned an empty series');
-  }
-}
-
 const session = await requestJSON(`${resourceBase}/sessions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Real Agent smoke' }) });
 assert.equal(session.response.status, 201, `Create Session failed: ${JSON.stringify(session.body)}`);
 
-const overview = await submit(session.body.id, '请概览 node_exporter 的 CPU、内存和系统负载。');
+const overview = await submit(session.body.id, '请概览 node_exporter 的 CPU、内存和系统负载。', ['cpu', 'memory', 'load']);
 assert.deepEqual(chartExpressions(overview.events).sort(), [expressions.cpu, expressions.memory, expressions.load].sort());
-assertRealSeries(overview.events, 3);
 
-const cpu = await submit(session.body.id, '只看 CPU。');
+const cpu = await submit(session.body.id, '只看 CPU。', ['cpu']);
 assert.deepEqual(chartExpressions(cpu.events), [expressions.cpu]);
-assertRealSeries(cpu.events, 1);
 
 const messages = await requestJSON(`${resourceBase}/sessions/${encodeURIComponent(session.body.id)}/messages?pageSize=50`);
 const tasks = await requestJSON(`${resourceBase}/sessions/${encodeURIComponent(session.body.id)}/tasks?pageSize=20`);

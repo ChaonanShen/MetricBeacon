@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 
+import { analyzeTaskEvents, formatTaskSummary } from '../../diagnostics/task-result-sanity.mjs';
+
 const base = process.env.GRAFANA_URL ?? 'http://127.0.0.1:3000';
 const user = process.env.GRAFANA_ADMIN_USER ?? 'admin';
 const password = process.env.GRAFANA_ADMIN_PASSWORD ?? 'admin';
@@ -98,21 +100,9 @@ assert.equal(conflict.body.error?.code, 'idempotency_conflict');
 
 const events = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events?afterSequence=0`);
 assert.ok(events.length > 0, 'Task SSE did not return any durable events');
-assert.deepEqual(events.map((event) => event.sequence), Array.from({ length: events.length }, (_, index) => index + 1), 'SSE sequences must be continuous from one');
-assert.equal(events.filter((event) => event.type === 'tool.started').length, 7);
-assert.equal(events.filter((event) => event.type === 'tool.completed').length, 7);
-assert.equal(events.filter((event) => event.type === 'chart.created').length, 3);
-assert.equal(events.filter((event) => event.type === 'chart.execution_completed').length, 3);
-assert.equal(events.at(-1)?.type, 'task.completed');
+const taskSummary = analyzeTaskEvents(events, { expectedViews: ['cpu', 'memory', 'load'], expectedToolCalls: 7 });
+for (const line of formatTaskSummary('task', taskSummary)) console.log(line);
 assert.ok(events.some((event) => event.type === 'assistant.message.completed' && event.payload.message.content.includes('CPU、内存和系统负载')));
-if (process.env.REAL_METRICS === '1') {
-  const executions = events.filter((event) => event.type === 'chart.execution_completed').map((event) => event.payload.execution);
-  assert.equal(executions.length, 3);
-  for (const execution of executions) {
-    assert.ok(execution.seriesCount > 0, 'real Prometheus query returned no series');
-    assert.ok(execution.series.every((series) => series.points.length > 0), 'real Prometheus query returned an empty series');
-  }
-}
 
 const replayAfter = events.at(-6).sequence;
 const replay = await streamEvents(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events?afterSequence=${replayAfter}`);

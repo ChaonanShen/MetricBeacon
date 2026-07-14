@@ -89,7 +89,7 @@ func TestLivePrometheusMCPDiagnostic(t *testing.T) {
 		if err != nil {
 			t.Fatalf("[mcp] query_prometheus semantic validation failed: %v", err)
 		}
-		t.Logf("[mcp] query_prometheus view=%s resultType=%s series=%d samples=%d min=%.4f max=%.4f latest=%.4f", item.view, output.ResultType, summary.Series, summary.Samples, summary.Min, summary.Max, summary.Latest)
+		t.Logf("[mcp] query_prometheus view=%s resultType=%s series=%d samples=%d min=%.4f max=%.4f latest=%.4f..%.4f", item.view, output.ResultType, summary.Series, summary.Samples, summary.Min, summary.Max, summary.LatestMin, summary.LatestMax)
 	}
 }
 

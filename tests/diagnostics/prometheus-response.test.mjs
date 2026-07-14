@@ -8,7 +8,7 @@ test('summarizes a finite non-empty Prometheus vector', () => {
     { metric: { instance: 'node-exporter:9100' }, value: [1_784_040_000, '12.5'] },
     { metric: { instance: 'other:9100' }, value: [1_784_040_000, '18.25'] },
   ] } });
-  assert.deepEqual(summarizePrometheusResponse(raw, 'cpu'), { view: 'cpu', resultType: 'vector', series: 2, samples: 2, min: 12.5, max: 18.25, latest: 12.5 });
+  assert.deepEqual(summarizePrometheusResponse(raw, 'cpu'), { view: 'cpu', resultType: 'vector', series: 2, samples: 2, min: 12.5, max: 18.25, latestMin: 12.5, latestMax: 18.25 });
 });
 
 for (const [name, raw, message] of [

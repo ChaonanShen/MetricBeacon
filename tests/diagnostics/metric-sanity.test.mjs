@@ -9,10 +9,16 @@ const series = (values = [20, 30]) => [{
 }];
 
 test('summarizes reasonable CPU, memory, and load values', () => {
-  assert.deepEqual(summarizeMetricSeries('cpu', series([0, 100])), { view: 'cpu', series: 1, samples: 2, min: 0, max: 100, latest: 100 });
-  assert.equal(summarizeMetricSeries('memory', series([64, 63])).latest, 63);
+  assert.deepEqual(summarizeMetricSeries('cpu', series([0, 100])), { view: 'cpu', series: 1, samples: 2, min: 0, max: 100, latestMin: 100, latestMax: 100 });
+  assert.equal(summarizeMetricSeries('memory', series([64, 63])).latestMin, 63);
   assert.equal(summarizeMetricSeries('load', series([0, 12.5])).max, 12.5);
   assert.equal(formatMetricSummary('metric', summarizeMetricSeries('cpu', series([12.34567])), 'matrix'), '[metric] view=cpu resultType=matrix series=1 samples=1 min=12.3457 max=12.3457 latest=12.3457');
+});
+
+test('reports a latest range when multiple series share the newest timestamp', () => {
+  const input = [series([10, 20])[0], { ...series([30, 40])[0], labels: { instance: 'node-b:9100' } }];
+  const summary = summarizeMetricSeries('cpu', input);
+  assert.equal(formatMetricSummary('metric', summary), '[metric] view=cpu series=2 samples=4 min=10 max=40 latest=20..40');
 });
 
 for (const [name, view, input, message] of [

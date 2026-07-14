@@ -10,7 +10,7 @@
 |-|-|-|
 |G0：激活计划|完成|执行计划、进度记录和文档路由已新增。|
 |P1：指标格式与语义分析|完成|24 个 Node 诊断测试、assistant-mcp 全量测试通过；真实 Prometheus/MCP 三视图通过标签、时间、有限值与区间校验，并输出 min/max/latest。|
-|P2：Task/Event/Chart 结果分析|待开始|—|
+|P2：Task/Event/Chart 结果分析|完成|34 个 Node 诊断测试通过；Mock、真实指标和真实 Agent E2E 均使用同一分析器验证连续事件、工具配对、Chart/Execution 关联及指标语义。|
 |P3：测试文档与收口|待开始|—|
 
 ## 契约与决策评估
@@ -34,3 +34,21 @@
 
 首次执行时发现宿主 `8081` 已由用户的 `mini-torchbearing-real-metrics-manual` 栈占用。诊断入口现默认映射到
 `18081`，并允许用 `MTB_DIAGNOSTIC_MCP_PORT` 覆盖；基础 Compose 的默认手工/E2E 端口仍为 `8081`。
+
+## P2 验证证据
+
+|入口|实际安全摘要|
+|-|-|
+|Mock E2E|30 events、7 tool calls、3 charts；CPU 2 series/14 samples、内存 2/14、load 2/14，终态 `task.completed`。|
+|真实指标 E2E|30 events、7 tool calls、3 charts；CPU `97.22`、内存 `54.5429`、load `2.85`，每个 view 1 series/1 sample。|
+|真实 Agent 概览|33 events、7 tool calls、3 charts；CPU `97.1296`、内存 `54.3617`、load `2.32`，终态 `task.completed`。|
+|真实 Agent CPU 追问|13 events、1 tool call、1 chart；CPU `95.8749`，终态 `task.completed`。|
+
+以上真实数值均为执行瞬间的 Docker Linux VM 指标，只用于证明本次 E2E 得到了可解码且语义合理的真实数据。
+Task 分析器不固定这些数值，而是验证 sequence 从 1 连续递增、Task/Session 身份一致、唯一成功终态、
+`tool.started`/`tool.completed` 一一配对、Chart/Execution 一一对应、规范 PromQL 与 view 匹配、
+`seriesCount` 和实际 series 一致，以及唯一非空最终 Assistant Message。
+
+自动 E2E 现默认使用 Grafana `13000`、AI Core `18080`、assistant-mcp `18081`，可分别通过
+`GRAFANA_HOST_PORT`、`AI_CORE_HOST_PORT`、`ASSISTANT_MCP_HOST_PORT` 覆盖。手动 Compose 默认端口仍是
+`3000`、`8080`、`8081`；本次测试未停止或修改用户正在运行的 manual 栈。
