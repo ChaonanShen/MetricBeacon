@@ -7,8 +7,9 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 ## 当前状态
 
 基本 Mock 闭环和持久化多轮工作台已经实现：输入任意非空消息会产生 node_exporter CPU、内存和负载三图。
-`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 已可通过显式 `eino` 配置接入 DeepSeek，有凭证的两轮端到端 smoke 已通过。Prometheus、MCP、DeepSeek 分层诊断和跨模式旧 Session 恢复也已完成；Grafana Dashboard 写入仍未实现。范围、安全边界和 Gate 见
-[`docs/implementation/real_backend_diagnostics_execution_plan.md`](docs/implementation/real_backend_diagnostics_execution_plan.md)。
+`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 已可通过显式 `eino` 配置接入 DeepSeek，有凭证的两轮端到端 smoke 已通过。Prometheus、MCP、DeepSeek 分层诊断、durable Task 结果语义分析和跨模式旧 Session 恢复也已完成；Grafana Dashboard 写入仍未实现。范围、安全边界和 Gate 见
+[`docs/implementation/real_backend_diagnostics_execution_plan.md`](docs/implementation/real_backend_diagnostics_execution_plan.md)，可直接交给 code agent 执行的命令顺序、预期结果形式和故障定位见
+[`docs/implementation/real_backend_test_matrix.md`](docs/implementation/real_backend_test_matrix.md)。
 
 ## 模块边界
 
@@ -37,7 +38,7 @@ cd apps/grafana-plugin/frontend && npm ci
 ```
 
 当前诊断进度和每个 Gate 的验证证据保存在
-[`docs/implementation/real_backend_diagnostics_progress.md`](docs/implementation/real_backend_diagnostics_progress.md)。
+[`docs/implementation/layered_result_diagnostics_progress.md`](docs/implementation/layered_result_diagnostics_progress.md)。
 
 ## 本地演示
 

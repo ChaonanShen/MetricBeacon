@@ -106,6 +106,7 @@ mini-torchbearing/
 │
 ├── scripts/                               # 生成、契约、边界、分层诊断及三模式 E2E 门禁脚本
 ├── docs/                                  # 架构、设计、ADR、开发计划与当前说明
+│   └── implementation/real_backend_test_matrix.md # code agent 分层测试与结果判读手册
 ├── deploy/prometheus/prometheus.yml       # real-metrics 的 5 秒 node-exporter scrape 配置
 ├── compose.mock-e2e.yaml                  # assistant-mcp + AI Core + Grafana 的 Mock 环境
 ├── compose.real-metrics-e2e.yaml          # Prometheus/node-exporter real-metrics Compose overlay

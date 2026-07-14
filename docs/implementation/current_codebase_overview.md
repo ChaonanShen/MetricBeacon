@@ -205,6 +205,9 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 
 ## 测试与检查入口
 
+按后端层级执行、判读安全摘要和定位失败时，使用
+[`real_backend_test_matrix.md`](real_backend_test_matrix.md)；其中的真实数值示例仅是一次运行证据，不是固定断言。
+
 |命令|覆盖内容|本次结果（2026-07-14）|
 |-|-|-|
 |`make bootstrap-check`|固定 Go/Node/npm 版本；三个运行时 Go 模块全量编译测试；前端 typecheck；依赖边界。|通过。|

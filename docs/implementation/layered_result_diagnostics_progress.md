@@ -1,6 +1,6 @@
 # 分层结果合理性诊断进度记录
 
-> status: active
+> status: completed
 > createdAt: 2026-07-14
 > plan: [`layered_result_diagnostics_execution_plan.md`](layered_result_diagnostics_execution_plan.md)
 
@@ -11,7 +11,7 @@
 |G0：激活计划|完成|执行计划、进度记录和文档路由已新增。|
 |P1：指标格式与语义分析|完成|24 个 Node 诊断测试、assistant-mcp 全量测试通过；真实 Prometheus/MCP 三视图通过标签、时间、有限值与区间校验，并输出 min/max/latest。|
 |P2：Task/Event/Chart 结果分析|完成|34 个 Node 诊断测试通过；Mock、真实指标和真实 Agent E2E 均使用同一分析器验证连续事件、工具配对、Chart/Execution 关联及指标语义。|
-|P3：测试文档与收口|待开始|—|
+|P3：测试文档与收口|完成|新增 code-agent 测试矩阵、预期返回形态和逐层故障定位；README、文档路由与当前代码快照已同步。|
 
 ## 契约与决策评估
 
@@ -52,3 +52,12 @@ Task 分析器不固定这些数值，而是验证 sequence 从 1 连续递增�
 自动 E2E 现默认使用 Grafana `13000`、AI Core `18080`、assistant-mcp `18081`，可分别通过
 `GRAFANA_HOST_PORT`、`AI_CORE_HOST_PORT`、`ASSISTANT_MCP_HOST_PORT` 覆盖。手动 Compose 默认端口仍是
 `3000`、`8080`、`8081`；本次测试未停止或修改用户正在运行的 manual 栈。
+
+## P3 收口证据
+
+- `make check` 通过：契约/生成物、全部 Go 测试、前端 7 files/18 tests、34 个诊断测试和依赖边界均通过。
+- `make diagnose-real-metrics` 再次通过：原始 Prometheus 与 MCP 三视图均返回 1 series/1 sample；本次瞬时
+  CPU 约 `97.08..97.55`、内存 `74.84`、load `0.84`。
+- `make diagnose-deepseek` 通过：配置的 `deepseek-v4-flash` 在 584ms 内返回严格
+  `{"status":"ok","answer":"pong"}`，日志未输出凭证。
+- `git diff --check` 通过。

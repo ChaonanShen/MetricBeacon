@@ -1,6 +1,6 @@
 # 分层结果合理性诊断执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-14
 > implementationAuthorized: true
 > dependsOn: `real_backend_diagnostics_execution_plan.md`、`current_codebase_overview.md`
@@ -73,3 +73,9 @@ TaskEvent sequence、工具配对、Chart/Execution 关联和终态是否合理�
 - code agent 输出只能包含 view、计数、min/max/latest、事件类型计数和通过/失败阶段，不输出 key、内部 URL、模型 reasoning 或完整 raw series。
 
 该切片不改变架构决策，不需要 ADR。
+
+## 5. 完成结果
+
+G0、P1、P2、P3 已完成。当前 code agent 运行入口、预期数据形态和逐层故障归因见
+[`real_backend_test_matrix.md`](real_backend_test_matrix.md)，实际验证证据见
+[`layered_result_diagnostics_progress.md`](layered_result_diagnostics_progress.md)。
