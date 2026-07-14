@@ -1,6 +1,6 @@
 # node_exporter 真实分析与多轮会话路线图
 
-> status: active
+> status: completed
 > createdAt: 2026-07-14
 > lastReviewedAt: 2026-07-14
 > implementationAuthorized: true
@@ -20,7 +20,7 @@
 
 1. G0 已在 ADR-018 锁定。
 2. 已生成逐切片的详细执行计划。
-3. 详细执行计划已标记为 `active` 并获得明确执行指令。
+3. 详细执行计划已完成并保留可复现的验证证据。
 
 详细执行计划应把每个 Gate 拆成可独立验证的小提交，并列出具体契约、文件、migration、测试、
 回滚点和演进文档更新项。

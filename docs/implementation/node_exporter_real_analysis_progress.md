@@ -1,10 +1,10 @@
 # Node Exporter Real Analysis Progress
 
 lastUpdated: 2026-07-14
-currentGate: P5.2
-status: active
-headCommit: pending
-worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E have passed, including durable multi-turn recovery and live node_exporter series. The credentialed DeepSeek Eino smoke gate now passes; final closeout requires a fresh combined gate run.
+currentGate: complete
+status: completed
+headCommit: 68eac9d
+worktreeSummary: G0 through P5 are complete. The final gate passed `make check`, fresh Mock and real-metrics Compose E2E, and credentialed DeepSeek Eino smoke against live node_exporter data; every E2E stack removed its containers and volume.
 
 ## Gate Status
 
@@ -26,7 +26,7 @@ worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E h
   - [x] P4.1 Read-only node_exporter Profile and local view metadata
   - [x] P4.2 Constrained Eino runtime, strict tools and summary isolation
   - [x] P4.3 Explicit DeepSeek configuration and Bootstrap wiring
-- [ ] P5 End-to-end closeout
+- [x] P5 End-to-end closeout
   - [x] P5.1 Credential-gated real-agent smoke harness and leak checks
   - [x] P5.2a Execute Mock and real-metrics container gates
   - [x] P5.2b Execute credentialed real-agent container gate
@@ -72,7 +72,9 @@ worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E h
 |`zsh -lc 'set -a; source .env; set +a; make e2e-real-agent'`|passed|2026-07-14|DeepSeek Eino completed overview and CPU follow-up against live node_exporter data; the harness verified durable tool-pair events, history/replay recovery, terminal stream closure, and API/log/SQLite leak markers. The key was loaded only into the invoking process and was not logged or persisted.|
 |`make e2e-mock`|passed|2026-07-14|Fresh Mock Compose gate verifies explicitly encoded history/replay query parameters, reducer-owned finite replay completion, two consecutive tasks, SSE follow, refresh recovery, six-card desktop layout and two-column mid-width layout; containers and volume were removed.|
 |`make e2e-real-metrics`|passed|2026-07-14|Fresh real-metrics Compose gate waited for node_exporter target and two CPU idle scrapes, verified non-empty live series through API E2E, then verified browser task/replay/layout behavior without assuming Mock fixture instance labels; containers and volume were removed.|
+|`make check`|passed|2026-07-14|Final local quality gate passed after the replay, layout, contract-module and real-metrics test fixes: generated artifacts, contracts, Go/TypeScript suites, boundary checks and secret scan are clean.|
+|`zsh -lc 'set -a; source .env; set +a; make e2e-real-agent'`|passed|2026-07-14|Final credentialed gate repeated the live overview/CPU DeepSeek smoke, durable tool-pair/replay checks and API/log/SQLite leak scans; the key remained process-local and the Compose stack was removed.|
 
 ## Next Slice
 
-P5.1 provides `make e2e-real-agent`, which requires `DEEPSEEK_API_KEY` and checks overview/CPU charts, durable tool pairs, replay/history restoration, real series and API/log/SQLite leak markers. The fresh Mock and credentialed external-model runs have passed. Final closeout is `make check` plus fresh real-metrics and real-agent gates.
+Completed. `make check`, fresh Mock and real-metrics E2E, and the credentialed real-agent gate all passed. This file is retained as the implementation evidence for the completed slice.

@@ -15,9 +15,9 @@ here with a scope, non-goals, sequence, and acceptance checks, and mark it
 `active`. Keep it in this directory after completion and change its status;
 paths stay stable for links and history.
 
-The active detailed plan is
+The completed detailed plan is
 [`node_exporter_real_analysis_execution_plan.md`](node_exporter_real_analysis_execution_plan.md);
-its verification record is
+its completion verification record is
 [`node_exporter_real_analysis_progress.md`](node_exporter_real_analysis_progress.md).
 
 The related stable product and architecture material is in

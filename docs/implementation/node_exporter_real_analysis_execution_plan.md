@@ -1,7 +1,8 @@
 # node_exporter 真实分析链路详细执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-14
+> completedAt: 2026-07-14
 > implementationAuthorized: true
 > dependsOn: `node_exporter_real_analysis_plan.md`、`code_skeleton_design.md`、
 > `current_codebase_overview.md`

@@ -15,8 +15,8 @@ actual codebase, rather than the old design-only description, is documented in
 [`implementation/current_codebase_overview.md`](implementation/current_codebase_overview.md)
 and [`implementation/current_code_tree.md`](implementation/current_code_tree.md).
 
-The node_exporter real-analysis slice is active. Its detailed execution plan
-is the authoritative implementation entry point:
+The node_exporter real-analysis slice is complete. Its roadmap, detailed
+execution plan, and verification record remain the authoritative historical evidence:
 
 ```text
 documentation governance
@@ -55,9 +55,9 @@ Surface the conflict and obtain a decision or add an ADR.
 |---|---|---|
 | `design/` | Mostly stable | Project origin, product scope, and long-term architecture Proposals. See `design/README.md`. |
 | `implementation/code_skeleton_design.md` | Active, Implementation Blueprint | Mutable structural authority for code, contracts, Ports/Adapters, ownership, and verification. |
-| `implementation/node_exporter_real_analysis_plan.md` | Active roadmap | Scope, safety boundaries and gate order for the multi-turn, real Prometheus/node_exporter and minimal Eino Agent slice. |
-| `implementation/node_exporter_real_analysis_execution_plan.md` | Active execution plan | Decision-complete, commit-by-commit implementation sequence for the active roadmap. |
-| `implementation/node_exporter_real_analysis_progress.md` | Active progress record | Gate status and verification evidence for the active roadmap. |
+| `implementation/node_exporter_real_analysis_plan.md` | Completed roadmap | Scope, safety boundaries and gate order for the finished multi-turn, real Prometheus/node_exporter and minimal Eino Agent slice. |
+| `implementation/node_exporter_real_analysis_execution_plan.md` | Completed execution plan | Decision-complete implementation sequence and completion evidence for that slice. |
+| `implementation/node_exporter_real_analysis_progress.md` | Completed progress record | Gate status and verification evidence for that slice. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
 | `implementation/chart_trio_ui_fit_plan.md` | Completed evidence | Historical chart-layout improvement record. |
