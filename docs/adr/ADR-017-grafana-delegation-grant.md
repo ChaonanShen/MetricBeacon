@@ -152,6 +152,6 @@ Browser
 
 ## 关联文档
 
-- `docs/code_skeleton_design.md`：第 8、10、11、14、23、30、33 节。
-- `docs/arch_design_draft.md`：Plugin Backend 受控边界、写操作确认。
-- `docs/arch_design_detail.md`：P1 HITL、P4 Grafana Tool、Folder Permission。
+- `docs/implementation/code_skeleton_design.md`：第 8、10、11、14、23、30、33 节。
+- `docs/design/arch_design_draft.md`：Plugin Backend 受控边界、写操作确认。
+- `docs/design/arch_design_detail.md`：P1 HITL、P4 Grafana Tool、Folder Permission。

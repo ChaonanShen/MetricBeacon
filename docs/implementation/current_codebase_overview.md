@@ -1,6 +1,7 @@
 # 当前骨架代码说明
 
-> 本文以 2026-07-14 的实际代码为准，说明已可工作的基本 Mock 闭环；长期设计请参照 `docs/code_skeleton_design.md`。
+> 本文以 2026-07-14 的实际代码为准，说明已可工作的基本 Mock 闭环；长期设计请参照
+> [`code_skeleton_design.md`](code_skeleton_design.md)。
 
 ## 当前可演示的能力
 

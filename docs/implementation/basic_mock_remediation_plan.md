@@ -3,13 +3,14 @@
 status: completed
 createdAt: 2026-07-13T15:30:00Z
 sourceCommit: 11d505b
-originalPlan: `docs/basic_mock_skeleton_execution_plan.md` v1.2
+originalPlan: `docs/implementation/basic_mock_skeleton_execution_plan.md` v1.2
 resumeOriginalPlanAt: completed
 
 ## 1. Purpose and boundary
 
 This document is the temporary execution track for correcting defects found while auditing commit
-`11d505b`. It does not modify or replace `basic_mock_skeleton_execution_plan.md`. Once every
+`11d505b`. It does not modify or replace
+`docs/implementation/basic_mock_skeleton_execution_plan.md`. Once every
 remediation gate below passes, execution returns to the original plan at G4 and proceeds in order.
 
 The architecture remains unchanged:

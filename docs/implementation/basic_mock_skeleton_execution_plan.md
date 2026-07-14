@@ -3,13 +3,13 @@
 > 文档状态：Completed / Historical record
 > 版本：v1.2
 > 适用范围：首个基本骨架实现；完成确定性 Mock 纵向闭环
-> 依赖设计：`code_skeleton_design.md` v1.3
+> 依赖设计：[`code_skeleton_design.md`](code_skeleton_design.md) v1.3
 > 最后更新：2026-07-13
 
 > 2026-07-14：G0–G8 与后续 remediation 均已完成并复核；验证证据见
-> [`development/basic_mock_progress.md`](development/basic_mock_progress.md)。本文件保留为
+> [`basic_mock_progress.md`](basic_mock_progress.md)。本文件保留为
 > 历史实现记录，不再是新工作的执行入口。当前文档路由和下一阶段状态见
-> [`CLAUDE.md`](CLAUDE.md)。
+> [`../CLAUDE.md`](../CLAUDE.md)。
 
 ---
 
@@ -17,13 +17,13 @@
 
 本节保留原始执行指令，用于解释已完成的 G0–G8 验收证据；它不适用于当前或后续开发。
 
-本节是新会话的唯一必读入口。执行者应完整读取本文件，然后从 Gate G0 开始实施；除非遇到本节定义的停止条件，不需要重新询问产品范围、模块划分、Mock 场景、命名或验收口径。
+计划编写时，本节是新会话的唯一必读入口。执行者应完整读取本文件，然后从 Gate G0 开始实施；除非遇到本节定义的停止条件，不需要重新询问产品范围、模块划分、Mock 场景、命名或验收口径。
 
 ### 0.1 原始可复制的新 Session 指令
 
 ```text
 在 /Users/a1111/proj/mini-torchbearing 中，严格按照
-docs/basic_mock_skeleton_execution_plan.md v1.2 实现基本 Mock 闭环。
+docs/implementation/basic_mock_skeleton_execution_plan.md v1.2 实现基本 Mock 闭环。
 
 先读取 CLAUDE.md 和该执行计划全文，检查工作区并保留已有修改；然后从 G0 开始，按
 G0 → G1 → ... → G7 → G8 的顺序持续实施和验证。不要扩展到真实 Eino/LLM、真实
@@ -35,12 +35,12 @@ AI Core → assistant-mcp 必须走正式 OpenAPI/MCP Schema 和生成类型。M
 MockPrometheusAdapter。
 
 每完成一个 Gate，运行该 Gate 的验证命令，并更新
-docs/development/basic_mock_progress.md。安全且不改变边界的实现细节使用计划中的默认值自行
+docs/implementation/basic_mock_progress.md。安全且不改变边界的实现细节使用计划中的默认值自行
 决定，不要停下来询问。只有缺少下载/安装权限、发现会改变模块边界的设计冲突，或现有用户
 修改与计划直接冲突时才暂停并报告。未经额外明确授权不要创建 git commit。
 ```
 
-### 0.2 新 Session 只需读取的资料
+### 0.2 原始新 Session 只需读取的资料
 
 必读：
 
@@ -49,10 +49,10 @@ docs/development/basic_mock_progress.md。安全且不改变边界的实现细�
 
 按需读取：
 
-- `docs/code_skeleton_design.md`：只有本文件引用的 Port/领域字段仍需展开，或发现接口缺口时读取相应章节。
+- `docs/implementation/code_skeleton_design.md`：只有本文件引用的 Port/领域字段仍需展开，或发现接口缺口时读取相应章节。
 - `docs/adr/ADR-017-grafana-delegation-grant.md`：本阶段不做 Grafana 写入，通常不需要读取。
 
-默认不需要重新阅读 `original_task.md`、`product_design.md`、`arch_design_draft.md` 和完整 `arch_design_detail.md`。本文件已经把当前 Mock 切片需要的决策收敛在一起；不得从长期文档中捞取后续功能扩大范围。
+默认不需要重新阅读 `design/original_task.md`、`design/product_design.md`、`design/arch_design_draft.md` 和完整 `design/arch_design_detail.md`。本文件已经把当前 Mock 切片需要的决策收敛在一起；不得从长期文档中捞取后续功能扩大范围。
 
 ### 0.3 已知仓库起点
 
@@ -65,7 +65,7 @@ docs/development/basic_mock_progress.md。安全且不改变边界的实现细�
 - 当前没有配置 Git remote；Go module path 使用第 0.5 节默认规则。
 - 计划编写时宿主机没有 `go` 命令。
 - 计划编写时有 Node `v22.23.1`、npm `10.9.8`、Docker CLI `29.6.1`；Docker daemon 和本地镜像仍需在执行 Session 中检查。
-- 本文件和 `code_skeleton_design.md` v1.3 可能是尚未提交的用户工作区修改，必须保留，禁止 reset/checkout 覆盖。
+- 本文件和 `implementation/code_skeleton_design.md` v1.3 可能是尚未提交的用户工作区修改，必须保留，禁止 reset/checkout 覆盖。
 
 ### 0.4 第一轮预检命令
 
@@ -1145,7 +1145,7 @@ mini-torchbearing/
 │   ├── docker-compose/compose.mock-e2e.yaml
 │   └── grafana/provisioning/plugins/
 │
-├── docs/development/basic_mock_progress.md
+├── docs/implementation/basic_mock_progress.md
 ├── build/toolchain.lock
 ├── scripts/{generate-clients.sh,validate-contracts.sh,check-boundaries.sh,run-e2e.sh}
 ├── .env.example
@@ -1562,7 +1562,7 @@ mock-e2e
 
 ## 16. 新 Session 进度记录与恢复
 
-执行开始时创建 `docs/development/basic_mock_progress.md`。该文件是跨 Session 的唯一进度事实，不用聊天历史作为完成依据。
+执行开始时创建 `docs/implementation/basic_mock_progress.md`。该文件是跨 Session 的唯一进度事实，不用聊天历史作为完成依据。
 
 ### 16.1 进度文件模板
 

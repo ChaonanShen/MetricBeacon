@@ -34,7 +34,7 @@ cd apps/grafana-plugin/frontend && npm ci
 ```
 
 进度和每个 Gate 的验证证据保存在
-[`docs/development/basic_mock_progress.md`](docs/development/basic_mock_progress.md)。
+[`docs/implementation/basic_mock_progress.md`](docs/implementation/basic_mock_progress.md)。
 
 ## 本地演示
 

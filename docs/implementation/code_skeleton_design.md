@@ -24,10 +24,10 @@
 
 ### 1.1 与其他文档的关系
 
-- `original_task.md` 定义项目初心。
-- `product_design.md` 决定阶段范围和产品验收；不得因为本文预留了接口就提前扩大 Milestone。
-- `arch_design_draft.md` 定义长期总体分层。
-- `arch_design_detail.md` 中标注“拍板”的模块决策优先于本文中的通用建议。
+- `../design/original_task.md` 定义项目初心。
+- `../design/product_design.md` 决定阶段范围和产品验收；不得因为本文预留了接口就提前扩大 Milestone。
+- `../design/arch_design_draft.md` 定义长期总体分层。
+- `../design/arch_design_detail.md` 中标注“拍板”的模块决策优先于本文中的通用建议。
 - `basic_mock_skeleton_execution_plan.md` 将本文收敛为首个可执行切片：只跑确定性 Mock Agent、Mock Prometheus 和三图纵向闭环，不改变本文的长期接口与替换边界。
 - 本文负责把上述决策翻译成可直接建立的代码结构和稳定契约。
 
@@ -789,7 +789,8 @@ POST /api/plugins/<PLUGIN_ID>/resources/grafana/proxy
 
 `grafana/proxy` 不是通用反向代理。路由、HTTP 方法、目标资源和最大响应体必须在 allowlist 中；生产模式禁止用户提交任意 Grafana URL。
 
-本方案当前为暂定决策，具体约束、风险和复审条件见 `docs/adr/ADR-017-grafana-delegation-grant.md`。真实 Grafana Write Adapter 不得在该 ADR 完成复审前进入生产。
+本方案当前为暂定决策，具体约束、风险和复审条件见
+[`../adr/ADR-017-grafana-delegation-grant.md`](../adr/ADR-017-grafana-delegation-grant.md)。真实 Grafana Write Adapter 不得在该 ADR 完成复审前进入生产。
 
 ---
 
@@ -1039,7 +1040,7 @@ forbidden
 
 ### 10.5 v1 注册范围
 
-四个 namespace 的完整工具名以 `arch_design_detail.md` P4 为目标集合。首个骨架必须注册并提供 Mock 的最小子集：
+四个 namespace 的完整工具名以 `../design/arch_design_detail.md` P4 为目标集合。首个骨架必须注册并提供 Mock 的最小子集：
 
 ```text
 grafana.search_metrics
