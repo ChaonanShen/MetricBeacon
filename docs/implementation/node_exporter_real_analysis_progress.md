@@ -27,6 +27,8 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
   - [x] P4.2 Constrained Eino runtime, strict tools and summary isolation
   - [x] P4.3 Explicit DeepSeek configuration and Bootstrap wiring
 - [ ] P5 End-to-end closeout
+  - [x] P5.1 Credential-gated real-agent smoke harness and leak checks
+  - [ ] P5.2 Execute Mock, real-metrics and real-agent container gates
 
 ## Locked G0 Decisions
 
@@ -60,7 +62,9 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 |`make check`|passed|2026-07-14|P4.2 passes generated-client reproducibility, contract validation, formatting, all Go/TypeScript tests including `test-ai-agent`, dependency-boundary checks and secret scan.|
 |`make test-ai-agent && docker compose -f compose.mock-e2e.yaml -f compose.real-metrics-e2e.yaml -f compose.real-agent-e2e.yaml config`|passed|2026-07-14|P4.3 verifies default Mock startup without a DeepSeek key, rejection of Eino without key or Profile, Profile image path/config limits and the merged opt-in real-agent Compose topology.|
 |`make check`|passed|2026-07-14|P4.3 keeps the new Bootstrap configuration tests in the Agent test target and passes the full local quality gate.|
+|`sh -n scripts/run-real-agent-e2e.sh && node --check tests/e2e/real-agent/api-smoke.mjs && DEEPSEEK_API_KEY=placeholder docker compose -f compose.mock-e2e.yaml -f compose.real-metrics-e2e.yaml -f compose.real-agent-e2e.yaml config`|passed|2026-07-14|P5.1 validates the real-agent harness syntax, API smoke discovery and credentialed Compose topology without making a model call.|
+|`make e2e-real-agent` (without key)|passed|2026-07-14|Fails immediately with exit code 2 and a clear key-required message; it does not start containers or silently fall back to Mock.|
 
 ## Next Slice
 
-Run P3.4's `make e2e-real-metrics` and re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081. Those pending container gates remain required for final closeout. The next code slice is P5: credential-gated real-agent smoke and final closeout.
+P5.1 now provides `make e2e-real-agent`, which requires a user-provided `DEEPSEEK_API_KEY` and checks overview/CPU charts, durable tool pairs, replay/history restoration, real series and API/log/SQLite leak markers. Run it, P3.4's `make e2e-real-metrics`, and `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081; the credentialed and container gates remain required before final closeout.

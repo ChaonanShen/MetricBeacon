@@ -53,6 +53,9 @@ e2e-mock:
 e2e-real-metrics:
 	@./scripts/run-real-metrics-e2e.sh
 
+e2e-real-agent:
+	@./scripts/run-real-agent-e2e.sh
+
 boundary-check:
 	@./scripts/check-boundaries.sh
 

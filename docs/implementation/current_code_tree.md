@@ -93,12 +93,13 @@ mini-torchbearing/
 │           └── expected_task_events.json
 │
 ├── tests/
-│   └── e2e/mock/                          # API 与 Playwright 浏览器 E2E
+│   ├── e2e/mock/                          # Mock API 与 Playwright 浏览器 E2E
 │       ├── api-e2e.mjs
 │       ├── api-e2e.sh
 │       └── browser-e2e.spec.ts
+│   └── e2e/real-agent/api-smoke.mjs        # 有凭证的 Eino API smoke、replay 与泄漏检查
 │
-├── scripts/                               # 生成、契约、边界、Mock/real-metrics E2E 等门禁脚本
+├── scripts/                               # 生成、契约、边界、Mock/real-metrics/real-agent E2E 门禁脚本
 ├── docs/                                  # 架构、设计、ADR、开发计划与当前说明
 ├── deploy/prometheus/prometheus.yml       # real-metrics 的 5 秒 node-exporter scrape 配置
 ├── compose.mock-e2e.yaml                  # assistant-mcp + AI Core + Grafana 的 Mock 环境

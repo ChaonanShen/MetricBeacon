@@ -36,7 +36,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`apps/grafana-plugin/frontend`|React/Grafana 工作台：创建或恢复 Session、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|提交新消息保留已有对话与图表，活动 Task 阻止并发提交；未实现图表编辑和 Dashboard 写入。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
-|`scripts/`、`Makefile`、`tests/e2e/`|工程门禁、代码生成、契约/边界检查与端到端验收入口。|`compose.mock-e2e.yaml` 启动 Mock 栈；`compose.real-metrics-e2e.yaml` 叠加 Prometheus 与 node_exporter，E2E 在真实 CPU 数据已有两个 scrape 后才提交任务。|
+|`scripts/`、`Makefile`、`tests/e2e/`|工程门禁、代码生成、契约/边界检查与端到端验收入口。|`compose.mock-e2e.yaml` 启动 Mock 栈；`compose.real-metrics-e2e.yaml` 叠加 Prometheus 与 node_exporter，E2E 在真实 CPU 数据已有两个 scrape 后才提交任务。`make e2e-real-agent` 再叠加 opt-in Eino/DeepSeek，要求显式 key，并检查概览/CPU、重放恢复、工具配对和 API/日志/SQLite 的泄漏标记。|
 
 ## 关键数据与依赖边界
 
@@ -164,6 +164,7 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make test-assistant-mcp`|Mock Prometheus Adapter、MCP 接线和工具调用。|由 `make check` 通过。|
 |`make test-ai-mcp`|AI Core MCP Gateway/查询 Adapter、HTTP API、分析工作流与 SSE。|由 `make check` 通过。|
 |`make test-ai-agent`|受限 Eino Runtime：fake model、严格 Tool JSON、source-call 配对、受限查询、最终 JSON 与模型输入摘要隔离。|通过。|
+|`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、durable tool 配对、刷新/有限 replay 与 API/日志/SQLite 泄漏检查。|Harness 已验证；当前未执行，因为没有提供 DeepSeek key，且用户管理的容器占用 3000、8080、8081。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
 |`make test-frontend`|Vitest 工作台状态、SSE、路由、时间范围和 DataFrame mapper；随后 TypeScript typecheck。|通过：5 个测试文件、9 个用例。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|

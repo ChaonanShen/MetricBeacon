@@ -25,6 +25,7 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 make bootstrap-check
 make test
 make check
+make e2e-real-agent  # requires DEEPSEEK_API_KEY
 ```
 
 安装前端锁定依赖后再执行该命令：
