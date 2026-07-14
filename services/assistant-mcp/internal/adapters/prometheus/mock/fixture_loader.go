@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"mini-torchbearing.local/services/assistant-mcp/internal/adapters/prometheus/registry"
 	"mini-torchbearing.local/services/assistant-mcp/internal/ports/prometheus"
 	"mini-torchbearing.local/services/assistant-mcp/internal/runtime"
 )
@@ -90,8 +91,12 @@ func validateFixture(value fixture) error {
 			return runtime.NewError(runtime.SchemaValidationFailed, "metric labels fixture is invalid", false)
 		}
 	}
-	for _, result := range value.Queries {
-		if !result.Validation.Valid || result.Validation.CanonicalExpression == "" || result.Status != "success" || result.ResultType != "matrix" || len(result.Series) < 2 || result.DurationMS < 0 {
+	for expression, result := range value.Queries {
+		definition, err := registry.Validate(expression)
+		if err != nil || definition.CanonicalExpression != expression {
+			return runtime.NewError(runtime.SchemaValidationFailed, "query fixture is outside the node_exporter registry", false)
+		}
+		if !result.Validation.Valid || result.Validation.CanonicalExpression != expression || result.Status != "success" || result.ResultType != "matrix" || len(result.Series) < 2 || result.DurationMS < 0 {
 			return runtime.NewError(runtime.SchemaValidationFailed, "query fixture is invalid", false)
 		}
 		for _, series := range result.Series {

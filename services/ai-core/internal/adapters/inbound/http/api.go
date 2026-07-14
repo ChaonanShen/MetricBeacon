@@ -137,8 +137,8 @@ func (a *API) CreateTask(w http.ResponseWriter, r *http.Request, params generate
 		writeError(w, params.XRequestID, err)
 		return
 	}
-	datasourceUID, ok := body.AnalysisContext.DatasourceUid.(string)
-	if !ok || strings.TrimSpace(datasourceUID) == "" {
+	datasourceUID := string(body.AnalysisContext.DatasourceUid)
+	if strings.TrimSpace(datasourceUID) == "" {
 		writeError(w, params.XRequestID, common.NewError(common.InvalidArgument, "analysisContext.datasourceUid must be a string", false))
 		return
 	}

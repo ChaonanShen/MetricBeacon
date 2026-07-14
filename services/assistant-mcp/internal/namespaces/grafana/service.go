@@ -20,8 +20,8 @@ func (s *Service) SearchMetrics(ctx context.Context, identity requestcontext.Con
 	if err := authorize(identity); err != nil {
 		return generated.SearchMetricsOutputSchema{}, err
 	}
-	datasourceUID, ok := input.DatasourceUid.(string)
-	if !ok || datasourceUID != "prometheus-main" || strings.TrimSpace(input.Query) == "" || input.Limit < 1 || input.Limit > 100 {
+	datasourceUID := string(input.DatasourceUid)
+	if datasourceUID != "prometheus-main" || strings.TrimSpace(input.Query) == "" || input.Limit < 1 || input.Limit > 100 {
 		return generated.SearchMetricsOutputSchema{}, runtime.NewError(runtime.SchemaValidationFailed, "search metrics input does not match the tool schema", false)
 	}
 	result, err := s.prometheus.SearchMetrics(ctx, identity, prometheus.SearchMetricsRequest{DatasourceUID: datasourceUID, Query: input.Query, Limit: input.Limit})
@@ -42,8 +42,8 @@ func (s *Service) GetMetricLabels(ctx context.Context, identity requestcontext.C
 	if err := authorize(identity); err != nil {
 		return generated.GetMetricLabelsOutputSchema{}, err
 	}
-	datasourceUID, ok := input.DatasourceUid.(string)
-	if !ok || datasourceUID != "prometheus-main" || !input.MetricName.Valid() {
+	datasourceUID := string(input.DatasourceUid)
+	if datasourceUID != "prometheus-main" || !input.MetricName.Valid() {
 		return generated.GetMetricLabelsOutputSchema{}, runtime.NewError(runtime.SchemaValidationFailed, "metric labels input does not match the tool schema", false)
 	}
 	result, err := s.prometheus.GetMetricLabels(ctx, identity, prometheus.GetMetricLabelsRequest{DatasourceUID: datasourceUID, MetricName: string(input.MetricName)})
@@ -64,8 +64,8 @@ func (s *Service) QueryPrometheus(ctx context.Context, identity requestcontext.C
 	if err := authorize(identity); err != nil {
 		return generated.QueryPrometheusOutputSchema{}, err
 	}
-	datasourceUID, ok := input.DatasourceUid.(string)
-	if !ok || datasourceUID != "prometheus-main" || strings.TrimSpace(input.Expression) == "" || !input.Start.Before(input.End) || input.StepSeconds < 1 || input.StepSeconds > 3600 || !input.Mode.Valid() {
+	datasourceUID := string(input.DatasourceUid)
+	if datasourceUID != "prometheus-main" || strings.TrimSpace(input.Expression) == "" || !input.Start.Before(input.End) || input.StepSeconds < 1 || input.StepSeconds > 3600 || !input.Mode.Valid() {
 		return generated.QueryPrometheusOutputSchema{}, runtime.NewError(runtime.SchemaValidationFailed, "Prometheus query input does not match the tool schema", false)
 	}
 	result, err := s.prometheus.Query(ctx, identity, prometheus.QueryRequest{DatasourceUID: datasourceUID, Expression: input.Expression, Start: input.Start, End: input.End, StepSeconds: input.StepSeconds, Mode: prometheus.QueryMode(input.Mode)})

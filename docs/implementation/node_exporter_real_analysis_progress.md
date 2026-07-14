@@ -19,6 +19,7 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
   - [ ] P2.2 Container E2E execution (blocked by existing local stack port bindings)
 - [ ] P3 Real Prometheus and node_exporter
   - [x] P3.1 Shared `prometheus-main` datasource UID, canonical-expression contract and migration
+  - [x] P3.2 Shared node_exporter registry and PromQL AST policy
 - [ ] P4 Static Profile and constrained Eino runtime
 - [ ] P5 End-to-end closeout
 
@@ -45,7 +46,8 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 |`node --check tests/e2e/mock/api-e2e.mjs && npx playwright test --list`|passed|2026-07-14|Expanded Mock API/Playwright E2E scripts parse and test discovery succeeds.|
 |`make e2e-mock`|blocked|2026-07-14|Docker cannot bind 127.0.0.1 ports 3000, 8080 and 8081 because an existing user-managed `mini-torchbearing-*` Compose stack is running; it was not stopped.|
 |`make validate-contracts generated-client-diff test-sqlite test-assistant-mcp test-ai-mcp`|passed|2026-07-14|P3.1 validates all generated UID/canonical-expression contracts; SQLite verifies Task and Chart query JSON forward migration from `mock-prometheus`.|
+|`make test-assistant-mcp test-ai-mcp`|passed|2026-07-14|P3.2 accepts only the three registered normalized PromQL expressions and rejects out-of-registry ASTs before Mock fixture access.|
 
 ## Next Slice
 
-Implement P3.2's shared node_exporter query registry and AST policy. Re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081; that pending P2 container gate remains required for final closeout.
+Implement P3.3's real Prometheus HTTP Adapter. Re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081; that pending P2 container gate remains required for final closeout.

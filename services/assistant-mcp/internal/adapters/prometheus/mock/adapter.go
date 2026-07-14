@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
+	"mini-torchbearing.local/services/assistant-mcp/internal/adapters/prometheus/registry"
 	"mini-torchbearing.local/services/assistant-mcp/internal/ports/prometheus"
 	"mini-torchbearing.local/services/assistant-mcp/internal/runtime"
 )
@@ -25,7 +26,7 @@ func New(directory string) (*Adapter, error) {
 }
 
 func (a *Adapter) SearchMetrics(_ context.Context, _ requestcontext.Context, request prometheus.SearchMetricsRequest) (prometheus.SearchMetricsResult, error) {
-	if request.DatasourceUID != "prometheus-main" || strings.TrimSpace(request.Query) == "" || request.Limit < 1 || request.Limit > 100 {
+	if request.DatasourceUID != registry.DatasourceUID || strings.TrimSpace(request.Query) == "" || request.Limit < 1 || request.Limit > 100 {
 		return prometheus.SearchMetricsResult{}, runtime.NewError(runtime.SchemaValidationFailed, "search metrics request is invalid", false)
 	}
 	result := prometheus.SearchMetricsResult{Candidates: append([]prometheus.MetricCandidate(nil), a.fixture.Search.Candidates...)}
@@ -36,7 +37,7 @@ func (a *Adapter) SearchMetrics(_ context.Context, _ requestcontext.Context, req
 }
 
 func (a *Adapter) GetMetricLabels(_ context.Context, _ requestcontext.Context, request prometheus.GetMetricLabelsRequest) (prometheus.MetricLabelsResult, error) {
-	if request.DatasourceUID != "prometheus-main" {
+	if request.DatasourceUID != registry.DatasourceUID || !registry.IsRegisteredMetric(request.MetricName) {
 		return prometheus.MetricLabelsResult{}, runtime.NewError(runtime.SchemaValidationFailed, "metric labels request is invalid", false)
 	}
 	result, ok := a.fixture.Labels[request.MetricName]
@@ -47,13 +48,18 @@ func (a *Adapter) GetMetricLabels(_ context.Context, _ requestcontext.Context, r
 }
 
 func (a *Adapter) Query(_ context.Context, _ requestcontext.Context, request prometheus.QueryRequest) (prometheus.QueryResult, error) {
-	if request.DatasourceUID != "prometheus-main" || !request.Start.Before(request.End) || request.StepSeconds < 1 || request.StepSeconds > 3600 || (request.Mode != prometheus.ModeValidate && request.Mode != prometheus.ModeExecute) {
+	if request.DatasourceUID != registry.DatasourceUID || !request.Start.Before(request.End) || request.StepSeconds < 1 || request.StepSeconds > 3600 || (request.Mode != prometheus.ModeValidate && request.Mode != prometheus.ModeExecute) {
 		return prometheus.QueryResult{}, runtime.NewError(runtime.SchemaValidationFailed, "Prometheus query request is invalid", false)
 	}
-	result, ok := a.fixture.Queries[request.Expression]
-	if !ok {
-		return prometheus.QueryResult{}, runtime.NewError(runtime.SchemaValidationFailed, "PromQL expression is not available in the mock scenario", false)
+	definition, err := registry.Validate(request.Expression)
+	if err != nil {
+		return prometheus.QueryResult{}, runtime.NewError(runtime.SchemaValidationFailed, "PromQL expression is outside the node_exporter registry", false)
 	}
+	result, ok := a.fixture.Queries[definition.CanonicalExpression]
+	if !ok {
+		return prometheus.QueryResult{}, runtime.NewError(runtime.DependencyUnavailable, "mock scenario does not provide the registered query", true)
+	}
+	result.Validation = prometheus.Validation{Valid: true, Errors: []string{}, Warnings: append([]string{}, result.Validation.Warnings...), MetricNames: append([]string{}, definition.MetricNames...), LabelNames: append([]string{}, definition.LabelNames...), CanonicalExpression: definition.CanonicalExpression}
 	if request.Mode == prometheus.ModeValidate {
 		result.Series = []prometheus.Series{}
 		return result, nil

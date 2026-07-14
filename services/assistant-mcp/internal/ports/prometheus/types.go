@@ -9,8 +9,8 @@ type SearchMetricsRequest struct {
 }
 
 type MetricSource struct {
-	Type      string
-	Reference string
+	Type      string `json:"type"`
+	Reference string `json:"reference"`
 }
 
 type MetricCandidate struct {

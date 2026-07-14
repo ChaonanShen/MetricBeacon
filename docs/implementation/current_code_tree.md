@@ -59,6 +59,7 @@ mini-torchbearing/
 │       │   ├── ports/prometheus/          # Prometheus 查询抽象
 │       │   ├── adapters/prometheus/
 │       │   │   ├── mock/                  # node_exporter fixture Adapter
+│       │   │   ├── registry/              # CPU/内存/负载 PromQL allowlist 与 AST policy
 │       │   │   └── http/                  # 真实 Prometheus Adapter 预留
 │       │   ├── runtime/                   # MCP 运行时与错误处理
 │       │   └── bootstrap/                 # 服务依赖组装

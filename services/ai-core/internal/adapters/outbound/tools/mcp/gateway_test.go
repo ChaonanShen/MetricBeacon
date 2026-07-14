@@ -85,7 +85,7 @@ func testServer(t *testing.T) (*httptest.Server, *requestsSeen) {
 	}{
 		{"grafana.search_metrics", map[string]any{"candidates": []map[string]any{{"metricName": "node_cpu_seconds_total"}, {"metricName": "node_memory_MemAvailable_bytes"}, {"metricName": "node_load1"}}}},
 		{"grafana.get_metric_labels", map[string]any{"metricName": "node_cpu_seconds_total", "labelNames": []string{"instance"}, "sampleValues": map[string][]string{"instance": {"node-a"}}}},
-		{"grafana.query_prometheus", map[string]any{"validation": map[string]any{"valid": true}, "status": "success", "resultType": "matrix", "series": []map[string]any{{"name": "node-a", "labels": map[string]string{"instance": "node-a"}, "points": []map[string]any{{"timestamp": "2026-07-13T12:00:00Z", "value": 1.0}}}}, "durationMs": 1, "warnings": []string{}}},
+		{"grafana.query_prometheus", map[string]any{"validation": map[string]any{"valid": true, "canonicalExpression": "node_load1"}, "status": "success", "resultType": "matrix", "series": []map[string]any{{"name": "node-a", "labels": map[string]string{"instance": "node-a"}, "points": []map[string]any{{"timestamp": "2026-07-13T12:00:00Z", "value": 1.0}}}}, "durationMs": 1, "warnings": []string{}}},
 	} {
 		output := registration.output
 		mcpServer.AddTool(protocol.NewTool(registration.name), func(_ context.Context, request protocol.CallToolRequest) (*protocol.CallToolResult, error) {
