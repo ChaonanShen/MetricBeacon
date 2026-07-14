@@ -68,6 +68,7 @@ worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E n
 |`sh -n scripts/run-real-agent-e2e.sh && node --check tests/e2e/real-agent/api-smoke.mjs && DEEPSEEK_API_KEY=placeholder docker compose -f compose.mock-e2e.yaml -f compose.real-metrics-e2e.yaml -f compose.real-agent-e2e.yaml config`|passed|2026-07-14|P5.1 validates the real-agent harness syntax, API smoke discovery and credentialed Compose topology without making a model call.|
 |`make e2e-real-agent` (without key)|passed|2026-07-14|Fails immediately with exit code 2 and a clear key-required message; it does not start containers or silently fall back to Mock.|
 |`GOWORK=off go test ./...` in `packages/generated-contracts/go`; assistant-mcp image build|passed|2026-07-14|The standalone generated-contracts Go module now declares the `oapi-codegen` runtime used by generated Grafana tool types, so the isolated assistant-mcp Docker build resolves its imports.|
+|`sh -n scripts/run-real-metrics-e2e.sh scripts/run-real-agent-e2e.sh`; live Prometheus readiness probe|passed|2026-07-14|The real-metrics and real-agent harnesses use URL-encoded GET queries: `up == 1` and a boolean two-scrape CPU condition, avoiding BusyBox `wget` POST form parsing differences.|
 
 ## Next Slice
 
