@@ -62,6 +62,8 @@ make bootstrap-check
 
 `make bootstrap-check` 会明确报告版本不一致、Go 依赖/编译问题、前端类型问题或 AI Core 分层违规。
 
+这里的各命令并不启动业务服务：`npm ci` 严格按锁文件安装前端依赖，`bootstrap-check` 负责确认本机能编译和测试当前骨架。需要看到实际页面时，再执行下一节的 Compose 启动命令。
+
 ### 在浏览器体验完整闭环
 
 这是最适合手动试用的方式。以下命令会构建 Plugin 前端和三个服务，并在后台启动 Grafana、AI Core、assistant-mcp：
@@ -71,6 +73,16 @@ make bootstrap-check
 docker compose -f compose.mock-e2e.yaml up --build --wait
 ```
 
+第一条命令用 Rollup 把 React 工作台打包为 `apps/grafana-plugin/dist/module.js`。第二条命令会构建并启动三个容器：
+
+|容器|启动时做什么|它在本次体验中提供什么|
+|-|-|-|
+|`assistant-mcp`|读取工具 Schema 和 `node_exporter_overview` fixture，注册三个 `grafana.*` MCP Tool。|接受指标搜索、标签和 PromQL 查询请求，返回确定性 Mock 结果。|
+|`ai-core`|创建/迁移自己的 SQLite 数据库，连接 `assistant-mcp` 的 `/mcp`；`/readyz` 还会确认三个工具均可列出。|持久化 Session、Task、Event、Chart 和执行结果，并对外提供 SSE。|
+|`grafana`|安装前端产物和 Plugin Backend 二进制，通过 provisioning 写入 AI Core 地址。|提供登录、Plugin Resource API 和浏览器工作台；它不直接访问 fixture 或 MCP。|
+
+Compose 为 AI Core 挂载了单独的 named volume，所以在容器运行期间的数据会保留；执行带 `-v` 的清理命令才会移除这次体验的数据。前端没有单独的开发服务器，页面和 Plugin Backend 都由 Grafana 容器提供。
+
 容器均就绪后：
 
 1. 打开 `http://127.0.0.1:3000`，用 `admin` / `admin` 登录。
@@ -79,6 +91,22 @@ docker compose -f compose.mock-e2e.yaml up --build --wait
 4. 应看到完成状态、固定的助手说明，以及“CPU 使用率”“内存可用率”“系统负载”三张图。刷新页面后，URL 中的 Session/Task 标识会使页面恢复结果。
 
 当前实现不根据输入生成不同的分析计划；任何非空输入都会走同一个确定性 node_exporter Mock 场景。
+
+### 点击“开始分析”后实际发生的事
+
+下面是手动输入一段文本后的一次完整链路。理解这条链路基本就能把握当前骨架的运行方式。
+
+|阶段|输入与去向|内部处理|可见/持久化输出|
+|-|-|-|-|
+|1. 创建会话|前端在没有 URL Session 时调用 `POST .../resources/sessions`，标题固定为 `Node exporter mock analysis`。|Plugin Backend 从 Grafana 登录态构造用户/组织/权限上下文，并代理到 AI Core。AI Core 在 SQLite 中创建 Session。|浏览器获得 `sessionId`。|
+|2. 创建任务|前端把用户输入、`datasourceUid: mock-prometheus`、`relativeDuration: 30m` 和一个新的 idempotency key 发送到 `POST .../resources/tasks`。|AI Core 将相对时间冻结为当前时刻前 30 分钟到当前时刻；写入用户 Message、Task 和首个 `task.created` 事件。相同 key 与相同原始请求会返回同一个 Task，不同请求会得到 `idempotency_conflict`。|浏览器获得 `taskId`，并把 `sessionId`/`taskId` 写入 URL。|
+|3. 启动工作流|Task 提交成功后，AI Core 在事务提交后异步运行工作流。|Task 依次进入 planning、running_tools、validating、completed；每次状态改变及后续事件都先写 SQLite，再通知 SSE 订阅者。|任务状态会实时变化，即使 SSE 断开也能从数据库重放。|
+|4. Mock Agent 计划|Agent 只检查输入是否非空，不解析自然语言内容。|它固定搜索 `node exporter cpu memory load`，并固定选择 CPU、内存和负载三个指标；这正是未来真实 Agent 的替换点。|先看到“正在生成固定的 node_exporter 分析视图…”，最终固定文本为“已生成 node_exporter 的 CPU、内存和系统负载视图。”|
+|5. 真实 MCP 通信|AI Core 的 MCP Gateway 通过 HTTP 调用 assistant-mcp，并携带从 Grafana 派生的身份上下文。|依次调用 1 次 `grafana.search_metrics`、3 次 `grafana.get_metric_labels`、3 次 `grafana.query_prometheus`。MCP 服务做权限、输入/输出 Schema 校验后才进入 Adapter。|SSE 出现对应的 `tool.started` / `tool.completed` 和指标候选事件。|
+|6. Mock 数据读取|MCP 的 Mock Prometheus Adapter 按固定 PromQL expression 从 `data/mock-scenarios/node_exporter_overview` 读取数据。|查询不是访问真实 Prometheus；fixture 时间点会平移到本次请求的时间范围。固定表达式是 CPU 使用率、内存可用率和 `node_load1`。|每个查询返回 matrix 时序数据；没有匹配 fixture 的 PromQL 会被拒绝，而不会返回伪造成功。|
+|7. 图表与页面恢复|AI Core 为三项结果创建 Chart 和 Execution，并写入事件流；前端订阅 `.../events?afterSequence=N`。|前端 reducer 只接收连续 sequence，缺号或断线会从最后序号重连；mapper 将持久化 series 转成 Grafana DataFrame 并交给 `TimeSeries`。|出现三张图及 PromQL 折叠区。刷新页面时，前端从 URL 读取 ID，再从 sequence 0 重放事件，因此能恢复相同结果。|
+
+因此，当前“输入什么”只影响保存下来的用户 Message 和 Task 的幂等语义；“输出什么”由 fixture 和固定的三条 PromQL 决定。这样刻意收敛，便于先验证真实的跨进程协议、权限传递、持久化和 SSE 恢复，再替换 Agent 或 Prometheus Adapter。
 
 运行中可查看日志：
 
@@ -116,7 +144,7 @@ curl -i http://127.0.0.1:8081/readyz
 curl -i http://127.0.0.1:8080/readyz
 ```
 
-这条路径方便观察 AI Core/MCP 启动和健康检查；若要通过浏览器发起任务，仍应使用前一节的 Compose 方式，因为 Plugin Backend 由 Grafana 承载。
+assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/mcp` 暴露 Streamable HTTP；AI Core 启动时会迁移 `/tmp/mini-torchbearing-ai-core.sqlite`，且 `/readyz` 会通过 MCP 实际列出工具，所以它同时验证 SQLite 与服务间通信。若 MCP 尚未启动或三个工具未注册，AI Core 的就绪检查会失败。这条路径方便观察服务启动与依赖故障；若要通过浏览器发起任务，仍应使用前一节的 Compose 方式，因为 Plugin Backend 由 Grafana 承载。
 
 ## 测试与检查入口
 
