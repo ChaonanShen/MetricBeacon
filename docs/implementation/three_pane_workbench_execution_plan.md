@@ -1,8 +1,8 @@
 # 基础三栏工作台执行计划
 
-> status: draft-review
+> status: active
 > createdAt: 2026-07-14
-> implementationAuthorized: false
+> implementationAuthorized: true
 > dependsOn: `../design/arch_design_detail.md` P2、`code_skeleton_design.md`、
 > `current_codebase_overview.md`
 
