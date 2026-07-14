@@ -3,6 +3,8 @@ module mini-torchbearing.local/services/ai-core
 go 1.26.5
 
 require (
+	github.com/cloudwego/eino-ext/components/model/deepseek v0.1.6
+	github.com/cohesion-org/deepseek-go v1.3.4
 	github.com/cloudwego/eino v0.7.13
 	github.com/eino-contrib/jsonschema v1.0.3
 	github.com/mark3labs/mcp-go v0.56.0
@@ -19,8 +21,6 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/cloudwego/eino-ext/components/model/deepseek v0.1.6 // indirect
-	github.com/cohesion-org/deepseek-go v1.3.4 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/goph/emperror v0.17.2 // indirect

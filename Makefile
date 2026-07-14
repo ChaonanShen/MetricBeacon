@@ -37,7 +37,7 @@ test-ai-mcp:
 	@cd services/ai-core && go test ./internal/adapters/outbound/tools/mcp ./internal/adapters/inbound/http ./internal/application/workflows
 
 test-ai-agent:
-	@cd services/ai-core && go test ./internal/adapters/outbound/agent/...
+	@cd services/ai-core && go test ./internal/adapters/outbound/agent/... ./internal/bootstrap
 
 test-plugin-backend:
 	@cd apps/grafana-plugin/backend && GOPROXY=off go test ./...

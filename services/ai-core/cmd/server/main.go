@@ -15,7 +15,10 @@ import (
 )
 
 func main() {
-	config := bootstrap.LoadConfigFromEnvironment()
+	config, err := bootstrap.LoadConfigFromEnvironment()
+	if err != nil {
+		log.Fatal(err)
+	}
 	application, err := bootstrap.New(context.Background(), config)
 	if err != nil {
 		log.Fatal(err)

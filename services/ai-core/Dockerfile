@@ -16,6 +16,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM golang@sha256:18aedc16aa19b3fd7ded7245fc14b109e054d65d22ed53c355c899582bbb2113
 COPY --from=build /out/ai-core /usr/local/bin/ai-core
+COPY data/agent-knowledge/node_exporter.md /app/agent-knowledge/node_exporter.md
 ENV AI_CORE_LISTEN_ADDRESS=:8080
 ENV AI_CORE_SQLITE_PATH=/var/lib/ai-core/ai-core.sqlite
 EXPOSE 8080

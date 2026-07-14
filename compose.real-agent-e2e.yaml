@@ -1,0 +1,13 @@
+services:
+  ai-core:
+    environment:
+      AI_CORE_AGENT_DRIVER: eino
+      AI_CORE_AGENT_PROFILE_PATH: /app/agent-knowledge/node_exporter.md
+      AI_CORE_AGENT_MAX_ITERATIONS: "6"
+      AI_CORE_AGENT_MAX_TOOL_CALLS: "12"
+      AI_CORE_AGENT_TIMEOUT: 60s
+      AI_CORE_MODEL_TIMEOUT: 30s
+      AI_CORE_MCP_TOOL_TIMEOUT: 12s
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      DEEPSEEK_BASE_URL: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+      DEEPSEEK_MODEL: "${DEEPSEEK_MODEL:-deepseek-v4-flash}"

@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/cloudwego/eino/adk"
@@ -41,6 +42,7 @@ const (
 type Limits struct {
 	MaxIterations int
 	MaxToolCalls  int
+	Timeout       time.Duration
 }
 
 type Runtime struct {
@@ -70,6 +72,11 @@ func New(chatModel model.ToolCallingChatModel, catalog tools.MetricCatalog, quer
 }
 
 func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, request dto.AgentRunRequest, sink agent.EventSink) (dto.AgentRunResult, error) {
+	if r.limits.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, r.limits.Timeout)
+		defer cancel()
+	}
 	if strings.TrimSpace(request.UserMessage) == "" {
 		return dto.AgentRunResult{}, common.NewError(common.InvalidArgument, "user message is required", false)
 	}
@@ -338,6 +345,9 @@ func agentFailure(err error) *common.DomainError {
 	}
 	if errors.Is(err, adk.ErrExceedMaxIterations) {
 		return common.NewError(common.ExecutionInterrupted, "analysis exceeded the model iteration limit", false)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return common.NewError(common.ExecutionInterrupted, "analysis exceeded the total runtime limit", false)
 	}
 	return common.NewError(common.DependencyUnavailable, "analysis model or tool dependency is unavailable", true)
 }

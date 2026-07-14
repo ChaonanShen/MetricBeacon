@@ -103,6 +103,7 @@ mini-torchbearing/
 ├── deploy/prometheus/prometheus.yml       # real-metrics 的 5 秒 node-exporter scrape 配置
 ├── compose.mock-e2e.yaml                  # assistant-mcp + AI Core + Grafana 的 Mock 环境
 ├── compose.real-metrics-e2e.yaml          # Prometheus/node-exporter real-metrics Compose overlay
+├── compose.real-agent-e2e.yaml            # opt-in DeepSeek Eino Agent Compose overlay
 ├── Makefile                               # 测试、校验与 E2E 统一入口
 ├── go.work                                # Go workspace
 └── README.md                              # 项目入口说明

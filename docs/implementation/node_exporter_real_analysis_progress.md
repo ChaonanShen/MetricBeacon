@@ -1,7 +1,7 @@
 # Node Exporter Real Analysis Progress
 
 lastUpdated: 2026-07-14
-currentGate: P4.2
+currentGate: P4.3
 status: active
 headCommit: pending
 worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E coverage are implemented. P3 has adopted the shared datasource UID, canonical-expression contract, AST registry and an opt-in real Prometheus HTTP Adapter. Container E2E remains unverified in this workspace because the user's existing local stack owns ports 3000, 8080 and 8081.
@@ -22,9 +22,10 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
   - [x] P3.2 Shared node_exporter registry and PromQL AST policy
   - [x] P3.3 Real Prometheus HTTP Adapter, driver config and readiness probe
   - [ ] P3.4 Real-metrics Compose topology (implemented; container E2E awaits port availability)
-- [ ] P4 Static Profile and constrained Eino runtime
+- [x] P4 Static Profile and constrained Eino runtime
   - [x] P4.1 Read-only node_exporter Profile and local view metadata
   - [x] P4.2 Constrained Eino runtime, strict tools and summary isolation
+  - [x] P4.3 Explicit DeepSeek configuration and Bootstrap wiring
 - [ ] P5 End-to-end closeout
 
 ## Locked G0 Decisions
@@ -57,7 +58,9 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 |`cd services/ai-core && go test ./internal/adapters/outbound/agent/profile`|passed|2026-07-14|P4.1 validates the repository Profile, fixed local view metadata and rejection of missing guidance, invalid UTF-8 and files over 64 KiB.|
 |`make test-ai-agent test-ai-core-domain test-ai-mcp`|passed|2026-07-14|P4.2 validates the Eino fake-model seam, strict tool JSON, stable source-call pairing, canonical one-view execution, final-result consistency and the absence of raw series, labels, upstream warnings and internal URLs from model inputs.|
 |`make check`|passed|2026-07-14|P4.2 passes generated-client reproducibility, contract validation, formatting, all Go/TypeScript tests including `test-ai-agent`, dependency-boundary checks and secret scan.|
+|`make test-ai-agent && docker compose -f compose.mock-e2e.yaml -f compose.real-metrics-e2e.yaml -f compose.real-agent-e2e.yaml config`|passed|2026-07-14|P4.3 verifies default Mock startup without a DeepSeek key, rejection of Eino without key or Profile, Profile image path/config limits and the merged opt-in real-agent Compose topology.|
+|`make check`|passed|2026-07-14|P4.3 keeps the new Bootstrap configuration tests in the Agent test target and passes the full local quality gate.|
 
 ## Next Slice
 
-Run P3.4's `make e2e-real-metrics` and re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081. Those pending container gates remain required for final closeout. The next independent code slice is P4.3: opt-in DeepSeek configuration and Bootstrap wiring.
+Run P3.4's `make e2e-real-metrics` and re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081. Those pending container gates remain required for final closeout. The next code slice is P5: credential-gated real-agent smoke and final closeout.

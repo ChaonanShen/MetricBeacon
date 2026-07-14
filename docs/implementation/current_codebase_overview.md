@@ -28,11 +28,11 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`packages/testkit-go`|测试用的确定性时钟与 ID 生成器。|仅为测试可重复性服务。|
 |`services/ai-core/internal/domain`|核心领域模型和状态规则：Session/Message、AnalysisTask/TaskEvent/ToolCall、Chart/Execution、时间范围与领域错误。|不依赖数据库、MCP、Grafana 或模型 SDK。|
 |`services/ai-core/internal/application` 与 `internal/ports`|命令服务和分析工作流；Port 定义存储、事件通知、Agent、工具、时钟和 ID 等外部能力。|工作流先持久化状态/事件，再通知 SSE；重启后将不能安全续跑的任务标记为失败。|
-|`services/ai-core/internal/adapters`|将 Port 接到具体实现：SQLite、内存通知器、MCP 客户端、系统时钟/随机 ID 与确定性 Mock Agent。HTTP 入站 Adapter 暴露会话、任务、读取与 SSE 重放接口。|AI Core 是 Session、Task、Event、Chart 和 SQLite 数据的唯一所有者。它不直接读取 fixture，也不承载 Grafana 鉴权。|
-|`services/ai-core/internal/bootstrap`|组装依赖：SQLite Store、Mock Agent、MCP Gateway、工作流、HTTP API。|`/readyz` 会同时检查 SQLite 及 MCP 工具是否就绪。|
+|`services/ai-core/internal/adapters`|将 Port 接到具体实现：SQLite、内存通知器、MCP 客户端、系统时钟/随机 ID、确定性 Mock Agent 与受限 Eino Agent。HTTP 入站 Adapter 暴露会话、任务、读取与 SSE 重放接口。|AI Core 是 Session、Task、Event、Chart 和 SQLite 数据的唯一所有者。它不直接读取 fixture，也不承载 Grafana 鉴权。|
+|`services/ai-core/internal/bootstrap`|组装依赖：SQLite Store、Mock 或显式 opt-in Eino/DeepSeek Agent、MCP Gateway、工作流、HTTP API。|默认 `AI_CORE_AGENT_DRIVER=mock` 不读取 API key；`eino` 启动时必须有 Profile 与 key，固定模型/任务/MCP 限制，`/readyz` 只检查 SQLite 和 MCP 工具，不请求模型。|
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|工具先做权限和 Schema 校验，再调用 Prometheus Port；该服务不拥有 AI Core 的任务或数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码；opt-in HTTP Adapter 只请求本地注册的四项 metadata、15 分钟 series 和三条规范 PromQL，并执行响应、时间范围和基数上限。|
-|`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`|只读 node_exporter Agent Profile、其 loader 与受限 Eino AgentRuntime。|Profile 限制为 UTF-8、64 KiB，并校验三视图、规范 PromQL、解释、无数据/错误、最终回复和禁止项。Eino Adapter 以注入的 `ToolCallingChatModel` 和既有 MetricCatalog/QueryEngine Ports 运行三个严格 JSON Tool，限制串行调用、iteration 和总调用数；完整时序仅留在本地 accumulator，模型只收到最多 16 KiB 的匿名统计摘要。默认 Bootstrap 仍为 Mock，尚未提供真实模型配置。|
+|`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`|只读 node_exporter Agent Profile、其 loader 与受限 Eino AgentRuntime。|Profile 限制为 UTF-8、64 KiB，并校验三视图、规范 PromQL、解释、无数据/错误、最终回复和禁止项。Eino Adapter 以注入的 `ToolCallingChatModel` 和既有 MetricCatalog/QueryEngine Ports 运行三个严格 JSON Tool，限制串行调用、iteration 和总调用数；完整时序仅留在本地 accumulator，模型只收到最多 16 KiB 的匿名统计摘要。Bootstrap 仅在显式 `eino` driver 下构造 DeepSeek model（JSON object、thinking disabled），并从镜像内只读 Profile 路径加载。|
 |`apps/grafana-plugin/frontend`|React/Grafana 工作台：创建或恢复 Session、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|提交新消息保留已有对话与图表，活动 Task 阻止并发提交；未实现图表编辑和 Dashboard 写入。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
@@ -54,7 +54,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 
 ## 尚未实现的范围
 
-当前默认仍覆盖一个固定 Mock 场景；`make e2e-real-metrics` 可用本地 Prometheus/node_exporter 验证受限的真实查询（node_exporter 观察 Docker Linux VM/容器宿主，而非 macOS 内核）。受限 Eino Runtime 已有 fake-model 覆盖，但尚未接入 Bootstrap 或真实 DeepSeek 配置，因此真实 Agent/LLM 仍不能启动。以下是明确保留的后续能力，而非现有功能：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。对应的部分 Port 或 Schema 已预留，但不能按“已实现”理解。
+当前默认仍覆盖一个固定 Mock 场景；`make e2e-real-metrics` 可用本地 Prometheus/node_exporter 验证受限的真实查询（node_exporter 观察 Docker Linux VM/容器宿主，而非 macOS 内核）。真实 Agent 是显式 opt-in：配置 key 后可由 Bootstrap 构造受限 Eino/DeepSeek Runtime，但尚未完成有凭证的端到端 smoke。以下是明确保留的后续能力，而非现有功能：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。对应的部分 Port 或 Schema 已预留，但不能按“已实现”理解。
 
 ## 上手使用
 
