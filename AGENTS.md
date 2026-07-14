@@ -62,6 +62,13 @@ explicitly adds them. The document statuses and reading routes live in
 - Verify the actual repository and relevant ADRs before relying on a design
   document. Use the documentation routing in `docs/CLAUDE.md` to resolve
   conflicts.
+- Treat evolution records as part of the implementation, not follow-up work.
+  Every completed code slice must update the affected contract, implementation
+  plan/progress record, and current-code snapshot in the same commit when its
+  behavior, module ownership, runnable topology, verification evidence, or
+  code tree changes. Record an ADR in the same slice when the change affects a
+  decision boundary. A code change is not complete while its authoritative
+  documentation describes a different system.
 - Keep implementation scope to the active execution slice. If a choice would
   alter product scope, module ownership, permissions, or irreversible storage
   structure, stop and ask for direction or record an ADR as appropriate.

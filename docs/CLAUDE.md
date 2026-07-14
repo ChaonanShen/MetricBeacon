@@ -59,6 +59,30 @@ Surface the conflict and obtain a decision or add an ADR.
 
 ## Documentation maintenance rules
 
+- **Evolution records are a completion requirement.** Update the relevant
+  documents in the same focused commit as the code or contract change; do not
+  leave a known code-to-document mismatch for a later cleanup.
+- Use the following record chain to keep the repository explainable:
+
+  ```text
+  design/ explains why and the intended boundary
+      -> implementation/code_skeleton_design.md defines the current buildable design
+      -> implementation/*_plan.md records the active slice and its acceptance
+      -> implementation/*_progress.md records gate evidence
+      -> implementation/current_codebase_overview.md and current_code_tree.md
+         describe what actually exists
+      -> adr/ records decisions that change the boundary
+  ```
+
+- For every completed implementation slice, explicitly assess and update as
+  applicable: OpenAPI/Schema/fixtures/generated clients, the active plan and
+  its progress evidence, current-code overview, code tree, README/runbook,
+  and ADR index. Pure refactors still update the code tree when ownership or
+  layout changes; runtime behavior changes always update the current-code
+  overview and verification commands/results.
+- If a planned change invalidates a blueprint or an existing plan, revise the
+  document before or together with the code. If it invalidates a stable design
+  decision, create or supersede an ADR instead of silently drifting from it.
 - Keep `design/` deliberately stable. It explains why the system exists and
   the long-term design direction; do not turn it into a running implementation
   diary.
