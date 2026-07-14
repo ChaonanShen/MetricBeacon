@@ -48,6 +48,76 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 
 当前只覆盖一个固定 Mock 场景。以下是明确保留的后续能力，而非现有功能：真实 Agent/LLM、真实 Prometheus、PromQL 或图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。对应的部分 Port 或 Schema 已预留，但不能按“已实现”理解。
 
+## 上手使用
+
+### 环境准备
+
+仓库锁定的版本是 Go `1.26.5`、Node.js `22.23.1` 和 npm `10.9.8`。体验完整 UI 还需要可用的 Docker Engine 与 Docker Compose。首次使用先安装前端依赖并执行启动检查：
+
+```sh
+cd apps/grafana-plugin/frontend && npm ci
+cd ../../..
+make bootstrap-check
+```
+
+`make bootstrap-check` 会明确报告版本不一致、Go 依赖/编译问题、前端类型问题或 AI Core 分层违规。
+
+### 在浏览器体验完整闭环
+
+这是最适合手动试用的方式。以下命令会构建 Plugin 前端和三个服务，并在后台启动 Grafana、AI Core、assistant-mcp：
+
+```sh
+(cd apps/grafana-plugin/frontend && npm run build)
+docker compose -f compose.mock-e2e.yaml up --build --wait
+```
+
+容器均就绪后：
+
+1. 打开 `http://127.0.0.1:3000`，用 `admin` / `admin` 登录。
+2. 访问 `http://127.0.0.1:3000/a/mini-torchbearing-app/workbench`。
+3. 输入任意非空分析请求，例如“帮我看看 node_exporter 最近 30 分钟的 CPU、内存和系统负载”，点击“开始分析”。
+4. 应看到完成状态、固定的助手说明，以及“CPU 使用率”“内存可用率”“系统负载”三张图。刷新页面后，URL 中的 Session/Task 标识会使页面恢复结果。
+
+当前实现不根据输入生成不同的分析计划；任何非空输入都会走同一个确定性 node_exporter Mock 场景。
+
+运行中可查看日志：
+
+```sh
+docker compose -f compose.mock-e2e.yaml logs -f
+```
+
+结束体验并清理容器及本次 AI Core 数据：
+
+```sh
+docker compose -f compose.mock-e2e.yaml down -v --remove-orphans
+```
+
+### 单独调试后端服务
+
+不需要 Grafana UI 时，可以在两个终端分别运行 MCP 与 AI Core：
+
+```sh
+# 终端 1
+cd services/assistant-mcp && go run ./cmd/server
+```
+
+```sh
+# 终端 2
+cd services/ai-core
+AI_CORE_SQLITE_PATH=/tmp/mini-torchbearing-ai-core.sqlite \
+ASSISTANT_MCP_ENDPOINT=http://127.0.0.1:8081/mcp \
+go run ./cmd/server
+```
+
+随后可检查健康状态：
+
+```sh
+curl -i http://127.0.0.1:8081/readyz
+curl -i http://127.0.0.1:8080/readyz
+```
+
+这条路径方便观察 AI Core/MCP 启动和健康检查；若要通过浏览器发起任务，仍应使用前一节的 Compose 方式，因为 Plugin Backend 由 Grafana 承载。
+
 ## 测试与检查入口
 
 |命令|覆盖内容|本次结果（2026-07-14）|
@@ -67,10 +137,17 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
 |`make e2e-mock`|构建前端与三个容器；API E2E 校验幂等、事件 sequence 连续性、7 次工具调用、3 张图和 SSE 重放；Playwright 再验证浏览器提交和刷新恢复。|通过：容器健康后，API 脚本与 Playwright 用例均通过（1/1）。|
 
-运行前端测试前若未安装依赖，先执行：
+日常开发先运行 `make check`。需要一次性验证完整链路时，执行：
 
 ```sh
-cd apps/grafana-plugin/frontend && npm ci
+make e2e-mock
 ```
 
-建议日常使用 `make check`；需要确认完整 Grafana 链路时再执行 `make e2e-mock`。完整 E2E 脚本会在结束时移除自己创建的 Compose 项目和 volume。
+它会自行构建前端、启动 Compose、运行 API E2E 和 Playwright，然后删除它创建的容器与 volume；因此它是验收命令，不适合在结束后继续手动浏览。若已按“在浏览器体验完整闭环”启动容器，可分阶段执行相同的 E2E 用例：
+
+```sh
+tests/e2e/mock/api-e2e.sh
+(cd apps/grafana-plugin/frontend && npm run test:e2e)
+```
+
+只调试某一层时，可使用表格中的 `make test-ai-mcp`、`make test-assistant-mcp`、`make test-plugin-backend` 或 `make test-frontend`；完整单元测试聚合入口为 `make test`。
