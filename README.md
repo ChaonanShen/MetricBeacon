@@ -26,6 +26,7 @@ make bootstrap-check
 make test
 make check
 make diagnose-real-metrics
+make diagnose-deepseek  # requires DEEPSEEK_API_KEY
 make e2e-real-agent  # requires DEEPSEEK_API_KEY
 ```
 
@@ -43,6 +44,17 @@ cd apps/grafana-plugin/frontend && npm ci
 分别启动 `assistant-mcp`（`:8081`）和 AI Core（`:8080`），或运行 `make e2e-mock` 构建 Mock Compose；浏览器只通过 Grafana Plugin Resource API 访问系统。运行 `make e2e-real-metrics` 会在相同栈上叠加 Prometheus 和 node_exporter，并轮询 `up=1` 及至少两个 CPU idle scrape 后才发起真实查询。node_exporter 观察的是 Docker Linux VM/容器宿主的视图，不是 macOS 内核。
 
 若只想判断真实数据断在哪一层，运行 `make diagnose-real-metrics`。它不启动 Grafana 或 AI Core：先直接检查 CPU、内存、load 三条 Prometheus 查询，再通过 assistant-mcp 的真实 transport 重复检查；输出仅包含阶段和 series/sample 计数，并在退出时清理自己的容器。
+
+若只检查模型凭证、endpoint 和 model，可显式加载本地环境后运行直连探针；它不会自动读取 `.env`，也不会输出 key：
+
+```text
+set -a
+. ./.env
+set +a
+make diagnose-deepseek
+```
+
+该探针先检查配置 model 是否出现在 `/models`，再要求最小 Chat Completion 返回严格 JSON `pong`。它绕过 Grafana、AI Core、Agent 与 MCP，适合把模型连通性问题和编排/工具问题分开。
 
 ### Docker/Colima 前置检查
 

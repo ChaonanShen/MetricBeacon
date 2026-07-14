@@ -3,7 +3,7 @@ SHELL := /bin/sh
 .PHONY: bootstrap-check generate generated-client-diff validate-contracts lint test \
 	test-adapters test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp \
 	test-ai-agent test-plugin-backend test-frontend test-diagnostics smoke e2e-mock e2e-real-metrics \
-	diagnose-real-metrics check boundary-check secret-scan
+	diagnose-real-metrics diagnose-deepseek check boundary-check secret-scan
 
 bootstrap-check:
 	@./scripts/bootstrap-check.sh
@@ -47,7 +47,7 @@ test-frontend:
 	@cd apps/grafana-plugin/frontend && npm run test && npm run typecheck
 
 test-diagnostics:
-	@node --test tests/diagnostics/prometheus-response.test.mjs
+	@node --test tests/diagnostics/*.test.mjs
 	@sh -n scripts/wait-for-real-metrics.sh scripts/probe-real-prometheus.sh scripts/run-real-metrics-diagnostic.sh scripts/run-real-metrics-e2e.sh scripts/run-real-agent-e2e.sh
 
 smoke: test-ai-mcp test-plugin-backend test-frontend
@@ -63,6 +63,9 @@ e2e-real-agent:
 
 diagnose-real-metrics:
 	@./scripts/run-real-metrics-diagnostic.sh
+
+diagnose-deepseek:
+	@node tests/diagnostics/deepseek-smoke.mjs
 
 boundary-check:
 	@./scripts/check-boundaries.sh
