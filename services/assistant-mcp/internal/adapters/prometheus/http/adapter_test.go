@@ -99,6 +99,10 @@ func TestSearchUsesDeterministicLocalMatching(t *testing.T) {
 	if err != nil || len(result.Candidates) != 1 || result.Candidates[0].MetricName != "node_cpu_seconds_total" {
 		t.Fatalf("unexpected local search result: %#v, %v", result, err)
 	}
+	result, err = adapter.SearchMetrics(context.Background(), requestcontext.Context{}, prometheus.SearchMetricsRequest{DatasourceUID: registry.DatasourceUID, Query: "cpu memory load", Limit: 10})
+	if err != nil || len(result.Candidates) != 4 {
+		t.Fatalf("multi-view search did not retain all registered metrics: %#v, %v", result, err)
+	}
 }
 
 func TestAdapterMapsUnauthorizedTimeoutAndMalformedResponses(t *testing.T) {

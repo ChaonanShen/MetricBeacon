@@ -365,12 +365,17 @@ func metricType(value string) string {
 }
 func matchesSearch(query, metric, help string) bool {
 	normalized := strings.ToLower(metric + " " + help)
+	hasSpecificToken := false
 	for _, token := range strings.Fields(strings.ToLower(query)) {
-		if token != "node" && token != "exporter" && !strings.Contains(normalized, token) {
-			return false
+		if token == "node" || token == "exporter" {
+			continue
+		}
+		hasSpecificToken = true
+		if strings.Contains(normalized, token) {
+			return true
 		}
 	}
-	return true
+	return !hasSpecificToken
 }
 func readinessTimeout(timeout time.Duration) time.Duration {
 	if timeout < readinessWait {
