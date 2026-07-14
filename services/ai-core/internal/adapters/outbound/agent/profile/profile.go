@@ -15,17 +15,16 @@ const MaxBytes = 64 << 10
 type Profile struct{ Content string }
 
 type View struct {
-	Key                 string
-	Title               string
-	Unit                string
-	RefID               string
-	CanonicalExpression string
+	Key   string
+	Title string
+	Unit  string
+	RefID string
 }
 
 var views = []View{
-	{Key: "cpu", Title: "CPU 使用率", Unit: "percent", RefID: "A", CanonicalExpression: `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`},
-	{Key: "memory", Title: "内存可用率", Unit: "percent", RefID: "B", CanonicalExpression: `100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes`},
-	{Key: "load", Title: "系统负载", Unit: "short", RefID: "C", CanonicalExpression: `node_load1`},
+	{Key: "cpu", Title: "CPU 使用率", Unit: "percent", RefID: "A"},
+	{Key: "memory", Title: "内存可用率", Unit: "percent", RefID: "B"},
+	{Key: "load", Title: "系统负载", Unit: "short", RefID: "C"},
 }
 
 func Load(path string) (Profile, error) {
@@ -45,16 +44,11 @@ func Load(path string) (Profile, error) {
 
 func (p Profile) Validate() error {
 	for _, required := range []string{
-		"## 支持视图和规范 PromQL", "## 指标解释口径", "## 无数据和错误处理", "## 最终回复格式", "## 禁止项",
+		"## 支持视图", "## 指标解释口径", "## 无数据和错误处理", "## 最终回复格式", "## 禁止项",
 		"node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_memory_MemTotal_bytes", "node_load1", "private reasoning",
 	} {
 		if !strings.Contains(p.Content, required) {
 			return fmt.Errorf("Agent Profile is missing required guidance")
-		}
-	}
-	for _, view := range views {
-		if !strings.Contains(p.Content, view.CanonicalExpression) {
-			return fmt.Errorf("Agent Profile is missing a canonical expression")
 		}
 	}
 	return nil

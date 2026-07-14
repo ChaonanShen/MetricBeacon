@@ -32,7 +32,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`services/ai-core/internal/bootstrap`|组装依赖：SQLite Store、Mock 或显式 opt-in Eino/DeepSeek Agent、MCP Gateway、工作流、HTTP API。|默认 `AI_CORE_AGENT_DRIVER=mock` 不读取 API key；`eino` 启动时必须有 Profile 与 key，固定模型/任务/MCP 限制，`/readyz` 只检查 SQLite 和 MCP 工具，不请求模型。|
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|查询工具只接受注册 view、可空 CPU window、范围和 step；工具先做权限和 Schema/点数预算校验，再调用 Prometheus Port。该服务不拥有 AI Core 的任务或数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码，并将 fixture 确定性重采样到请求范围/step；opt-in HTTP Adapter 只执行本地注册表生成的 CPU `[30s]/[1m]/[5m]`、内存和 load PromQL，并执行响应、时间范围、step、点数和基数上限。|
-|`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`|只读 node_exporter Agent Profile、其 loader 与受限 Eino AgentRuntime。|Profile 限制为 UTF-8、64 KiB，并校验三视图、规范 PromQL、解释、无数据/错误、最终回复和禁止项。Eino Adapter 以注入的 `ToolCallingChatModel` 和既有 MetricCatalog/QueryEngine Ports 运行三个严格 JSON Tool，限制串行调用、iteration 和总调用数；完整时序仅留在本地 accumulator，模型只收到最多 16 KiB 的匿名统计摘要。执行协议要求已完成视图先有成功查询，接受 JSON fence；只有已有成功 accumulator 结果时才可接受普通文本终态。Bootstrap 仅在显式 `eino` driver 下构造 thinking-disabled 的 DeepSeek model，并从镜像内只读 Profile 路径加载。|
+|`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`、`agent/localresult`|只读 node_exporter Agent Profile、受限 Eino AgentRuntime 与本地结果 formatter。|Profile 限制为 UTF-8、64 KiB，并校验三视图、解释、无数据/错误、最终状态和禁止项。Eino 的 query Tool 只接受 `view`，datasource/range/step/window/PromQL 全由本地注入；模型终态只声明 status/views，普通文本和模型提交 expression 均拒绝。完整时序留在本地，模型只收到最多 16 KiB 的有效参数与匿名聚合统计；持久化事实回复由 Mock/Eino 共用 formatter 生成。Bootstrap 仅在显式 `eino` driver 下构造 thinking-disabled 的 DeepSeek model，并从镜像内只读 Profile 路径加载。|
 |`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建或恢复 Session、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|左栏保留对话与输入，中栏按容器宽度展示图表；宽屏使用较小 spacing token 保留两列，窄屏使用较宽卡片。右栏显示只读上下文和当前选择的图表详情。有限 replay 完成标记由 reducer 持有，可靠触发活动 Task 的单一 SSE；Resource client 显式编码 page/replay 参数。URL Session 在当前 AI Core 明确 404 时会清理旧会话/replay/幂等状态并允许重新提交，其他查询或 mutation 错误保持安全可见。选择只存在于本地 UI 状态，不恢复、不写 URL 或服务端；未实现图表编辑、Canvas 持久化和 Dashboard 写入。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
@@ -46,7 +46,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 - 前端以 Session 级 Message/Task/runtimes 状态恢复工作台，历史事件重放至固定目标序列；只有非终态 Task 建立一个 SSE，收到终态事件后关闭。重复事件会忽略，sequence 间隙会从最后连续序列重连。若 URL Session 在当前独立 AI Core volume 中明确不存在，前端会清除两个 workbench 路由 ID 和旧 reducer/replay/幂等状态；网络、权限与依赖错误不会触发该恢复，而会显示安全分类。
 - 每轮 AgentRuntime 接收当前 User Message 之外、按时间正序的最近至多 12 条持久化 User/Assistant 消息，并按完整消息边界限制在 12,000 个 Unicode 字符内；当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
-- Mock 与后续真实 Adapter 共用逻辑数据源 UID `prometheus-main`。Task、Chart 和 MCP Tool 契约均限制为该 UID；SQLite `0003` 会前移迁移历史 Task 及 Chart query JSON 中的旧 UID。查询验证结果必须返回规范 PromQL，Mock Agent 以该规范表达式执行查询并持久化到 Chart。
+- Mock 与真实 Adapter 共用逻辑数据源 UID `prometheus-main`。Task、Chart 和 MCP Tool 契约均限制为该 UID；SQLite `0003` 会前移迁移历史 Task 及 Chart query JSON 中的旧 UID。Agent 只提交 view，查询验证结果返回 assistant-mcp 生成的规范 PromQL，AI Core 只将该返回值持久化到 Chart。
 - Prometheus Adapter 层的 node_exporter 注册表是 CPU、内存和负载规范 PromQL 的唯一来源。跨服务输入不再携带 expression：CPU view 必须携带 `30|60|300` 秒 window，memory/load 必须为 `null`；注册表渲染表达式并用 Prometheus AST 检查节点/selector 上限。Mock 和 opt-in HTTP Adapter 共享 view/window、注册 step、6 小时范围和 1,000 理论点上限，越界参数在访问数据前返回 `schema_validation_failed`。HTTP Adapter 只从服务环境取得 endpoint，禁用 redirect，限制请求为 10 秒、最多 20 series/5,000 samples/2 MiB 解压响应；`/healthz` 不访问依赖，HTTP 模式 `/readyz` 短探测 `/-/ready`。
 - SSE 事件带有 Task、Session 和单调递增 sequence。事件先写入 durable store，客户端可通过 `afterSequence` 或 `Last-Event-ID` 获取断线后的后缀。
 - 前端只能访问 Grafana Plugin Resource API；它不直连 AI Core、MCP 或 Prometheus。
@@ -54,7 +54,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 
 ## 尚未实现的范围
 
-当前已完成有界查询参数的契约、AI Core 解析/持久化和 MCP 动态 PromQL/step 执行，尚未完成 Agent view-only Tool、本地可信回复和 Workbench 控件；因此现有真实 Agent 的模型协议与最终回复仍不是目标形态。`make e2e-real-metrics` 可用本地 Prometheus/node_exporter 验证当前受限真实查询（node_exporter 观察 Docker Linux VM/容器宿主，而非 macOS 内核）。以下仍是明确的非目标：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。
+当前已完成有界查询参数的契约、AI Core 解析/持久化、MCP 动态执行、Agent view-only Tool 和本地可信回复，尚未完成 Workbench 结构化控件与端到端验收。`make e2e-real-metrics` 可用本地 Prometheus/node_exporter 验证当前受限真实查询（node_exporter 观察 Docker Linux VM/容器宿主，而非 macOS 内核）。以下仍是明确的非目标：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。
 
 ## 上手使用
 
@@ -121,7 +121,7 @@ docker compose -p mini-torchbearing-real-agent-manual \
   up --build --wait
 ```
 
-该模式同时使用真实 node_exporter series 与受限 Eino/DeepSeek Agent。可尝试“查看 node_exporter 概览”或“只看 CPU”；Agent 只能选择注册表中的 CPU、内存、负载视图和规范 PromQL，不能执行任意查询。模型只接收 Profile、受限会话上下文和本地统计摘要，不接收完整时序、身份、内部 URL 或密钥。
+该模式同时使用真实 node_exporter series 与受限 Eino/DeepSeek Agent。可尝试“查看 node_exporter 概览”或“只看 CPU”；Agent 只能选择 CPU、内存、负载 view，不能提交 PromQL 或修改有效查询参数。模型只接收 Profile、受限会话上下文和本地统计摘要，不接收完整时序、身份、内部 URL 或密钥；用户可见数值回复由本地 formatter 生成。
 
 所有模式都会为 AI Core 挂载独立 named volume，所以容器运行期间 Session、Task、Event、Chart 和执行结果会保留；执行带 `-v` 的清理命令才会移除该模式的数据。示例命令使用不同 Compose project 名，因此从一种模式切换到另一种模式时，旧 URL 的 Session 不属于新 volume；Workbench 收到明确的 `resource_not_found` 后会移除旧 `sessionId`/`taskId` 并提示重新提交。前端没有单独的开发服务器，页面和 Plugin Backend 都由 Grafana 容器提供。
 
@@ -143,7 +143,7 @@ Mock 和真实指标模式不根据输入生成不同的分析计划；任何非
 |1. 创建会话|前端在没有 URL Session 时调用 `POST .../resources/sessions`，标题固定为 `Node exporter mock analysis`。|Plugin Backend 从 Grafana 登录态构造用户/组织/权限上下文，并代理到 AI Core。AI Core 在 SQLite 中创建 Session。|浏览器获得 `sessionId`。|
 |2. 创建任务|前端把用户输入、`datasourceUid: prometheus-main`、`relativeDuration: 30m` 和一个新的 idempotency key 发送到 `POST .../resources/tasks`。|AI Core 将相对时间冻结为当前时刻前 30 分钟到当前时刻；写入用户 Message、Task 和首个 `task.created` 事件。相同 key 与相同原始请求会返回同一个 Task，不同请求会得到 `idempotency_conflict`。|浏览器获得 `taskId`，并把 `sessionId`/`taskId` 写入 URL。|
 |3. 启动工作流|Task 提交成功后，AI Core 在事务提交后异步运行工作流。|Task 依次进入 planning、running_tools、validating、completed；每次状态改变及后续事件都先写 SQLite，再通知 SSE 订阅者。|任务状态会实时变化，即使 SSE 断开也能从数据库重放。|
-|4. Mock Agent 计划|Agent 只检查输入是否非空，不解析自然语言内容。|它固定搜索 `node exporter cpu memory load`，并固定选择 CPU、内存和负载三个指标；这正是未来真实 Agent 的替换点。|先看到“正在生成固定的 node_exporter 分析视图…”，最终固定文本为“已生成 node_exporter 的 CPU、内存和系统负载视图。”|
+|4. Mock Agent 计划|Mock Agent 只负责固定选择三个视图；AI Core 已在任务创建时解析有界时间/step。|它固定搜索 `node exporter cpu memory load` 并查询 CPU、内存和负载；每个查询使用 Task QueryPlan，规范 PromQL 由 MCP 注册表返回。|先看到“正在生成固定的 node_exporter 分析视图…”，最终回复由本地 formatter 按实际范围、step/window 和样本统计生成。|
 |5. 真实 MCP 通信|AI Core 的 MCP Gateway 通过 HTTP 调用 assistant-mcp，并携带从 Grafana 派生的身份上下文。|依次调用 1 次 `grafana.search_metrics`、3 次 `grafana.get_metric_labels`、3 次 `grafana.query_prometheus`。MCP 服务做权限、输入/输出 Schema 校验后才进入 Adapter。|SSE 出现对应的 `tool.started` / `tool.completed` 和指标候选事件。|
 |6. Mock 数据读取|MCP 的 Mock Prometheus Adapter 按固定 PromQL expression 从 `data/mock-scenarios/node_exporter_overview` 读取数据。|查询不是访问真实 Prometheus；fixture 时间点会平移到本次请求的时间范围。固定表达式是 CPU 使用率、内存可用率和 `node_load1`。|每个查询返回 matrix 时序数据；没有匹配 fixture 的 PromQL 会被拒绝，而不会返回伪造成功。|
 |7. 图表与页面恢复|AI Core 为三项结果创建 Chart 和 Execution，并写入事件流；前端订阅 `.../events?afterSequence=N`。|前端 reducer 只接收连续 sequence，缺号或断线会从最后序号重连；mapper 将持久化 series 转成 Grafana DataFrame 并交给 `TimeSeries`。|出现三张图及 PromQL 折叠区。刷新页面时，前端从 URL 读取 ID，再从 sequence 0 重放事件，因此能恢复相同结果。|

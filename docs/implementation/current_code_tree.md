@@ -52,7 +52,8 @@ mini-torchbearing/
 │   │   │   ├── adapters/
 │   │   │   │   ├── inbound/http/          # AI Core HTTP API 与 SSE
 │   │   │   │   └── outbound/              # SQLite、MCP、Mock Agent、Eino Agent、时钟/ID
-│   │   │   │       └── agent/eino/         # 受限 Eino AgentRuntime、严格 Tool 与本地摘要隔离
+│   │   │   │       ├── agent/eino/         # view-only Eino Tool 与本地摘要隔离
+│   │   │   │       └── agent/localresult/  # Mock/Eino 共用的可信事实 formatter
 │   │   │   └── bootstrap/                 # 服务依赖组装
 │   │   ├── migrations/sqlite/             # SQLite 迁移（含 QueryPlan/step/实际样本范围回填）
 │   │   └── Dockerfile

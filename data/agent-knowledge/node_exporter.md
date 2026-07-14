@@ -1,16 +1,16 @@
 # node_exporter 分析 Profile
 
-## 支持视图和规范 PromQL
+## 支持视图
 
-只支持以下三个视图，且每个视图只能使用列出的规范 PromQL：
+只支持以下三个视图。调用 `query_prometheus` 时只提交 `view`；时间范围、step、CPU rate window、数据源和规范 PromQL 均由本地应用注入，模型不得生成或修改它们：
 
-- CPU 使用率（`percent`）：`100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`
-- 内存可用率（`percent`）：`100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes`
-- 系统负载（`short`）：`node_load1`
+- CPU 使用率（`cpu`，`percent`，来自 `node_cpu_seconds_total`）
+- 内存可用率（`memory`，`percent`，来自 `node_memory_MemAvailable_bytes` / `node_memory_MemTotal_bytes`）
+- 系统负载（`load`，`short`，来自 `node_load1`）
 
 ## 指标解释口径
 
-CPU 使用率表示过去五分钟内非 idle CPU 时间的按实例平均占比。内存可用率使用 MemAvailable 与 MemTotal 的比值。node_load1 只表示一分钟负载数值和趋势；没有结合 CPU core 数时，不得判断“健康”或“过高”。
+CPU 使用率表示本地 QueryPlan 所选 30 秒、1 分钟或 5 分钟 rate window 内非 idle CPU 时间的按实例平均占比。内存可用率使用 MemAvailable 与 MemTotal 的比值。node_load1 只表示一分钟负载数值和趋势；没有结合 CPU core 数时，不得判断“健康”或“过高”。
 
 ## 无数据和错误处理
 
@@ -18,7 +18,7 @@ CPU 使用率表示过去五分钟内非 idle CPU 时间的按实例平均占比
 
 ## 最终回复格式
 
-最终回复使用简短的用户可见结论，逐项说明已生成的 CPU、内存或负载视图，并注明无数据、部分序列或查询失败。不要输出内部工具调用、原始 label value、完整时间序列或 private reasoning。
+模型最终只返回严格 JSON 状态和已成功查询的 view keys。用户可见事实回复由本地 formatter 根据有效 QueryPlan 和实际查询统计生成；模型不得自行陈述数值或查询参数。不要输出内部工具调用、原始 label value、完整时间序列或 private reasoning。
 
 ## 禁止项
 

@@ -25,8 +25,8 @@ import (
 
 func TestRuntimeKeepsRawSeriesOutOfModelInput(t *testing.T) {
 	model := &scriptedModel{responses: []*schema.Message{
-		schema.AssistantMessage("", []schema.ToolCall{{ID: "query-cpu", Type: "function", Function: schema.FunctionCall{Name: "query_prometheus", Arguments: `{"view":"cpu","expression":"100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))"}`}}}),
-		schema.AssistantMessage(`{"status":"completed","views":["cpu"],"answer":"CPU 视图已生成。"}`, nil),
+		schema.AssistantMessage("", []schema.ToolCall{{ID: "query-cpu", Type: "function", Function: schema.FunctionCall{Name: "query_prometheus", Arguments: `{"view":"cpu"}`}}}),
+		schema.AssistantMessage(`{"status":"completed","views":["cpu"]}`, nil),
 	}}
 	queries := &fakeQueries{execution: dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "private-label", Labels: map[string]string{"instance": "http://private.example/secret"}, Points: []chart.Point{{Timestamp: time.Unix(1, 0), Value: 31}, {Timestamp: time.Unix(2, 0), Value: 37}}}}, Warnings: []string{"sensitive upstream warning"}}}
 	runtime := newRuntime(t, model, &fakeCatalog{}, queries)
@@ -37,6 +37,9 @@ func TestRuntimeKeepsRawSeriesOutOfModelInput(t *testing.T) {
 	}
 	if len(result.Proposals) != 1 || result.Proposals[0].Key != "cpu" || result.Proposals[0].Query.RefID != "A" {
 		t.Fatalf("unexpected chart proposals: %#v", result.Proposals)
+	}
+	if !strings.Contains(result.AssistantText, "step=300s") || !strings.Contains(result.AssistantText, "CPU rate window=300s") || !strings.Contains(result.AssistantText, "首值 31.00%") || strings.Contains(result.AssistantText, "CPU 视图已生成") {
+		t.Fatalf("final answer was not produced from local query facts: %s", result.AssistantText)
 	}
 	if queries.execute.StepSeconds != 300 || queries.execute.View != "cpu" || queries.execute.CPURateWindowSeconds == nil || *queries.execute.CPURateWindowSeconds != 300 {
 		t.Fatalf("query was not constrained to the canonical execution: %#v", queries.execute)
@@ -53,25 +56,25 @@ func TestRuntimeKeepsRawSeriesOutOfModelInput(t *testing.T) {
 			t.Fatalf("model input leaked %q: %s", forbidden, inputs)
 		}
 	}
-	for _, required := range []string{"call query_prometheus", `\"status\":\"completed\"`, `\"status\":\"unsupported\"`} {
+	for _, required := range []string{"call query_prometheus", `\"status\":\"completed\"`, `\"status\":\"unsupported\"`, `\"stepSeconds\":300`, `\"cpuRateWindowSeconds\":300`} {
 		if !strings.Contains(string(inputs), required) {
 			t.Fatalf("model input did not include the constrained execution protocol %q: %s", required, inputs)
 		}
 	}
-	if !strings.Contains(string(inputs), `\"series-1\"`) || !strings.Contains(string(inputs), `\"sampleCount\":2`) {
+	if !strings.Contains(string(inputs), `\"sampleCount\":2`) || strings.Contains(string(inputs), `\"expression\"`) {
 		t.Fatalf("model did not receive the bounded local summary: %s", inputs)
 	}
 }
 
 func TestRuntimeRejectsFinalViewsWithoutSuccessfulTools(t *testing.T) {
-	runtime := newRuntime(t, &scriptedModel{responses: []*schema.Message{schema.AssistantMessage(`{"status":"completed","views":["cpu"],"answer":"not backed by a tool"}`, nil)}}, &fakeCatalog{}, &fakeQueries{})
+	runtime := newRuntime(t, &scriptedModel{responses: []*schema.Message{schema.AssistantMessage(`{"status":"completed","views":["cpu"]}`, nil)}}, &fakeCatalog{}, &fakeQueries{})
 	_, err := runtime.Run(context.Background(), identity(), request(), &recordingSink{})
 	assertCode(t, err, common.DependencyUnavailable)
 }
 
-func TestRuntimeUsesSuccessfulQueriesForPlainTextFinalResponse(t *testing.T) {
+func TestRuntimeRejectsPlainTextFinalResponseAfterSuccessfulQuery(t *testing.T) {
 	model := &scriptedModel{responses: []*schema.Message{
-		schema.AssistantMessage("", []schema.ToolCall{{ID: "query-cpu", Type: "function", Function: schema.FunctionCall{Name: "query_prometheus", Arguments: `{"view":"cpu","expression":"100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))"}`}}}),
+		schema.AssistantMessage("", []schema.ToolCall{{ID: "query-cpu", Type: "function", Function: schema.FunctionCall{Name: "query_prometheus", Arguments: `{"view":"cpu"}`}}}),
 		schema.AssistantMessage("CPU 视图已生成。", nil),
 	}}
 	runtime := newRuntime(t, model, &fakeCatalog{}, &fakeQueries{execution: dto.QueryExecutionResult{
@@ -81,20 +84,15 @@ func TestRuntimeUsesSuccessfulQueriesForPlainTextFinalResponse(t *testing.T) {
 			Points: []chart.Point{{Timestamp: time.Unix(1, 0), Value: 31}},
 		}},
 	}})
-	result, err := runtime.Run(context.Background(), identity(), request(), &recordingSink{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.AssistantText != "CPU 视图已生成。" || len(result.Proposals) != 1 || result.Proposals[0].Key != "cpu" {
-		t.Fatalf("plain-text fallback did not use successful local query results: %#v", result)
-	}
+	_, err := runtime.Run(context.Background(), identity(), request(), &recordingSink{})
+	assertCode(t, err, common.DependencyUnavailable)
 }
 
 func TestRuntimeStrictlyRejectsUnknownToolFieldsBeforeCatalogAccess(t *testing.T) {
 	catalog := &fakeCatalog{}
 	model := &scriptedModel{responses: []*schema.Message{
 		schema.AssistantMessage("", []schema.ToolCall{{ID: "bad-search", Type: "function", Function: schema.FunctionCall{Name: "search_metrics", Arguments: `{"query":"cpu","endpoint":"http://private.example"}`}}}),
-		schema.AssistantMessage(`{"status":"unsupported","views":[],"answer":"unsupported"}`, nil),
+		schema.AssistantMessage(`{"status":"unsupported","views":[]}`, nil),
 	}}
 	sink := &recordingSink{}
 	runtime := newRuntime(t, model, catalog, &fakeQueries{})
@@ -105,6 +103,19 @@ func TestRuntimeStrictlyRejectsUnknownToolFieldsBeforeCatalogAccess(t *testing.T
 	}
 	if !sink.hasToolPair("bad-search", "grafana.search_metrics") {
 		t.Fatalf("invalid call was not durably correlated: %#v", sink.events)
+	}
+}
+
+func TestRuntimeRejectsModelSuppliedPromQLBeforeQueryAccess(t *testing.T) {
+	queries := &fakeQueries{}
+	model := &scriptedModel{responses: []*schema.Message{
+		schema.AssistantMessage("", []schema.ToolCall{{ID: "bad-query", Type: "function", Function: schema.FunctionCall{Name: "query_prometheus", Arguments: `{"view":"cpu","expression":"up"}`}}}),
+		schema.AssistantMessage(`{"status":"unsupported","views":[]}`, nil),
+	}}
+	_, err := newRuntime(t, model, &fakeCatalog{}, queries).Run(context.Background(), identity(), request(), &recordingSink{})
+	assertCode(t, err, common.DependencyUnavailable)
+	if queries.validations != 0 || queries.executions != 0 {
+		t.Fatalf("model-supplied PromQL reached QueryEngine: %#v", queries)
 	}
 }
 
@@ -164,11 +175,14 @@ func (*fakeCatalog) GetMetricLabels(context.Context, requestcontext.Context, dto
 }
 
 type fakeQueries struct {
-	execution dto.QueryExecutionResult
-	execute   dto.ExecuteQueryRequest
+	execution   dto.QueryExecutionResult
+	execute     dto.ExecuteQueryRequest
+	validations int
+	executions  int
 }
 
-func (*fakeQueries) Validate(_ context.Context, _ requestcontext.Context, input dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
+func (q *fakeQueries) Validate(_ context.Context, _ requestcontext.Context, input dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
+	q.validations++
 	canonical := "node_" + input.View
 	if input.View == "cpu" {
 		canonical = `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`
@@ -177,6 +191,7 @@ func (*fakeQueries) Validate(_ context.Context, _ requestcontext.Context, input 
 }
 func (q *fakeQueries) Execute(_ context.Context, _ requestcontext.Context, input dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
 	q.execute = input
+	q.executions++
 	return q.execution, nil
 }
 

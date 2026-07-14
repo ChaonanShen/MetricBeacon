@@ -15,7 +15,7 @@ func TestLoadRepositoryProfileAndViews(t *testing.T) {
 		t.Fatalf("unexpected Profile: %#v, %v", loaded, err)
 	}
 	views := profile.Views()
-	if len(views) != 3 || views[0].Key != "cpu" || views[2].CanonicalExpression != "node_load1" {
+	if len(views) != 3 || views[0].Key != "cpu" || views[0].RefID != "A" || views[2].Key != "load" {
 		t.Fatalf("unexpected view metadata: %#v", views)
 	}
 	if _, ok := profile.ViewForKey("unknown"); ok {

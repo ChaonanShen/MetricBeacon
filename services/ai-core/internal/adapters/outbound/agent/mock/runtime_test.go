@@ -3,6 +3,7 @@ package mock
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ func TestRunBuildsFixedPlanThroughPorts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.AssistantText != "已生成 node_exporter 的 CPU、内存和系统负载视图。" || len(result.Proposals) != 3 || result.Proposals[0].Key != "cpu" || result.Proposals[2].Key != "load" {
+	if !strings.Contains(result.AssistantText, "30分钟") || !strings.Contains(result.AssistantText, "step=300s") || !strings.Contains(result.AssistantText, "CPU rate window=300s") || len(result.Proposals) != 3 || result.Proposals[0].Key != "cpu" || result.Proposals[0].Query.RefID != "A" || result.Proposals[2].Key != "load" {
 		t.Fatalf("unexpected result: %#v", result)
 	}
 }
@@ -61,8 +62,8 @@ func canonicalForView(view string) string {
 	}
 	return "node_" + view
 }
-func (queryStub) Execute(context.Context, requestcontext.Context, dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
-	return dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "node-a"}}, Validation: dto.QueryValidationResult{Valid: true}}, nil
+func (queryStub) Execute(_ context.Context, _ requestcontext.Context, request dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
+	return dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "node-a", Points: []chart.Point{{Timestamp: request.TimeRange.From, Value: 10}, {Timestamp: request.TimeRange.To, Value: 20}}}}, Validation: dto.QueryValidationResult{Valid: true}}, nil
 }
 
 type sinkStub struct{}

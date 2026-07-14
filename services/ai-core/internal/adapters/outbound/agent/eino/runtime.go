@@ -10,12 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"sort"
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
@@ -26,6 +24,7 @@ import (
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
+	"mini-torchbearing.local/services/ai-core/internal/adapters/outbound/agent/localresult"
 	"mini-torchbearing.local/services/ai-core/internal/adapters/outbound/agent/profile"
 	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
@@ -40,13 +39,13 @@ const (
 
 ## Agent execution protocol
 
-For every supported view, call query_prometheus with that view's exact canonical PromQL before replying. Do not describe a supported view as completed unless its query_prometheus call succeeded. You may call search_metrics and get_metric_labels only to identify supported metrics; never invent a tool result.
+For every supported view, call query_prometheus with only its view key before replying. The application injects the effective time range, step, CPU rate window, datasource, and canonical PromQL. Do not describe a supported view as completed unless its query_prometheus call succeeded. You may call search_metrics and get_metric_labels only to identify supported metrics; never invent a tool result.
 
 After all required tool calls, reply with exactly one JSON object and no Markdown or prose outside it:
-{"status":"completed","views":["cpu"],"answer":"short user-visible conclusion"}
+{"status":"completed","views":["cpu"]}
 
 Use only the completed view keys cpu, memory, and load in views. If the request is unsupported, make no tool calls and reply exactly:
-{"status":"unsupported","views":[],"answer":"short user-visible explanation"}`
+{"status":"unsupported","views":[]}`
 )
 
 type Limits struct {
@@ -158,7 +157,7 @@ func (s *runState) tools() []tool.BaseTool {
 	return []tool.BaseTool{
 		strictTool("search_metrics", "Search the supported node_exporter metric registry.", searchToolSchema(), s.search),
 		strictTool("get_metric_labels", "Read allowed label names for one supported metric.", labelsToolSchema(), s.labels),
-		strictTool("query_prometheus", "Query exactly one registered node_exporter view using its canonical PromQL.", queryToolSchema(), s.query),
+		strictTool("query_prometheus", "Query exactly one registered node_exporter view. All query parameters are injected locally.", queryToolSchema(), s.query),
 	}
 }
 
@@ -249,15 +248,14 @@ func (s *runState) labels(ctx context.Context, raw string) (string, error) {
 
 func (s *runState) query(ctx context.Context, raw string) (string, error) {
 	var input struct {
-		View       string `json:"view"`
-		Expression string `json:"expression"`
+		View string `json:"view"`
 	}
 	if err := decodeStrict(raw, &input); err != nil {
-		return s.invalidTool(ctx, "grafana.query_prometheus", "view and expression must match the registered node_exporter query")
+		return s.invalidTool(ctx, "grafana.query_prometheus", "view must be a registered node_exporter query")
 	}
 	view, known := profile.ViewForKey(input.View)
-	if !known || input.Expression != view.CanonicalExpression {
-		return s.invalidTool(ctx, "grafana.query_prometheus", "view and expression must match the registered node_exporter query")
+	if !known {
+		return s.invalidTool(ctx, "grafana.query_prometheus", "view must be a registered node_exporter query")
 	}
 	callID, err := s.begin(ctx, "grafana.query_prometheus", map[string]any{"chartKey": view.Key})
 	if err != nil {
@@ -288,7 +286,7 @@ func (s *runState) query(ctx context.Context, raw string) (string, error) {
 	if err := s.complete(ctx, callID, "grafana.query_prometheus", map[string]any{"chartKey": view.Key, "seriesCount": len(execution.Series)}); err != nil {
 		return "", err
 	}
-	return querySummary(view.Key, execution)
+	return querySummary(s.request, proposal)
 }
 
 func cpuWindowForView(view string, value int) *int {
@@ -317,21 +315,17 @@ func (s *runState) finish(raw string) (dto.AgentRunResult, error) {
 	var response struct {
 		Status string   `json:"status"`
 		Views  []string `json:"views"`
-		Answer string   `json:"answer"`
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := decodeStrict(trimJSONFence(raw), &response); err != nil {
-		return s.finishTextFallback(raw)
-	}
-	if !validAnswer(response.Answer) {
 		return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned an invalid final response", true)
 	}
 	if response.Status == "unsupported" {
 		if len(response.Views) != 0 || s.toolCalls != 0 || len(s.proposals) != 0 {
 			return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned an inconsistent unsupported response", true)
 		}
-		return dto.AgentRunResult{AssistantText: response.Answer}, nil
+		return dto.AgentRunResult{AssistantText: "当前仅支持 node_exporter 的 CPU、内存和系统负载视图。"}, nil
 	}
 	if response.Status != "completed" || len(response.Views) == 0 || !sameViews(response.Views, s.proposals) {
 		return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned views inconsistent with tool results", true)
@@ -342,25 +336,7 @@ func (s *runState) finish(raw string) (dto.AgentRunResult, error) {
 			proposals = append(proposals, proposal)
 		}
 	}
-	return dto.AgentRunResult{AssistantText: response.Answer, Proposals: proposals}, nil
-}
-
-func (s *runState) finishTextFallback(raw string) (dto.AgentRunResult, error) {
-	answer := strings.TrimSpace(raw)
-	if !validAnswer(answer) || len(s.proposals) == 0 {
-		return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned an invalid final response", true)
-	}
-	proposals := make([]dto.ChartProposal, 0, len(profile.Views()))
-	for _, view := range profile.Views() {
-		if proposal, ok := s.proposals[view.Key]; ok {
-			proposals = append(proposals, proposal)
-		}
-	}
-	return dto.AgentRunResult{AssistantText: answer, Proposals: proposals}, nil
-}
-
-func validAnswer(answer string) bool {
-	return utf8.ValidString(answer) && utf8.RuneCountInString(answer) > 0 && utf8.RuneCountInString(answer) <= 4096
+	return dto.AgentRunResult{AssistantText: localresult.Format(s.request, proposals), Proposals: proposals}, nil
 }
 
 func trimJSONFence(raw string) string {
@@ -426,36 +402,29 @@ func boundedSummary(value any) (string, error) {
 	return string(encoded), nil
 }
 
-func querySummary(view string, execution dto.QueryExecutionResult) (string, error) {
-	type statistics struct {
-		Alias       string  `json:"alias"`
-		Latest      float64 `json:"latest"`
-		Min         float64 `json:"min"`
-		Max         float64 `json:"max"`
-		Mean        float64 `json:"mean"`
-		SampleCount int     `json:"sampleCount"`
+func querySummary(request dto.AgentRunRequest, proposal dto.ChartProposal) (string, error) {
+	statistics := localresult.Summarize(proposal)
+	var cpuWindow any
+	if proposal.Key == "cpu" {
+		cpuWindow = request.QueryPlan.CPURateWindowSeconds
 	}
-	items := make([]statistics, 0, min(len(execution.Series), 5))
-	for index, series := range execution.Series {
-		if index == 5 {
-			break
-		}
-		values := make([]float64, 0, len(series.Points))
-		for _, point := range series.Points {
-			if !math.IsNaN(point.Value) && !math.IsInf(point.Value, 0) {
-				values = append(values, point.Value)
-			}
-		}
-		if len(values) == 0 {
-			continue
-		}
-		minimum, maximum, total := values[0], values[0], 0.0
-		for _, value := range values {
-			minimum, maximum, total = math.Min(minimum, value), math.Max(maximum, value), total+value
-		}
-		items = append(items, statistics{Alias: fmt.Sprintf("series-%d", index+1), Latest: values[len(values)-1], Min: minimum, Max: maximum, Mean: total / float64(len(values)), SampleCount: len(values)})
+	data := map[string]any{"seriesCount": statistics.SeriesCount, "sampleCount": statistics.SampleCount}
+	if statistics.HasData {
+		data["first"], data["latest"] = statistics.First, statistics.Latest
+		data["min"], data["max"], data["mean"], data["delta"] = statistics.Min, statistics.Max, statistics.Mean, statistics.Delta
+		data["actualRange"] = map[string]any{"from": statistics.ActualFrom, "to": statistics.ActualTo}
 	}
-	return boundedSummary(map[string]any{"success": true, "view": view, "seriesCount": len(execution.Series), "series": items, "warnings": localWarnings(execution.Warnings)})
+	return boundedSummary(map[string]any{
+		"success": true,
+		"view":    proposal.Key,
+		"effectiveQuery": map[string]any{
+			"rangeSeconds":         int(request.TimeRange.To.Sub(request.TimeRange.From).Seconds()),
+			"stepSeconds":          request.QueryPlan.StepSeconds,
+			"cpuRateWindowSeconds": cpuWindow,
+		},
+		"data":     data,
+		"warnings": localWarnings(proposal.Execution.Warnings),
+	})
 }
 
 func localWarnings(warnings []string) []string {
@@ -494,13 +463,6 @@ func sameViews(got []string, proposals map[string]dto.ChartProposal) bool {
 	return true
 }
 
-func min(left, right int) int {
-	if left < right {
-		return left
-	}
-	return right
-}
-
 type strictInvokableTool struct {
 	info *schema.ToolInfo
 	run  func(context.Context, string) (string, error)
@@ -524,7 +486,7 @@ func labelsToolSchema() *schema.ParamsOneOf {
 }
 
 func queryToolSchema() *schema.ParamsOneOf {
-	return strictObject(map[string]*jsonschema.Schema{"view": {Type: "string", Enum: []any{"cpu", "memory", "load"}}, "expression": {Type: "string"}}, []string{"view", "expression"})
+	return strictObject(map[string]*jsonschema.Schema{"view": {Type: "string", Enum: []any{"cpu", "memory", "load"}}}, []string{"view"})
 }
 
 func strictObject(properties map[string]*jsonschema.Schema, required []string) *schema.ParamsOneOf {

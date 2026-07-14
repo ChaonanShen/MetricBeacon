@@ -6,17 +6,12 @@ import (
 	"strings"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
+	"mini-torchbearing.local/services/ai-core/internal/adapters/outbound/agent/localresult"
 	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
 	"mini-torchbearing.local/services/ai-core/internal/ports/tools"
-)
-
-const (
-	CPUQuery    = `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`
-	MemoryQuery = `100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes`
-	LoadQuery   = `node_load1`
 )
 
 type Runtime struct {
@@ -73,7 +68,7 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 		}
 	}
 	proposals := make([]dto.ChartProposal, 0, 3)
-	for index, spec := range []struct{ key, title, unit, expression string }{{"cpu", "CPU 使用率", "percent", CPUQuery}, {"memory", "内存可用率", "percent", MemoryQuery}, {"load", "系统负载", "short", LoadQuery}} {
+	for index, spec := range []struct{ key, title, unit, refID string }{{"cpu", "CPU 使用率", "percent", "A"}, {"memory", "内存可用率", "percent", "B"}, {"load", "系统负载", "short", "C"}} {
 		callID := []string{"mock-05-query-cpu", "mock-06-query-memory", "mock-07-query-load"}[index]
 		if err := emitTool(sink, ctx, "tool.started", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key}); err != nil {
 			return dto.AgentRunResult{}, err
@@ -93,9 +88,9 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 		if err := emitTool(sink, ctx, "tool.completed", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key, "seriesCount": len(execution.Series)}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
-		proposals = append(proposals, dto.ChartProposal{Key: spec.key, Title: spec.title, Visualization: "timeseries", Unit: spec.unit, Query: chart.QuerySpec{RefID: strings.ToUpper(spec.key[:1]), Expression: validation.CanonicalExpression, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds}, Execution: execution})
+		proposals = append(proposals, dto.ChartProposal{Key: spec.key, Title: spec.title, Visualization: "timeseries", Unit: spec.unit, Query: chart.QuerySpec{RefID: spec.refID, Expression: validation.CanonicalExpression, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds}, Execution: execution})
 	}
-	return dto.AgentRunResult{AssistantText: "已生成 node_exporter 的 CPU、内存和系统负载视图。", Proposals: proposals}, nil
+	return dto.AgentRunResult{AssistantText: localresult.Format(request, proposals), Proposals: proposals}, nil
 }
 
 func cpuWindowForView(view string, value int) *int {
