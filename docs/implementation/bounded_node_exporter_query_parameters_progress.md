@@ -9,7 +9,7 @@
 |阶段|状态|证据|
 |-|-|-|
 |G0：决策与计划落盘|完成|ADR-019、active execution plan、结构蓝图和文档路由已落盘；契约基线验证通过。|
-|G1：契约先行|未开始|待更新 Schema/OpenAPI/examples/generated types。|
+|G1：契约先行|完成|CreateTask resolution、Task QueryPlan、Chart step、Execution actual range 和 MCP view/window 输入已定义并生成。|
 |G2：QueryPlan 与持久化|未开始|待实现解析、迁移、repository/workflow。|
 |G3：MCP 注册视图查询|未开始|待实现 view/window registry 与 Mock/Real 一致性。|
 |G4：极简 Agent 与可信回复|未开始|待缩减 Tool、使用 QueryPlan 和本地 formatter。|
@@ -25,3 +25,9 @@ Dashboard 写入、Skill/Playbook 或模型读取原始 series 均不在本计�
 
 - `make validate-contracts`：两个 Plugin/AI Core OpenAPI、MCP OpenAPI、24 个 JSON Schema 与 Mock fixture 通过。
 - `git diff --check`：通过。
+
+## G1 验证证据
+
+- `make generate`：Go/TypeScript AI Core、Plugin Resource 和 Grafana Tool 类型已重新生成。
+- `make generated-client-diff`：生成物可复现。
+- `make validate-contracts`：OpenAPI、24 个 JSON Schema、examples 与 fixture 通过。

@@ -1,8 +1,9 @@
 {
   "datasourceUid": "prometheus-main",
-  "expression": "100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
+  "view": "cpu",
+  "cpuRateWindowSeconds": 60,
   "start": "2026-07-13T10:00:00Z",
   "end": "2026-07-13T10:30:00Z",
-  "stepSeconds": 300,
+  "stepSeconds": 10,
   "mode": "execute"
 }

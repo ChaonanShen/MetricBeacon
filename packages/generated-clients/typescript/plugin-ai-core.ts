@@ -265,6 +265,12 @@ export interface components {
                 /** Format: date-time */
                 to: string;
             };
+            queryPlan: {
+                /** @enum {integer} */
+                stepSeconds: 5 | 10 | 15 | 30 | 60 | 120 | 300;
+                /** @enum {integer} */
+                cpuRateWindowSeconds: 30 | 60 | 300;
+            };
             latestSequence: number;
             error: ({
                 code: string;
@@ -301,6 +307,13 @@ export interface components {
                     to: string;
                 } | {
                     relativeDuration: string;
+                };
+                resolution?: {
+                    /** @constant */
+                    mode: "auto";
+                } | {
+                    /** @enum {integer} */
+                    stepSeconds: 5 | 10 | 15 | 30 | 60 | 120 | 300;
                 };
             };
         };
@@ -622,6 +635,8 @@ export interface components {
                 /** Format: date-time */
                 to: string;
             };
+            /** @enum {integer} */
+            stepSeconds: 5 | 10 | 15 | 30 | 60 | 120 | 300;
         };
         /** ChartDraft */
         "chart.schema": {
@@ -654,6 +669,8 @@ export interface components {
                         /** Format: date-time */
                         to: string;
                     };
+                    /** @enum {integer} */
+                    stepSeconds: 5 | 10 | 15 | 30 | 60 | 120 | 300;
                 };
             };
         };
@@ -671,6 +688,12 @@ export interface components {
                 /** Format: date-time */
                 to: string;
             };
+            actualSampleRange: {
+                /** Format: date-time */
+                from: string;
+                /** Format: date-time */
+                to: string;
+            } | null;
             series: {
                 name: string;
                 labels: {

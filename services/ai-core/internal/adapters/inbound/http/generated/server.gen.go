@@ -35,6 +35,39 @@ func (e CreateTaskRequestSchemaAnalysisContextDatasourceUid) Valid() bool {
 	}
 }
 
+// Defines values for CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds.
+const (
+	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN10  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 10
+	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN120 CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 120
+	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN15  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 15
+	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN30  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 30
+	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN300 CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 300
+	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN5   CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 5
+	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN60  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 60
+)
+
+// Valid indicates whether the value is a known member of the CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds enum.
+func (e CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds) Valid() bool {
+	switch e {
+	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN10:
+		return true
+	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN120:
+		return true
+	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN15:
+		return true
+	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN30:
+		return true
+	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN300:
+		return true
+	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN5:
+		return true
+	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN60:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErrorCode.
 const (
 	AdapterNotConfigured   ErrorCode = "adapter_not_configured"
@@ -251,6 +284,60 @@ func (e TaskSchemaDatasourceUid) Valid() bool {
 	}
 }
 
+// Defines values for TaskSchemaQueryPlanCpuRateWindowSeconds.
+const (
+	TaskSchemaQueryPlanCpuRateWindowSecondsN30  TaskSchemaQueryPlanCpuRateWindowSeconds = 30
+	TaskSchemaQueryPlanCpuRateWindowSecondsN300 TaskSchemaQueryPlanCpuRateWindowSeconds = 300
+	TaskSchemaQueryPlanCpuRateWindowSecondsN60  TaskSchemaQueryPlanCpuRateWindowSeconds = 60
+)
+
+// Valid indicates whether the value is a known member of the TaskSchemaQueryPlanCpuRateWindowSeconds enum.
+func (e TaskSchemaQueryPlanCpuRateWindowSeconds) Valid() bool {
+	switch e {
+	case TaskSchemaQueryPlanCpuRateWindowSecondsN30:
+		return true
+	case TaskSchemaQueryPlanCpuRateWindowSecondsN300:
+		return true
+	case TaskSchemaQueryPlanCpuRateWindowSecondsN60:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskSchemaQueryPlanStepSeconds.
+const (
+	N10  TaskSchemaQueryPlanStepSeconds = 10
+	N120 TaskSchemaQueryPlanStepSeconds = 120
+	N15  TaskSchemaQueryPlanStepSeconds = 15
+	N30  TaskSchemaQueryPlanStepSeconds = 30
+	N300 TaskSchemaQueryPlanStepSeconds = 300
+	N5   TaskSchemaQueryPlanStepSeconds = 5
+	N60  TaskSchemaQueryPlanStepSeconds = 60
+)
+
+// Valid indicates whether the value is a known member of the TaskSchemaQueryPlanStepSeconds enum.
+func (e TaskSchemaQueryPlanStepSeconds) Valid() bool {
+	switch e {
+	case N10:
+		return true
+	case N120:
+		return true
+	case N15:
+		return true
+	case N30:
+		return true
+	case N300:
+		return true
+	case N5:
+		return true
+	case N60:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskSchemaStatus.
 const (
 	Completed    TaskSchemaStatus = "completed"
@@ -340,6 +427,7 @@ type CreateSessionRequestSchema struct {
 type CreateTaskRequestSchema struct {
 	AnalysisContext struct {
 		DatasourceUid CreateTaskRequestSchemaAnalysisContextDatasourceUid `json:"datasourceUid"`
+		Resolution    *CreateTaskRequestSchema_AnalysisContext_Resolution `json:"resolution,omitempty"`
 		TimeRange     *CreateTaskRequestSchema_AnalysisContext_TimeRange  `json:"timeRange,omitempty"`
 	} `json:"analysisContext"`
 	Message   string `json:"message"`
@@ -348,6 +436,24 @@ type CreateTaskRequestSchema struct {
 
 // CreateTaskRequestSchemaAnalysisContextDatasourceUid defines model for CreateTaskRequestSchema.AnalysisContext.DatasourceUid.
 type CreateTaskRequestSchemaAnalysisContextDatasourceUid string
+
+// CreateTaskRequestSchemaAnalysisContextResolution0 defines model for .
+type CreateTaskRequestSchemaAnalysisContextResolution0 struct {
+	Mode interface{} `json:"mode"`
+}
+
+// CreateTaskRequestSchemaAnalysisContextResolution1 defines model for .
+type CreateTaskRequestSchemaAnalysisContextResolution1 struct {
+	StepSeconds CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds `json:"stepSeconds"`
+}
+
+// CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds defines model for CreateTaskRequestSchema.AnalysisContext.Resolution.1.StepSeconds.
+type CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds int
+
+// CreateTaskRequestSchema_AnalysisContext_Resolution defines model for CreateTaskRequestSchema.AnalysisContext.Resolution.
+type CreateTaskRequestSchema_AnalysisContext_Resolution struct {
+	union json.RawMessage
+}
 
 // CreateTaskRequestSchemaAnalysisContextTimeRange0 defines model for .
 type CreateTaskRequestSchemaAnalysisContextTimeRange0 struct {
@@ -569,10 +675,14 @@ type TaskSchema struct {
 	Id             string                  `json:"id"`
 	InputMessageId string                  `json:"inputMessageId"`
 	LatestSequence int                     `json:"latestSequence"`
-	SessionId      string                  `json:"sessionId"`
-	StartedAt      *time.Time              `json:"startedAt"`
-	Status         TaskSchemaStatus        `json:"status"`
-	TimeRange      struct {
+	QueryPlan      struct {
+		CpuRateWindowSeconds TaskSchemaQueryPlanCpuRateWindowSeconds `json:"cpuRateWindowSeconds"`
+		StepSeconds          TaskSchemaQueryPlanStepSeconds          `json:"stepSeconds"`
+	} `json:"queryPlan"`
+	SessionId string           `json:"sessionId"`
+	StartedAt *time.Time       `json:"startedAt"`
+	Status    TaskSchemaStatus `json:"status"`
+	TimeRange struct {
 		From time.Time `json:"from"`
 		To   time.Time `json:"to"`
 	} `json:"timeRange"`
@@ -591,6 +701,12 @@ type TaskSchema_Error struct {
 	Retryable            bool                   `json:"retryable"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
+
+// TaskSchemaQueryPlanCpuRateWindowSeconds defines model for TaskSchema.QueryPlan.CpuRateWindowSeconds.
+type TaskSchemaQueryPlanCpuRateWindowSeconds int
+
+// TaskSchemaQueryPlanStepSeconds defines model for TaskSchema.QueryPlan.StepSeconds.
+type TaskSchemaQueryPlanStepSeconds int
 
 // TaskSchemaStatus defines model for TaskSchema.Status.
 type TaskSchemaStatus string
@@ -1631,6 +1747,68 @@ func (a TaskSnapshot) MarshalJSON() ([]byte, error) {
 		}
 	}
 	return json.Marshal(object)
+}
+
+// AsCreateTaskRequestSchemaAnalysisContextResolution0 returns the union data inside the CreateTaskRequestSchema_AnalysisContext_Resolution as a CreateTaskRequestSchemaAnalysisContextResolution0
+func (t CreateTaskRequestSchema_AnalysisContext_Resolution) AsCreateTaskRequestSchemaAnalysisContextResolution0() (CreateTaskRequestSchemaAnalysisContextResolution0, error) {
+	var body CreateTaskRequestSchemaAnalysisContextResolution0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateTaskRequestSchemaAnalysisContextResolution0 overwrites any union data inside the CreateTaskRequestSchema_AnalysisContext_Resolution as the provided CreateTaskRequestSchemaAnalysisContextResolution0
+func (t *CreateTaskRequestSchema_AnalysisContext_Resolution) FromCreateTaskRequestSchemaAnalysisContextResolution0(v CreateTaskRequestSchemaAnalysisContextResolution0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateTaskRequestSchemaAnalysisContextResolution0 performs a merge with any union data inside the CreateTaskRequestSchema_AnalysisContext_Resolution, using the provided CreateTaskRequestSchemaAnalysisContextResolution0
+func (t *CreateTaskRequestSchema_AnalysisContext_Resolution) MergeCreateTaskRequestSchemaAnalysisContextResolution0(v CreateTaskRequestSchemaAnalysisContextResolution0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCreateTaskRequestSchemaAnalysisContextResolution1 returns the union data inside the CreateTaskRequestSchema_AnalysisContext_Resolution as a CreateTaskRequestSchemaAnalysisContextResolution1
+func (t CreateTaskRequestSchema_AnalysisContext_Resolution) AsCreateTaskRequestSchemaAnalysisContextResolution1() (CreateTaskRequestSchemaAnalysisContextResolution1, error) {
+	var body CreateTaskRequestSchemaAnalysisContextResolution1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateTaskRequestSchemaAnalysisContextResolution1 overwrites any union data inside the CreateTaskRequestSchema_AnalysisContext_Resolution as the provided CreateTaskRequestSchemaAnalysisContextResolution1
+func (t *CreateTaskRequestSchema_AnalysisContext_Resolution) FromCreateTaskRequestSchemaAnalysisContextResolution1(v CreateTaskRequestSchemaAnalysisContextResolution1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCreateTaskRequestSchemaAnalysisContextResolution1 performs a merge with any union data inside the CreateTaskRequestSchema_AnalysisContext_Resolution, using the provided CreateTaskRequestSchemaAnalysisContextResolution1
+func (t *CreateTaskRequestSchema_AnalysisContext_Resolution) MergeCreateTaskRequestSchemaAnalysisContextResolution1(v CreateTaskRequestSchemaAnalysisContextResolution1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t CreateTaskRequestSchema_AnalysisContext_Resolution) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *CreateTaskRequestSchema_AnalysisContext_Resolution) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
 }
 
 // AsCreateTaskRequestSchemaAnalysisContextTimeRange0 returns the union data inside the CreateTaskRequestSchema_AnalysisContext_TimeRange as a CreateTaskRequestSchemaAnalysisContextTimeRange0

@@ -4,7 +4,7 @@
   "title": "ChartExecution",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "queryRefId", "status", "seriesCount", "durationMs", "sampleRange", "series", "warnings", "createdAt"],
+  "required": ["id", "queryRefId", "status", "seriesCount", "durationMs", "sampleRange", "actualSampleRange", "series", "warnings", "createdAt"],
   "properties": {
     "id": {"type": "string", "minLength": 1},
     "queryRefId": {"type": "string", "minLength": 1},
@@ -12,6 +12,12 @@
     "seriesCount": {"type": "integer", "minimum": 0},
     "durationMs": {"type": "integer", "minimum": 0},
     "sampleRange": {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string", "format": "date-time"}, "to": {"type": "string", "format": "date-time"}}},
+    "actualSampleRange": {
+      "anyOf": [
+        {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string", "format": "date-time"}, "to": {"type": "string", "format": "date-time"}}},
+        {"type": "null"}
+      ]
+    },
     "series": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "labels", "points"], "properties": {"name": {"type": "string"}, "labels": {"type": "object", "additionalProperties": {"type": "string"}}, "points": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["timestamp", "value"], "properties": {"timestamp": {"type": "string", "format": "date-time"}, "value": {"type": "number"}}}}}}},
     "warnings": {"type": "array", "items": {"type": "string"}},
     "createdAt": {"type": "string", "format": "date-time"}

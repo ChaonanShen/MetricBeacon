@@ -4,13 +4,14 @@
   "title": "grafana.query_prometheus input",
   "type": "object",
   "additionalProperties": false,
-  "required": ["datasourceUid", "expression", "start", "end", "stepSeconds", "mode"],
+  "required": ["datasourceUid", "view", "cpuRateWindowSeconds", "start", "end", "stepSeconds", "mode"],
   "properties": {
     "datasourceUid": {"type": "string", "enum": ["prometheus-main"]},
-    "expression": {"type": "string", "minLength": 1},
+    "view": {"type": "string", "enum": ["cpu", "memory", "load"]},
+    "cpuRateWindowSeconds": {"anyOf": [{"type": "integer", "enum": [30, 60, 300]}, {"type": "null"}]},
     "start": {"type": "string", "format": "date-time"},
     "end": {"type": "string", "format": "date-time"},
-    "stepSeconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+    "stepSeconds": {"type": "integer", "enum": [5, 10, 15, 30, 60, 120, 300]},
     "mode": {"type": "string", "enum": ["validate", "execute"]}
   }
 }

@@ -3,6 +3,7 @@
   "message": "帮我看看 node_exporter 最近 30 分钟的 CPU、内存和系统负载",
   "analysisContext": {
     "datasourceUid": "prometheus-main",
-    "timeRange": {"relativeDuration": "30m"}
+    "timeRange": {"relativeDuration": "30m"},
+    "resolution": {"mode": "auto"}
   }
 }

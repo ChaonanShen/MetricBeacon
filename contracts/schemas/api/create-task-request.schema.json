@@ -19,6 +19,12 @@
             {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string", "format": "date-time"}, "to": {"type": "string", "format": "date-time"}}},
             {"type": "object", "additionalProperties": false, "required": ["relativeDuration"], "properties": {"relativeDuration": {"type": "string", "pattern": "^[1-9][0-9]*[smhdw]$"}}}
           ]
+        },
+        "resolution": {
+          "oneOf": [
+            {"type": "object", "additionalProperties": false, "required": ["mode"], "properties": {"mode": {"const": "auto"}}},
+            {"type": "object", "additionalProperties": false, "required": ["stepSeconds"], "properties": {"stepSeconds": {"type": "integer", "enum": [5, 10, 15, 30, 60, 120, 300]}}}
+          ]
         }
       }
     }

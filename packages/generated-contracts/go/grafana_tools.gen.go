@@ -100,6 +100,27 @@ func (e GetMetricLabelsInputSchemaMetricName) Valid() bool {
 	}
 }
 
+// Defines values for QueryPrometheusInputSchemaCpuRateWindowSeconds.
+const (
+	QueryPrometheusInputSchemaCpuRateWindowSecondsN30  QueryPrometheusInputSchemaCpuRateWindowSeconds = 30
+	QueryPrometheusInputSchemaCpuRateWindowSecondsN300 QueryPrometheusInputSchemaCpuRateWindowSeconds = 300
+	QueryPrometheusInputSchemaCpuRateWindowSecondsN60  QueryPrometheusInputSchemaCpuRateWindowSeconds = 60
+)
+
+// Valid indicates whether the value is a known member of the QueryPrometheusInputSchemaCpuRateWindowSeconds enum.
+func (e QueryPrometheusInputSchemaCpuRateWindowSeconds) Valid() bool {
+	switch e {
+	case QueryPrometheusInputSchemaCpuRateWindowSecondsN30:
+		return true
+	case QueryPrometheusInputSchemaCpuRateWindowSecondsN300:
+		return true
+	case QueryPrometheusInputSchemaCpuRateWindowSecondsN60:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QueryPrometheusInputSchemaDatasourceUid.
 const (
 	QueryPrometheusInputSchemaDatasourceUidPrometheusMain QueryPrometheusInputSchemaDatasourceUid = "prometheus-main"
@@ -127,6 +148,60 @@ func (e QueryPrometheusInputSchemaMode) Valid() bool {
 	case Execute:
 		return true
 	case Validate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QueryPrometheusInputSchemaStepSeconds.
+const (
+	QueryPrometheusInputSchemaStepSecondsN10  QueryPrometheusInputSchemaStepSeconds = 10
+	QueryPrometheusInputSchemaStepSecondsN120 QueryPrometheusInputSchemaStepSeconds = 120
+	QueryPrometheusInputSchemaStepSecondsN15  QueryPrometheusInputSchemaStepSeconds = 15
+	QueryPrometheusInputSchemaStepSecondsN30  QueryPrometheusInputSchemaStepSeconds = 30
+	QueryPrometheusInputSchemaStepSecondsN300 QueryPrometheusInputSchemaStepSeconds = 300
+	QueryPrometheusInputSchemaStepSecondsN5   QueryPrometheusInputSchemaStepSeconds = 5
+	QueryPrometheusInputSchemaStepSecondsN60  QueryPrometheusInputSchemaStepSeconds = 60
+)
+
+// Valid indicates whether the value is a known member of the QueryPrometheusInputSchemaStepSeconds enum.
+func (e QueryPrometheusInputSchemaStepSeconds) Valid() bool {
+	switch e {
+	case QueryPrometheusInputSchemaStepSecondsN10:
+		return true
+	case QueryPrometheusInputSchemaStepSecondsN120:
+		return true
+	case QueryPrometheusInputSchemaStepSecondsN15:
+		return true
+	case QueryPrometheusInputSchemaStepSecondsN30:
+		return true
+	case QueryPrometheusInputSchemaStepSecondsN300:
+		return true
+	case QueryPrometheusInputSchemaStepSecondsN5:
+		return true
+	case QueryPrometheusInputSchemaStepSecondsN60:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QueryPrometheusInputSchemaView.
+const (
+	Cpu    QueryPrometheusInputSchemaView = "cpu"
+	Load   QueryPrometheusInputSchemaView = "load"
+	Memory QueryPrometheusInputSchemaView = "memory"
+)
+
+// Valid indicates whether the value is a known member of the QueryPrometheusInputSchemaView enum.
+func (e QueryPrometheusInputSchemaView) Valid() bool {
+	switch e {
+	case Cpu:
+		return true
+	case Load:
+		return true
+	case Memory:
 		return true
 	default:
 		return false
@@ -220,19 +295,29 @@ type GetMetricLabelsOutputSchema struct {
 
 // QueryPrometheusInputSchema defines model for query-prometheus.input.schema.
 type QueryPrometheusInputSchema struct {
-	DatasourceUid QueryPrometheusInputSchemaDatasourceUid `json:"datasourceUid"`
-	End           time.Time                               `json:"end"`
-	Expression    string                                  `json:"expression"`
-	Mode          QueryPrometheusInputSchemaMode          `json:"mode"`
-	Start         time.Time                               `json:"start"`
-	StepSeconds   int                                     `json:"stepSeconds"`
+	CpuRateWindowSeconds *QueryPrometheusInputSchemaCpuRateWindowSeconds `json:"cpuRateWindowSeconds"`
+	DatasourceUid        QueryPrometheusInputSchemaDatasourceUid         `json:"datasourceUid"`
+	End                  time.Time                                       `json:"end"`
+	Mode                 QueryPrometheusInputSchemaMode                  `json:"mode"`
+	Start                time.Time                                       `json:"start"`
+	StepSeconds          QueryPrometheusInputSchemaStepSeconds           `json:"stepSeconds"`
+	View                 QueryPrometheusInputSchemaView                  `json:"view"`
 }
+
+// QueryPrometheusInputSchemaCpuRateWindowSeconds defines model for QueryPrometheusInputSchema.CpuRateWindowSeconds.
+type QueryPrometheusInputSchemaCpuRateWindowSeconds int
 
 // QueryPrometheusInputSchemaDatasourceUid defines model for QueryPrometheusInputSchema.DatasourceUid.
 type QueryPrometheusInputSchemaDatasourceUid string
 
 // QueryPrometheusInputSchemaMode defines model for QueryPrometheusInputSchema.Mode.
 type QueryPrometheusInputSchemaMode string
+
+// QueryPrometheusInputSchemaStepSeconds defines model for QueryPrometheusInputSchema.StepSeconds.
+type QueryPrometheusInputSchemaStepSeconds int
+
+// QueryPrometheusInputSchemaView defines model for QueryPrometheusInputSchema.View.
+type QueryPrometheusInputSchemaView string
 
 // QueryPrometheusOutputSchema defines model for query-prometheus.output.schema.
 type QueryPrometheusOutputSchema struct {

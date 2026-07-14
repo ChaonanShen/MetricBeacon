@@ -135,12 +135,15 @@ export interface components {
         "query-prometheus.input.schema": {
             /** @enum {string} */
             datasourceUid: "prometheus-main";
-            expression: string;
+            /** @enum {string} */
+            view: "cpu" | "memory" | "load";
+            cpuRateWindowSeconds: (30 | 60 | 300) | null;
             /** Format: date-time */
             start: string;
             /** Format: date-time */
             end: string;
-            stepSeconds: number;
+            /** @enum {integer} */
+            stepSeconds: 5 | 10 | 15 | 30 | 60 | 120 | 300;
             /** @enum {string} */
             mode: "validate" | "execute";
         };
