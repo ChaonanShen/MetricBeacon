@@ -232,6 +232,7 @@ export interface components {
                 to: string;
             };
             queryPlan: {
+                views: ("cpu" | "memory" | "load")[];
                 /** @enum {integer} */
                 stepSeconds: 5 | 10 | 15 | 30 | 60 | 120 | 300;
                 /** @enum {integer} */

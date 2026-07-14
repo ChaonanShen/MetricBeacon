@@ -75,7 +75,7 @@ func ResolveQueryPlan(message string, requested RequestedTimeRange, requestedSte
 	} else if duration <= time.Hour {
 		window = 60
 	}
-	plan, err := task.NewQueryPlan(step, window)
+	plan, err := task.NewQueryPlan(nil, step, window)
 	return timeRange, plan, err
 }
 

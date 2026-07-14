@@ -60,15 +60,16 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 	var taskBody struct {
 		ID        string `json:"id"`
 		QueryPlan struct {
-			StepSeconds          int `json:"stepSeconds"`
-			CPURateWindowSeconds int `json:"cpuRateWindowSeconds"`
+			Views                []string `json:"views"`
+			StepSeconds          int      `json:"stepSeconds"`
+			CPURateWindowSeconds int      `json:"cpuRateWindowSeconds"`
 		} `json:"queryPlan"`
 	}
 	if err := json.NewDecoder(taskResponse.Body).Decode(&taskBody); err != nil {
 		t.Fatal(err)
 	}
 	taskResponse.Body.Close()
-	if taskBody.ID == "" || taskBody.QueryPlan.StepSeconds != 10 || taskBody.QueryPlan.CPURateWindowSeconds != 60 {
+	if taskBody.ID == "" || len(taskBody.QueryPlan.Views) != 0 || taskBody.QueryPlan.StepSeconds != 10 || taskBody.QueryPlan.CPURateWindowSeconds != 60 {
 		t.Fatalf("task id or resolved query plan is missing: %#v", taskBody)
 	}
 

@@ -16,3 +16,6 @@ var DatasourceUID string
 
 //go:embed 0004_bounded_query_plan.sql
 var BoundedQueryPlan string
+
+//go:embed 0005_query_plan_views.sql
+var QueryPlanViews string

@@ -56,7 +56,7 @@ mini-torchbearing/
 │   │   │   │       ├── agent/eino/         # view-only Eino Tool 与本地摘要隔离
 │   │   │   │       └── agent/localresult/  # Mock/Eino 共用的可信事实 formatter
 │   │   │   └── bootstrap/                 # 服务依赖组装
-│   │   ├── migrations/sqlite/             # SQLite 迁移（含 QueryPlan/step/实际样本范围回填）
+│   │   ├── migrations/sqlite/             # SQLite 迁移（含 QueryPlan views/step/实际样本范围回填）
 │   │   └── Dockerfile
 │   │
 │   └── assistant-mcp/                     # MCP 工具服务（Go）

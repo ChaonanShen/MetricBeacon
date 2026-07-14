@@ -13,8 +13,9 @@
     "datasourceUid": {"type": "string", "enum": ["prometheus-main"]},
     "timeRange": {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string", "format": "date-time"}, "to": {"type": "string", "format": "date-time"}}},
     "queryPlan": {
-      "type": "object", "additionalProperties": false, "required": ["stepSeconds", "cpuRateWindowSeconds"],
+      "type": "object", "additionalProperties": false, "required": ["views", "stepSeconds", "cpuRateWindowSeconds"],
       "properties": {
+        "views": {"type": "array", "uniqueItems": true, "maxItems": 3, "items": {"type": "string", "enum": ["cpu", "memory", "load"]}},
         "stepSeconds": {"type": "integer", "enum": [5, 10, 15, 30, 60, 120, 300]},
         "cpuRateWindowSeconds": {"type": "integer", "enum": [30, 60, 300]}
       }

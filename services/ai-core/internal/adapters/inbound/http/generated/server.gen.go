@@ -338,6 +338,27 @@ func (e TaskSchemaQueryPlanStepSeconds) Valid() bool {
 	}
 }
 
+// Defines values for TaskSchemaQueryPlanViews.
+const (
+	Cpu    TaskSchemaQueryPlanViews = "cpu"
+	Load   TaskSchemaQueryPlanViews = "load"
+	Memory TaskSchemaQueryPlanViews = "memory"
+)
+
+// Valid indicates whether the value is a known member of the TaskSchemaQueryPlanViews enum.
+func (e TaskSchemaQueryPlanViews) Valid() bool {
+	switch e {
+	case Cpu:
+		return true
+	case Load:
+		return true
+	case Memory:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskSchemaStatus.
 const (
 	Completed    TaskSchemaStatus = "completed"
@@ -678,6 +699,7 @@ type TaskSchema struct {
 	QueryPlan      struct {
 		CpuRateWindowSeconds TaskSchemaQueryPlanCpuRateWindowSeconds `json:"cpuRateWindowSeconds"`
 		StepSeconds          TaskSchemaQueryPlanStepSeconds          `json:"stepSeconds"`
+		Views                []TaskSchemaQueryPlanViews              `json:"views"`
 	} `json:"queryPlan"`
 	SessionId string           `json:"sessionId"`
 	StartedAt *time.Time       `json:"startedAt"`
@@ -707,6 +729,9 @@ type TaskSchemaQueryPlanCpuRateWindowSeconds int
 
 // TaskSchemaQueryPlanStepSeconds defines model for TaskSchema.QueryPlan.StepSeconds.
 type TaskSchemaQueryPlanStepSeconds int
+
+// TaskSchemaQueryPlanViews defines model for TaskSchema.QueryPlan.Views.
+type TaskSchemaQueryPlanViews string
 
 // TaskSchemaStatus defines model for TaskSchema.Status.
 type TaskSchemaStatus string

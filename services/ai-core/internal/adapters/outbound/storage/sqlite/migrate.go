@@ -21,6 +21,7 @@ var allMigrations = []migration{
 	{version: 2, sql: migrations.MultiTurnAndToolCorrelation, before: validateMultiTurnPreconditions, after: validateMultiTurnPostconditions},
 	{version: 3, sql: migrations.DatasourceUID},
 	{version: 4, sql: migrations.BoundedQueryPlan},
+	{version: 5, sql: migrations.QueryPlanViews},
 }
 
 func (s *Store) migrate(ctx context.Context) error {

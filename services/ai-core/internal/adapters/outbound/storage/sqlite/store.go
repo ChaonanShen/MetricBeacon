@@ -335,7 +335,7 @@ func (s *Store) createTask(ctx context.Context, value task.AnalysisTask) error {
 	if value.Error != nil {
 		errorCode, errorMessage = string(value.Error.Code), value.Error.Message
 	}
-	_, err := s.executor().ExecContext(ctx, `INSERT INTO tasks (id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.SessionID, value.Status, value.InputMessageID, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, value.LatestSequence, errorCode, errorMessage, storageTimestamp(value.CreatedAt), nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version)
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO tasks (id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.SessionID, value.Status, value.InputMessageID, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), stringSliceJSON(value.QueryPlan.Views), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, value.LatestSequence, errorCode, errorMessage, storageTimestamp(value.CreatedAt), nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version)
 	return mapError(err)
 }
 
@@ -343,12 +343,12 @@ func (s *Store) getTask(ctx context.Context, tenantID, taskID string) (task.Anal
 	if tenantID == "" || taskID == "" {
 		return task.AnalysisTask{}, common.NewError(common.InvalidArgument, "tenant and task are required", false)
 	}
-	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND id = ?`, tenantID, taskID)
+	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND id = ?`, tenantID, taskID)
 	return scanTask(row)
 }
 
 func (s *Store) listNonTerminalTasks(ctx context.Context) ([]task.AnalysisTask, error) {
-	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE status NOT IN (?, ?) ORDER BY created_at, id`, task.StatusCompleted, task.StatusFailed)
+	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE status NOT IN (?, ?) ORDER BY created_at, id`, task.StatusCompleted, task.StatusFailed)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -375,7 +375,7 @@ func (s *Store) listTaskPageBySession(ctx context.Context, tenantID, sessionID s
 	if err := s.ensureSession(ctx, tenantID, sessionID); err != nil {
 		return repositories.Page[task.AnalysisTask]{}, err
 	}
-	query := `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND session_id = ?`
+	query := `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND session_id = ?`
 	args := []any{tenantID, sessionID}
 	if page.CreatedAt != nil {
 		query += ` AND (created_at < ? OR (created_at = ? AND id < ?))`
@@ -414,7 +414,7 @@ func (s *Store) updateTask(ctx context.Context, value task.AnalysisTask, expecte
 	if value.Error != nil {
 		errorCode, errorMessage = string(value.Error.Code), value.Error.Message
 	}
-	result, err := s.executor().ExecContext(ctx, `UPDATE tasks SET status = ?, datasource_uid = ?, time_from = ?, time_to = ?, step_seconds = ?, cpu_rate_window_seconds = ?, latest_sequence = ?, error_code = ?, error_message = ?, started_at = ?, completed_at = ?, updated_at = ?, version = ? WHERE tenant_id = ? AND id = ? AND version = ?`, value.Status, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, value.LatestSequence, errorCode, errorMessage, nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version, value.TenantID, value.ID, expectedVersion)
+	result, err := s.executor().ExecContext(ctx, `UPDATE tasks SET status = ?, datasource_uid = ?, time_from = ?, time_to = ?, views_json = ?, step_seconds = ?, cpu_rate_window_seconds = ?, latest_sequence = ?, error_code = ?, error_message = ?, started_at = ?, completed_at = ?, updated_at = ?, version = ? WHERE tenant_id = ? AND id = ? AND version = ?`, value.Status, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), stringSliceJSON(value.QueryPlan.Views), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, value.LatestSequence, errorCode, errorMessage, nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version, value.TenantID, value.ID, expectedVersion)
 	if err != nil {
 		return mapError(err)
 	}
@@ -852,9 +852,13 @@ func scanSession(scanner interface{ Scan(...any) error }) (session.AnalysisSessi
 func scanTask(scanner interface{ Scan(...any) error }) (task.AnalysisTask, error) {
 	var value task.AnalysisTask
 	var from, to, createdAt, updatedAt string
+	var viewsJSON string
 	var errorCode, errorMessage, startedAt, completedAt sql.NullString
-	if err := scanner.Scan(&value.ID, &value.TenantID, &value.SessionID, &value.Status, &value.InputMessageID, &value.DatasourceUID, &from, &to, &value.QueryPlan.StepSeconds, &value.QueryPlan.CPURateWindowSeconds, &value.LatestSequence, &errorCode, &errorMessage, &createdAt, &startedAt, &completedAt, &updatedAt, &value.Version); err != nil {
+	if err := scanner.Scan(&value.ID, &value.TenantID, &value.SessionID, &value.Status, &value.InputMessageID, &value.DatasourceUID, &from, &to, &viewsJSON, &value.QueryPlan.StepSeconds, &value.QueryPlan.CPURateWindowSeconds, &value.LatestSequence, &errorCode, &errorMessage, &createdAt, &startedAt, &completedAt, &updatedAt, &value.Version); err != nil {
 		return task.AnalysisTask{}, mapError(err)
+	}
+	if err := json.Unmarshal([]byte(viewsJSON), &value.QueryPlan.Views); err != nil {
+		return task.AnalysisTask{}, common.NewError(common.InternalError, "stored task views are invalid", false)
 	}
 	var err error
 	if value.TimeRange.From, err = parseTimestamp(from); err != nil {
@@ -1144,6 +1148,14 @@ func nullableInt64(value *int64) any {
 }
 
 func jsonString(value json.RawMessage) string { return string(value) }
+
+func stringSliceJSON(value []string) string {
+	if value == nil {
+		return "[]"
+	}
+	encoded, _ := json.Marshal(value)
+	return string(encoded)
+}
 
 func nullableJSON(value json.RawMessage) any {
 	if len(value) == 0 {

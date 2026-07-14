@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -45,6 +46,9 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 	loadedTask, err := store.Tasks().Get(ctx, tenantID, data.task.ID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(loadedTask.QueryPlan, data.task.QueryPlan) {
+		t.Fatalf("query plan = %#v, want %#v", loadedTask.QueryPlan, data.task.QueryPlan)
 	}
 	if err := loadedTask.Transition(task.StatusPlanning, data.now.Add(time.Minute)); err != nil {
 		t.Fatal(err)
@@ -253,7 +257,8 @@ func TestMultiTurnMigrationBackfillsMessagesAndSourceCallIDs(t *testing.T) {
 		t.Fatalf("tool calls: %#v, %v", calls, err)
 	}
 	loadedTask, err := store.Tasks().Get(ctx, tenantID, "task_1")
-	if err != nil || loadedTask.DatasourceUID != "prometheus-main" || loadedTask.QueryPlan != task.LegacyQueryPlan() {
+	wantPlan, _ := task.NewQueryPlan([]string{"cpu"}, 300, 300)
+	if err != nil || loadedTask.DatasourceUID != "prometheus-main" || !reflect.DeepEqual(loadedTask.QueryPlan, wantPlan) {
 		t.Fatalf("task datasource: %#v, %v", loadedTask, err)
 	}
 	charts, err := store.Charts().ListByTask(ctx, tenantID, "task_1")
@@ -358,7 +363,7 @@ func seedV1Database(t *testing.T, path string, duplicateActive bool) {
 		}
 		return
 	}
-	if _, err := db.Exec(`INSERT INTO charts (id, tenant_id, session_id, task_id, title, visualization, unit, queries_json, status, created_at, updated_at, version) VALUES ('chart_1', ?, 'session_1', 'task_1', 'CPU', 'timeseries', 'percent', '[{"refId":"A","expression":"up","legend":"{{instance}}","datasourceUid":"mock-prometheus","timeRange":{"from":"2026-07-13T10:00:00Z","to":"2026-07-13T10:30:00Z"}}]', 'ready', ?, ?, 1)`, tenantID, stamp, stamp); err != nil {
+	if _, err := db.Exec(`INSERT INTO charts (id, tenant_id, session_id, task_id, title, visualization, unit, queries_json, status, created_at, updated_at, version) VALUES ('chart_1', ?, 'session_1', 'task_1', 'CPU', 'timeseries', 'percent', '[{"refId":"A","expression":"100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))","legend":"{{instance}}","datasourceUid":"mock-prometheus","timeRange":{"from":"2026-07-13T10:00:00Z","to":"2026-07-13T10:30:00Z"}}]', 'ready', ?, ?, 1)`, tenantID, stamp, stamp); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`INSERT INTO messages (id, tenant_id, session_id, role, content, created_at) VALUES ('message_assistant', ?, 'session_1', 'assistant', 'result', ?)`, tenantID, stamp); err != nil {
@@ -395,7 +400,11 @@ func createTaskFixture(t *testing.T, ctx context.Context, store repositories.App
 	if err != nil {
 		t.Fatal(err)
 	}
-	analysisTask, err := task.New("task_1", tenantID, analysisSession.ID, message.ID, "prometheus-main", timeRange, task.LegacyQueryPlan(), now)
+	queryPlan, err := task.NewQueryPlan([]string{"memory", "cpu"}, 10, 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	analysisTask, err := task.New("task_1", tenantID, analysisSession.ID, message.ID, "prometheus-main", timeRange, queryPlan, now)
 	if err != nil {
 		t.Fatal(err)
 	}
