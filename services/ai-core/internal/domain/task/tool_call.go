@@ -19,6 +19,7 @@ type ToolCallRecord struct {
 	ID            string
 	TenantID      string
 	TaskID        string
+	SourceCallID  string
 	ToolName      string
 	ToolVersion   string
 	Status        ToolCallStatus

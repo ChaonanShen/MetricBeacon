@@ -106,14 +106,15 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 		if _, err = tx.Sessions().Get(ctx, identity.TenantID, input.SessionID); err != nil {
 			return err
 		}
-		message, err := session.NewMessage(s.IDs.NewID("message"), identity.TenantID, input.SessionID, session.RoleUser, input.Message, s.Clock.Now())
+		taskID := s.IDs.NewID("task")
+		message, err := session.NewMessage(s.IDs.NewID("message"), identity.TenantID, input.SessionID, taskID, session.RoleUser, input.Message, s.Clock.Now())
 		if err != nil {
 			return err
 		}
 		if err = tx.Messages().Append(ctx, message); err != nil {
 			return err
 		}
-		result, err = task.New(s.IDs.NewID("task"), identity.TenantID, input.SessionID, message.ID, input.DatasourceUID, input.TimeRange, s.Clock.Now())
+		result, err = task.New(taskID, identity.TenantID, input.SessionID, message.ID, input.DatasourceUID, input.TimeRange, s.Clock.Now())
 		if err != nil {
 			return err
 		}

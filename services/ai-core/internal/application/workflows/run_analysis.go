@@ -166,7 +166,7 @@ func (w RunAnalysisWorkflow) transition(ctx context.Context, item *task.Analysis
 }
 
 func (w RunAnalysisWorkflow) persistResult(ctx context.Context, identity requestcontext.Context, item task.AnalysisTask, assistantMessageID string, result dto.AgentRunResult) error {
-	message, err := session.NewMessage(assistantMessageID, item.TenantID, item.SessionID, session.RoleAssistant, result.AssistantText, w.Clock.Now())
+	message, err := session.NewMessage(assistantMessageID, item.TenantID, item.SessionID, item.ID, session.RoleAssistant, result.AssistantText, w.Clock.Now())
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (w RunAnalysisWorkflow) persistResult(ctx context.Context, identity request
 			return err
 		}
 		var err error
-		messageEvent, err = w.appendEvent(ctx, tx, item, task.EventAssistantMessageDone, map[string]any{"message": map[string]any{"id": message.ID, "sessionId": message.SessionID, "role": message.Role, "content": message.Content, "createdAt": message.CreatedAt}})
+		messageEvent, err = w.appendEvent(ctx, tx, item, task.EventAssistantMessageDone, map[string]any{"message": map[string]any{"id": message.ID, "sessionId": message.SessionID, "taskId": message.TaskID, "role": message.Role, "content": message.Content, "createdAt": message.CreatedAt}})
 		return err
 	})
 	if err != nil {
@@ -312,9 +312,13 @@ func (s *durableSink) Emit(ctx context.Context, source dto.AgentEvent) error {
 		payload = map[string]any{"messageId": s.assistantMessageID, "delta": payload["content"], "ordinal": s.deltaOrdinal}
 	}
 	toolName, _ := payload["toolName"].(string)
+	sourceCallID := source.SourceCallID
 	if kind == task.EventToolStarted && toolName != "" {
+		if sourceCallID == "" {
+			return common.NewError(common.InvalidArgument, "agent tool start is missing source call id", false)
+		}
 		encoded, _ := json.Marshal(payload)
-		record := task.ToolCallRecord{ID: s.workflow.IDs.NewID("tool"), TenantID: s.task.TenantID, TaskID: s.task.ID, ToolName: toolName, ToolVersion: "v1", Status: task.ToolCallStarted, InputSummary: encoded, StartedAt: s.workflow.Clock.Now(), Version: 1}
+		record := task.ToolCallRecord{ID: s.workflow.IDs.NewID("tool"), TenantID: s.task.TenantID, TaskID: s.task.ID, SourceCallID: sourceCallID, ToolName: toolName, ToolVersion: "v1", Status: task.ToolCallStarted, InputSummary: encoded, StartedAt: s.workflow.Clock.Now(), Version: 1}
 		payload = map[string]any{"toolCallId": record.ID, "toolName": toolName, "toolVersion": "v1", "inputSummary": payload}
 		var event task.TaskEvent
 		err := s.workflow.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
@@ -328,12 +332,15 @@ func (s *durableSink) Emit(ctx context.Context, source dto.AgentEvent) error {
 		if err != nil {
 			return err
 		}
-		s.openCalls[toolName] = record
+		s.openCalls[sourceCallID] = record
 		s.workflow.notify(ctx, event)
 		return nil
 	}
 	if kind == task.EventToolCompleted && toolName != "" {
-		if record, exists := s.openCalls[toolName]; exists {
+		if sourceCallID == "" {
+			return common.NewError(common.InvalidArgument, "agent tool completion is missing source call id", false)
+		}
+		if record, exists := s.openCalls[sourceCallID]; exists {
 			now := s.workflow.Clock.Now()
 			duration := now.Sub(record.StartedAt).Milliseconds()
 			if duration < 0 {
@@ -355,7 +362,7 @@ func (s *durableSink) Emit(ctx context.Context, source dto.AgentEvent) error {
 			if err != nil {
 				return err
 			}
-			delete(s.openCalls, toolName)
+			delete(s.openCalls, sourceCallID)
 			s.workflow.notify(ctx, event)
 			return nil
 		}

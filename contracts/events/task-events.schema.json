@@ -12,8 +12,8 @@
       "properties": {"id": {"type": "string"}, "sessionId": {"type": "string"}, "status": {"type": "string"}}
     },
     "message": {
-      "type": "object", "additionalProperties": true, "required": ["id", "sessionId", "role", "content", "createdAt"],
-      "properties": {"id": {"type": "string"}, "sessionId": {"type": "string"}, "role": {"type": "string"}, "content": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}}
+      "type": "object", "additionalProperties": true, "required": ["id", "sessionId", "taskId", "role", "content", "createdAt"],
+      "properties": {"id": {"type": "string"}, "sessionId": {"type": "string"}, "taskId": {"type": "string"}, "role": {"type": "string"}, "content": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}}
     },
     "candidate": {
       "type": "object", "additionalProperties": true, "required": ["metricName", "type", "description", "labels", "score", "sources"],

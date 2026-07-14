@@ -4,10 +4,11 @@
   "title": "ToolCall",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "taskId", "toolName", "toolVersion", "status", "inputSummary", "outputSummary", "error", "startedAt", "completedAt", "durationMs", "version"],
+  "required": ["id", "taskId", "sourceCallId", "toolName", "toolVersion", "status", "inputSummary", "outputSummary", "error", "startedAt", "completedAt", "durationMs", "version"],
   "properties": {
     "id": {"type": "string", "minLength": 1},
     "taskId": {"type": "string", "minLength": 1},
+    "sourceCallId": {"type": "string", "minLength": 1},
     "toolName": {"type": "string", "minLength": 1},
     "toolVersion": {"const": "v1"},
     "status": {"type": "string", "enum": ["started", "completed", "failed"]},

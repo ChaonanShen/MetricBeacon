@@ -347,6 +347,7 @@ type Message struct {
 	Id                   string                 `json:"id"`
 	Role                 string                 `json:"role"`
 	SessionId            string                 `json:"sessionId"`
+	TaskId               string                 `json:"taskId"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
@@ -1111,6 +1112,14 @@ func (a *Message) UnmarshalJSON(b []byte) error {
 		delete(object, "sessionId")
 	}
 
+	if raw, found := object["taskId"]; found {
+		err = json.Unmarshal(raw, &a.TaskId)
+		if err != nil {
+			return fmt.Errorf("error reading 'taskId': %w", err)
+		}
+		delete(object, "taskId")
+	}
+
 	if len(object) != 0 {
 		a.AdditionalProperties = make(map[string]interface{})
 		for fieldName, fieldBuf := range object {
@@ -1153,6 +1162,11 @@ func (a Message) MarshalJSON() ([]byte, error) {
 	object["sessionId"], err = json.Marshal(a.SessionId)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling 'sessionId': %w", err)
+	}
+
+	object["taskId"], err = json.Marshal(a.TaskId)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'taskId': %w", err)
 	}
 
 	for fieldName, field := range a.AdditionalProperties {

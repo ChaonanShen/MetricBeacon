@@ -4,10 +4,11 @@
   "title": "Message",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "sessionId", "role", "content", "createdAt"],
+  "required": ["id", "sessionId", "taskId", "role", "content", "createdAt"],
   "properties": {
     "id": {"type": "string", "minLength": 1},
     "sessionId": {"type": "string", "minLength": 1},
+    "taskId": {"type": "string", "minLength": 1},
     "role": {"type": "string", "enum": ["user", "assistant"]},
     "content": {"type": "string", "minLength": 1},
     "createdAt": {"type": "string", "format": "date-time"}

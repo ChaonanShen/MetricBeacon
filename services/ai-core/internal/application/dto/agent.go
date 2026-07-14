@@ -28,6 +28,7 @@ type AgentRunResult struct {
 }
 type AgentResumeRequest struct{ TaskID string }
 type AgentEvent struct {
-	Type    string
-	Payload any
+	Type         string
+	SourceCallID string
+	Payload      any
 }

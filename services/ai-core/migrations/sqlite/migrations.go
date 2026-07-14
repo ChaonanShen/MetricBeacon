@@ -7,3 +7,6 @@ import _ "embed"
 //
 //go:embed 0001_initial.sql
 var Initial string
+
+//go:embed 0002_multi_turn_and_tool_correlation.sql
+var MultiTurnAndToolCorrelation string

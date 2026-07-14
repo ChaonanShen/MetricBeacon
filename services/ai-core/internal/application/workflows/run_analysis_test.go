@@ -35,12 +35,14 @@ func TestRunPersistsOrderedEventsToolCallsAndCharts(t *testing.T) {
 	if err := store.Sessions().Create(ctx, sessionValue); err != nil {
 		t.Fatal(err)
 	}
-	message, _ := session.NewMessage("message_1", "org:1", "session_1", session.RoleUser, "show node exporter", now)
-	if err := store.Messages().Append(ctx, message); err != nil {
-		t.Fatal(err)
-	}
+	message, _ := session.NewMessage("message_1", "org:1", "session_1", "task_1", session.RoleUser, "show node exporter", now)
 	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "mock-prometheus", timeRange, now)
-	if err := store.Tasks().Create(ctx, taskValue); err != nil {
+	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Messages().Append(ctx, message); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(ctx, taskValue)
+	}); err != nil {
 		t.Fatal(err)
 	}
 	notifier := inmemory.New()
@@ -89,12 +91,14 @@ func TestRunUsesLiveCleanupContextAndPersistsFailureOrder(t *testing.T) {
 	if err := store.Sessions().Create(context.Background(), sessionValue); err != nil {
 		t.Fatal(err)
 	}
-	message, _ := session.NewMessage("message_1", "org:1", "session_1", session.RoleUser, "show node exporter", now)
-	if err := store.Messages().Append(context.Background(), message); err != nil {
-		t.Fatal(err)
-	}
+	message, _ := session.NewMessage("message_1", "org:1", "session_1", "task_1", session.RoleUser, "show node exporter", now)
 	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "mock-prometheus", timeRange, now)
-	if err := store.Tasks().Create(context.Background(), taskValue); err != nil {
+	if err := store.WithinTransaction(context.Background(), func(tx repositories.ApplicationStore) error {
+		if err := tx.Messages().Append(context.Background(), message); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(context.Background(), taskValue)
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -136,15 +140,17 @@ func TestRecoverInterruptedFailsPersistedWorkWithoutRerun(t *testing.T) {
 	if err := store.Sessions().Create(ctx, sessionValue); err != nil {
 		t.Fatal(err)
 	}
-	message, _ := session.NewMessage("message_1", "org:1", "session_1", session.RoleUser, "show node exporter", now)
-	if err := store.Messages().Append(ctx, message); err != nil {
-		t.Fatal(err)
-	}
+	message, _ := session.NewMessage("message_1", "org:1", "session_1", "task_1", session.RoleUser, "show node exporter", now)
 	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "mock-prometheus", timeRange, now)
-	if err := store.Tasks().Create(ctx, taskValue); err != nil {
+	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Messages().Append(ctx, message); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(ctx, taskValue)
+	}); err != nil {
 		t.Fatal(err)
 	}
-	call := task.ToolCallRecord{ID: "tool_1", TenantID: "org:1", TaskID: "task_1", ToolName: "grafana.query_prometheus", ToolVersion: "v1", Status: task.ToolCallStarted, InputSummary: json.RawMessage(`{}`), StartedAt: now, Version: 1}
+	call := task.ToolCallRecord{ID: "tool_1", TenantID: "org:1", TaskID: "task_1", SourceCallID: "source_1", ToolName: "grafana.query_prometheus", ToolVersion: "v1", Status: task.ToolCallStarted, InputSummary: json.RawMessage(`{}`), StartedAt: now, Version: 1}
 	if err := store.ToolCalls().Create(ctx, call); err != nil {
 		t.Fatal(err)
 	}
@@ -186,12 +192,14 @@ func TestTransitionRollsBackWhenEventAppendFails(t *testing.T) {
 	if err := store.Sessions().Create(ctx, sessionValue); err != nil {
 		t.Fatal(err)
 	}
-	message, _ := session.NewMessage("message_1", "org:1", "session_1", session.RoleUser, "show node exporter", now)
-	if err := store.Messages().Append(ctx, message); err != nil {
-		t.Fatal(err)
-	}
+	message, _ := session.NewMessage("message_1", "org:1", "session_1", "task_1", session.RoleUser, "show node exporter", now)
 	taskValue, _ := task.New("task_1", "org:1", "session_1", "message_1", "mock-prometheus", timeRange, now)
-	if err := store.Tasks().Create(ctx, taskValue); err != nil {
+	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Messages().Append(ctx, message); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(ctx, taskValue)
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -216,10 +224,10 @@ func (scriptedRuntime) Run(ctx context.Context, _ requestcontext.Context, reques
 	if err := sink.Emit(ctx, dto.AgentEvent{Type: string(task.EventAssistantMessageStarted), Payload: map[string]any{}}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
-	if err := sink.Emit(ctx, dto.AgentEvent{Type: string(task.EventToolStarted), Payload: map[string]any{"toolName": "grafana.query_prometheus"}}); err != nil {
+	if err := sink.Emit(ctx, dto.AgentEvent{Type: string(task.EventToolStarted), SourceCallID: "scripted-01", Payload: map[string]any{"toolName": "grafana.query_prometheus"}}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
-	if err := sink.Emit(ctx, dto.AgentEvent{Type: string(task.EventToolCompleted), Payload: map[string]any{"toolName": "grafana.query_prometheus"}}); err != nil {
+	if err := sink.Emit(ctx, dto.AgentEvent{Type: string(task.EventToolCompleted), SourceCallID: "scripted-01", Payload: map[string]any{"toolName": "grafana.query_prometheus"}}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
 	proposals := make([]dto.ChartProposal, 0, 3)
@@ -232,7 +240,7 @@ func (scriptedRuntime) Run(ctx context.Context, _ requestcontext.Context, reques
 type cancellingToolRuntime struct{ cancel context.CancelFunc }
 
 func (r cancellingToolRuntime) Run(ctx context.Context, _ requestcontext.Context, _ dto.AgentRunRequest, sink agent.EventSink) (dto.AgentRunResult, error) {
-	if err := sink.Emit(ctx, dto.AgentEvent{Type: string(task.EventToolStarted), Payload: map[string]any{"toolName": "grafana.query_prometheus"}}); err != nil {
+	if err := sink.Emit(ctx, dto.AgentEvent{Type: string(task.EventToolStarted), SourceCallID: "scripted-01", Payload: map[string]any{"toolName": "grafana.query_prometheus"}}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
 	r.cancel()

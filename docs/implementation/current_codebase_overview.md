@@ -39,7 +39,8 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 
 ## 关键数据与依赖边界
 
-- AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。
+- AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。每条 Message 已持久化关联其 Task：User Message 与 `Task.inputMessageId` 双向一致，Assistant Message 也归属产生它的 Task；迁移会拒绝无法无歧义关联的旧数据。
+- 同一 tenant/Session 最多允许一个非终态 Task，SQLite partial unique index 是并发竞争的最终约束。工具审计以内部稳定 source call ID 关联 start/completed/failed 记录，Mock Runtime 使用可重复的 source call ID。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
 - SSE 事件带有 Task、Session 和单调递增 sequence。事件先写入 durable store，客户端可通过 `afterSequence` 或 `Last-Event-ID` 获取断线后的后缀。
 - 前端只能访问 Grafana Plugin Resource API；它不直连 AI Core、MCP 或 Prometheus。

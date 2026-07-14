@@ -245,6 +245,7 @@ export interface components {
         message: {
             id: string;
             sessionId: string;
+            taskId: string;
             role: string;
             content: string;
             /** Format: date-time */
@@ -373,6 +374,7 @@ export interface components {
                 message: {
                     id: string;
                     sessionId: string;
+                    taskId: string;
                     role: string;
                     content: string;
                     /** Format: date-time */

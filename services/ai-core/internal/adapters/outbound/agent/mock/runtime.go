@@ -40,14 +40,14 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 	if err := sink.Emit(ctx, dto.AgentEvent{Type: "assistant.message.delta", Payload: "正在生成固定的 node_exporter 分析视图…"}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
-	if err := emit(sink, ctx, "tool.started", map[string]any{"toolName": "grafana.search_metrics"}); err != nil {
+	if err := emitTool(sink, ctx, "tool.started", "mock-01-search", map[string]any{"toolName": "grafana.search_metrics"}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
 	metrics, err := r.catalog.SearchMetrics(ctx, identity, dto.SearchMetricsRequest{DatasourceUID: request.DatasourceUID, Query: "node exporter cpu memory load", Limit: 10})
 	if err != nil {
 		return dto.AgentRunResult{}, err
 	}
-	if err := emit(sink, ctx, "tool.completed", map[string]any{"toolName": "grafana.search_metrics", "candidateCount": len(metrics.Candidates)}); err != nil {
+	if err := emitTool(sink, ctx, "tool.completed", "mock-01-search", map[string]any{"toolName": "grafana.search_metrics", "candidateCount": len(metrics.Candidates)}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
 	if !containsMetrics(metrics, "node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_load1") {
@@ -56,15 +56,16 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 	if err := emit(sink, ctx, "metric.candidates_created", map[string]any{"candidates": metricCandidatesWire(metrics.Candidates)}); err != nil {
 		return dto.AgentRunResult{}, err
 	}
-	for _, metric := range []string{"node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_load1"} {
-		if err := emit(sink, ctx, "tool.started", map[string]any{"toolName": "grafana.get_metric_labels", "metricName": metric}); err != nil {
+	for index, metric := range []string{"node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_load1"} {
+		callID := []string{"mock-02-labels-cpu", "mock-03-labels-memory", "mock-04-labels-load"}[index]
+		if err := emitTool(sink, ctx, "tool.started", callID, map[string]any{"toolName": "grafana.get_metric_labels", "metricName": metric}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
 		labels, err := r.catalog.GetMetricLabels(ctx, identity, dto.GetMetricLabelsRequest{DatasourceUID: request.DatasourceUID, MetricName: metric})
 		if err != nil {
 			return dto.AgentRunResult{}, err
 		}
-		if err := emit(sink, ctx, "tool.completed", map[string]any{"toolName": "grafana.get_metric_labels", "metricName": metric, "labelCount": len(labels.LabelNames)}); err != nil {
+		if err := emitTool(sink, ctx, "tool.completed", callID, map[string]any{"toolName": "grafana.get_metric_labels", "metricName": metric, "labelCount": len(labels.LabelNames)}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
 		if !contains(labels.LabelNames, "instance") {
@@ -72,15 +73,16 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 		}
 	}
 	proposals := make([]dto.ChartProposal, 0, 3)
-	for _, spec := range []struct{ key, title, unit, expression string }{{"cpu", "CPU 使用率", "percent", CPUQuery}, {"memory", "内存可用率", "percent", MemoryQuery}, {"load", "系统负载", "short", LoadQuery}} {
-		if err := emit(sink, ctx, "tool.started", map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key}); err != nil {
+	for index, spec := range []struct{ key, title, unit, expression string }{{"cpu", "CPU 使用率", "percent", CPUQuery}, {"memory", "内存可用率", "percent", MemoryQuery}, {"load", "系统负载", "short", LoadQuery}} {
+		callID := []string{"mock-05-query-cpu", "mock-06-query-memory", "mock-07-query-load"}[index]
+		if err := emitTool(sink, ctx, "tool.started", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
 		execution, err := r.queries.Execute(ctx, identity, dto.ExecuteQueryRequest{DatasourceUID: request.DatasourceUID, Expression: spec.expression, TimeRange: request.TimeRange, StepSeconds: 300})
 		if err != nil {
 			return dto.AgentRunResult{}, err
 		}
-		if err := emit(sink, ctx, "tool.completed", map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key, "seriesCount": len(execution.Series)}); err != nil {
+		if err := emitTool(sink, ctx, "tool.completed", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key, "seriesCount": len(execution.Series)}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
 		proposals = append(proposals, dto.ChartProposal{Key: spec.key, Title: spec.title, Visualization: "timeseries", Unit: spec.unit, Query: chart.QuerySpec{RefID: strings.ToUpper(spec.key[:1]), Expression: spec.expression, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange}, Execution: execution})
@@ -90,6 +92,9 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 
 func emit(sink agent.EventSink, ctx context.Context, eventType string, payload any) error {
 	return sink.Emit(ctx, dto.AgentEvent{Type: eventType, Payload: payload})
+}
+func emitTool(sink agent.EventSink, ctx context.Context, eventType, sourceCallID string, payload any) error {
+	return sink.Emit(ctx, dto.AgentEvent{Type: eventType, SourceCallID: sourceCallID, Payload: payload})
 }
 func (r *Runtime) Resume(context.Context, requestcontext.Context, dto.AgentResumeRequest, agent.EventSink) (dto.AgentRunResult, error) {
 	return dto.AgentRunResult{}, common.NewError(common.NotImplemented, "mock agent resume is not implemented", false)

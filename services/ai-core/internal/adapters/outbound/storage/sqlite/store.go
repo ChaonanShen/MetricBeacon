@@ -228,13 +228,13 @@ func (s *Store) updateSession(ctx context.Context, value session.AnalysisSession
 }
 
 func (s *Store) appendMessage(ctx context.Context, value session.Message) error {
-	if value.ID == "" || value.TenantID == "" || value.SessionID == "" || strings.TrimSpace(value.Content) == "" || (value.Role != session.RoleUser && value.Role != session.RoleAssistant) {
+	if value.ID == "" || value.TenantID == "" || value.SessionID == "" || value.TaskID == "" || strings.TrimSpace(value.Content) == "" || (value.Role != session.RoleUser && value.Role != session.RoleAssistant) {
 		return common.NewError(common.InvalidArgument, "message is invalid", false)
 	}
 	if err := s.ensureSession(ctx, value.TenantID, value.SessionID); err != nil {
 		return err
 	}
-	_, err := s.executor().ExecContext(ctx, `INSERT INTO messages (id, tenant_id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.SessionID, value.Role, value.Content, storageTimestamp(value.CreatedAt))
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO messages (id, tenant_id, session_id, task_id, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.SessionID, value.TaskID, value.Role, value.Content, storageTimestamp(value.CreatedAt))
 	return mapError(err)
 }
 
@@ -245,7 +245,7 @@ func (s *Store) listMessagesBySession(ctx context.Context, tenantID, sessionID s
 	if err := s.ensureSession(ctx, tenantID, sessionID); err != nil {
 		return nil, err
 	}
-	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, session_id, role, content, created_at FROM messages WHERE tenant_id = ? AND session_id = ? ORDER BY created_at, id`, tenantID, sessionID)
+	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, session_id, task_id, role, content, created_at FROM messages WHERE tenant_id = ? AND session_id = ? ORDER BY created_at, id`, tenantID, sessionID)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -254,7 +254,7 @@ func (s *Store) listMessagesBySession(ctx context.Context, tenantID, sessionID s
 	for rows.Next() {
 		var item session.Message
 		var createdAt string
-		if err := rows.Scan(&item.ID, &item.TenantID, &item.SessionID, &item.Role, &item.Content, &createdAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.TenantID, &item.SessionID, &item.TaskID, &item.Role, &item.Content, &createdAt); err != nil {
 			return nil, mapError(err)
 		}
 		parsed, err := parseTimestamp(createdAt)
@@ -275,9 +275,6 @@ func (s *Store) createTask(ctx context.Context, value task.AnalysisTask) error {
 		return err
 	}
 	if err := s.ensureSession(ctx, value.TenantID, value.SessionID); err != nil {
-		return err
-	}
-	if err := s.ensureMessage(ctx, value.TenantID, value.SessionID, value.InputMessageID); err != nil {
 		return err
 	}
 	var errorCode, errorMessage any
@@ -341,7 +338,7 @@ func (s *Store) createToolCall(ctx context.Context, value task.ToolCallRecord) e
 	if err := s.ensureTask(ctx, value.TenantID, value.TaskID); err != nil {
 		return err
 	}
-	_, err := s.executor().ExecContext(ctx, `INSERT INTO tool_calls (id, tenant_id, task_id, tool_name, tool_version, status, input_summary_json, output_summary_json, error_code, error_message, started_at, completed_at, duration_ms, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.TaskID, value.ToolName, value.ToolVersion, value.Status, jsonString(value.InputSummary), nullableJSON(value.OutputSummary), nullableErrorCode(value.Error), nullableErrorMessage(value.Error), storageTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), nullableInt64(value.DurationMS), value.Version)
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO tool_calls (id, tenant_id, task_id, source_call_id, tool_name, tool_version, status, input_summary_json, output_summary_json, error_code, error_message, started_at, completed_at, duration_ms, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.TaskID, value.SourceCallID, value.ToolName, value.ToolVersion, value.Status, jsonString(value.InputSummary), nullableJSON(value.OutputSummary), nullableErrorCode(value.Error), nullableErrorMessage(value.Error), storageTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), nullableInt64(value.DurationMS), value.Version)
 	return mapError(err)
 }
 
@@ -366,7 +363,7 @@ func (s *Store) listToolCallsByTask(ctx context.Context, tenantID, taskID string
 	if err := s.ensureTask(ctx, tenantID, taskID); err != nil {
 		return nil, err
 	}
-	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, task_id, tool_name, tool_version, status, input_summary_json, output_summary_json, error_code, error_message, started_at, completed_at, duration_ms, version FROM tool_calls WHERE tenant_id = ? AND task_id = ? ORDER BY started_at, id`, tenantID, taskID)
+	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, task_id, source_call_id, tool_name, tool_version, status, input_summary_json, output_summary_json, error_code, error_message, started_at, completed_at, duration_ms, version FROM tool_calls WHERE tenant_id = ? AND task_id = ? ORDER BY started_at, id`, tenantID, taskID)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -792,7 +789,7 @@ func scanToolCall(scanner interface{ Scan(...any) error }) (task.ToolCallRecord,
 	var outputJSON, errorCode, errorMessage, completedAt sql.NullString
 	var duration sql.NullInt64
 	var startedAt string
-	if err := scanner.Scan(&value.ID, &value.TenantID, &value.TaskID, &value.ToolName, &value.ToolVersion, &value.Status, &inputJSON, &outputJSON, &errorCode, &errorMessage, &startedAt, &completedAt, &duration, &value.Version); err != nil {
+	if err := scanner.Scan(&value.ID, &value.TenantID, &value.TaskID, &value.SourceCallID, &value.ToolName, &value.ToolVersion, &value.Status, &inputJSON, &outputJSON, &errorCode, &errorMessage, &startedAt, &completedAt, &duration, &value.Version); err != nil {
 		return task.ToolCallRecord{}, mapError(err)
 	}
 	value.InputSummary = json.RawMessage(inputJSON)
@@ -873,7 +870,7 @@ func validateTask(value task.AnalysisTask) error {
 }
 
 func validateToolCall(value task.ToolCallRecord) error {
-	if value.ID == "" || value.TenantID == "" || value.TaskID == "" || value.ToolName == "" || value.ToolVersion != "v1" || value.Version < 1 || !isToolCallStatus(value.Status) || !json.Valid(value.InputSummary) {
+	if value.ID == "" || value.TenantID == "" || value.TaskID == "" || value.SourceCallID == "" || value.ToolName == "" || value.ToolVersion != "v1" || value.Version < 1 || !isToolCallStatus(value.Status) || !json.Valid(value.InputSummary) {
 		return common.NewError(common.InvalidArgument, "tool call is invalid", false)
 	}
 	if len(value.OutputSummary) > 0 && !json.Valid(value.OutputSummary) {

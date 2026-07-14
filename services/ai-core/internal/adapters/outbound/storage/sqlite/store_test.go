@@ -2,9 +2,11 @@ package sqlite_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/repositories"
+	migrations "mini-torchbearing.local/services/ai-core/migrations/sqlite"
 )
 
 const tenantID = "org:1"
@@ -54,6 +57,7 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 		ID:           "tool_1",
 		TenantID:     tenantID,
 		TaskID:       data.task.ID,
+		SourceCallID: "source_1",
 		ToolName:     "grafana.search_metrics",
 		ToolVersion:  "v1",
 		Status:       task.ToolCallStarted,
@@ -120,7 +124,7 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 	requireCode(t, err, common.ResourceNotFound)
 	_, err = store.Tasks().Get(ctx, "org:other", data.task.ID)
 	requireCode(t, err, common.ResourceNotFound)
-	forged, err := session.NewMessage("message_forged", "org:other", data.session.ID, session.RoleUser, "forged", data.now)
+	forged, err := session.NewMessage("message_forged", "org:other", data.session.ID, "task_forged", session.RoleUser, "forged", data.now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,6 +228,138 @@ func TestTaskEventsAreAtomicSequentialAndReplayable(t *testing.T) {
 	requireCode(t, err, common.ResourceNotFound)
 }
 
+func TestMultiTurnMigrationBackfillsMessagesAndSourceCallIDs(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "v1.sqlite")
+	seedV1Database(t, path, false)
+
+	store, err := storage.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	messages, err := store.Messages().ListBySession(ctx, tenantID, "session_1")
+	if err != nil || len(messages) != 2 {
+		t.Fatalf("messages: %#v, %v", messages, err)
+	}
+	for _, message := range messages {
+		if message.TaskID != "task_1" {
+			t.Fatalf("message task id = %q, want task_1", message.TaskID)
+		}
+	}
+	calls, err := store.ToolCalls().ListByTask(ctx, tenantID, "task_1")
+	if err != nil || len(calls) != 1 || calls[0].SourceCallID != "legacy:tool_1" {
+		t.Fatalf("tool calls: %#v, %v", calls, err)
+	}
+}
+
+func TestMultiTurnMigrationRejectsAmbiguousActiveTasks(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ambiguous-v1.sqlite")
+	seedV1Database(t, path, true)
+	_, err := storage.Open(context.Background(), path)
+	requireCode(t, err, common.InvalidStateTransition)
+}
+
+func TestOnlyOneConcurrentActiveTaskCanBeCreatedForSession(t *testing.T) {
+	ctx := context.Background()
+	store := openStore(t)
+	now := fixedNow()
+	analysisSession, err := session.New("session_concurrent", tenantID, "Concurrent", "user:1", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Sessions().Create(ctx, analysisSession); err != nil {
+		t.Fatal(err)
+	}
+	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-time.Minute), now)
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wait sync.WaitGroup
+	for index := 1; index <= 2; index++ {
+		index := index
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			<-start
+			taskID := fmt.Sprintf("task_concurrent_%d", index)
+			message, _ := session.NewMessage(fmt.Sprintf("message_concurrent_%d", index), tenantID, analysisSession.ID, taskID, session.RoleUser, "show cpu", now)
+			item, _ := task.New(taskID, tenantID, analysisSession.ID, message.ID, "mock-prometheus", timeRange, now)
+			errs <- store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+				if err := tx.Messages().Append(ctx, message); err != nil {
+					return err
+				}
+				return tx.Tasks().Create(ctx, item)
+			})
+		}()
+	}
+	close(start)
+	wait.Wait()
+	close(errs)
+	succeeded, conflicts := 0, 0
+	for err := range errs {
+		if err == nil {
+			succeeded++
+			continue
+		}
+		var domainErr *common.DomainError
+		if errors.As(err, &domainErr) && domainErr.Code == common.ResourceConflict {
+			conflicts++
+			continue
+		}
+		t.Fatalf("unexpected concurrent create error: %v", err)
+	}
+	if succeeded != 1 || conflicts != 1 {
+		t.Fatalf("succeeded=%d conflicts=%d, want 1/1", succeeded, conflicts)
+	}
+}
+
+func seedV1Database(t *testing.T, path string, duplicateActive bool) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(migrations.Initial); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); INSERT INTO schema_migrations (version, applied_at) VALUES (1, '2026-07-13T10:30:00.000000000Z');`); err != nil {
+		t.Fatal(err)
+	}
+	stamp := "2026-07-13T10:30:00.000000000Z"
+	if _, err := db.Exec(`INSERT INTO sessions (id, tenant_id, title, status, created_by, created_at, updated_at, version) VALUES ('session_1', ?, 'Overview', 'active', 'user:1', ?, ?, 1)`, tenantID, stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO messages (id, tenant_id, session_id, role, content, created_at) VALUES ('message_user', ?, 'session_1', 'user', 'show node exporter', ?)`, tenantID, stamp); err != nil {
+		t.Fatal(err)
+	}
+	status := "completed"
+	if duplicateActive {
+		status = "created"
+	}
+	if _, err := db.Exec(`INSERT INTO tasks (id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, created_at, updated_at, version) VALUES ('task_1', ?, 'session_1', ?, 'message_user', 'mock-prometheus', ?, '2026-07-13T10:30:00.000000000Z', 1, ?, ?, 1)`, tenantID, status, "2026-07-13T10:00:00.000000000Z", stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
+	if duplicateActive {
+		if _, err := db.Exec(`INSERT INTO messages (id, tenant_id, session_id, role, content, created_at) VALUES ('message_user_2', ?, 'session_1', 'user', 'second request', ?)`, tenantID, stamp); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO tasks (id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, latest_sequence, created_at, updated_at, version) VALUES ('task_2', ?, 'session_1', 'created', 'message_user_2', 'mock-prometheus', ?, '2026-07-13T10:30:00.000000000Z', 0, ?, ?, 1)`, tenantID, "2026-07-13T10:00:00.000000000Z", stamp, stamp); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	if _, err := db.Exec(`INSERT INTO messages (id, tenant_id, session_id, role, content, created_at) VALUES ('message_assistant', ?, 'session_1', 'assistant', 'result', ?)`, tenantID, stamp); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO task_events (event_id, tenant_id, task_id, session_id, sequence, type, timestamp, payload_json) VALUES ('event_1', ?, 'task_1', 'session_1', 1, 'assistant.message.completed', ?, '{"message":{"id":"message_assistant"}}')`, tenantID, stamp); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO tool_calls (id, tenant_id, task_id, tool_name, tool_version, status, input_summary_json, started_at, version) VALUES ('tool_1', ?, 'task_1', 'grafana.search_metrics', 'v1', 'started', '{}', ?, 1)`, tenantID, stamp); err != nil {
+		t.Fatal(err)
+	}
+}
+
 type taskFixture struct {
 	now       time.Time
 	timeRange common.AbsoluteTimeRange
@@ -243,7 +379,7 @@ func createTaskFixture(t *testing.T, ctx context.Context, store repositories.App
 	if err != nil {
 		t.Fatal(err)
 	}
-	message, err := session.NewMessage("message_1", tenantID, analysisSession.ID, session.RoleUser, "show node exporter", now)
+	message, err := session.NewMessage("message_1", tenantID, analysisSession.ID, "task_1", session.RoleUser, "show node exporter", now)
 	if err != nil {
 		t.Fatal(err)
 	}
