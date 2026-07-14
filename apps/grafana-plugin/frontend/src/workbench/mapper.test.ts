@@ -18,11 +18,19 @@ describe('ChartWireToDataFrame', () => {
           { timestamp: '2026-07-13T15:01:00Z', value: 0.5 },
         ],
       },
-    ]);
+    ], 'percent');
 
     expect(frame.fields.map((field) => field.name)).toEqual(['Time', 'cpu']);
     expect(Array.from(frame.fields[0].values)).toEqual([Date.parse('2026-07-13T15:00:00Z'), Date.parse('2026-07-13T15:01:00Z')]);
     expect(Array.from(frame.fields[1].values)).toEqual([0.25, 0.5]);
     expect(frame.fields[1].labels).toEqual({ instance: 'mock:9100' });
+    expect(frame.fields[1].config).toMatchObject({ displayName: 'cpu', unit: 'percent' });
+  });
+
+  it('creates a valid empty frame when an execution has no series', () => {
+    const frame = ChartWireToDataFrame([], 'short');
+
+    expect(frame.fields).toHaveLength(1);
+    expect(frame.fields[0]).toMatchObject({ name: 'Time', type: 'time', values: [] });
   });
 });
