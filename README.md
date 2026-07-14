@@ -6,7 +6,7 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 
 ## 当前状态
 
-有界 node_exporter 查询和持久化多轮工作台已经实现：用户可选择或用有限自然语言指定最近 30 秒至 6 小时、auto/注册 step；AI Core 持久化有效 QueryPlan，assistant-mcp 只按 `cpu|memory|load` view 生成规范 PromQL，最终数值回复由本地实际样本统计产生。Mock Agent 固定生成三图，显式 `eino` 模式下 DeepSeek 只选择所需 view。
+有界 node_exporter 查询和持久化多轮工作台已经实现：Workbench 只提交自然语言，同步 Mock/Eino IntentPlanner 选择 `cpu|memory|load` 并规划可选 range/step；AI Core 本地校验边界、冻结并持久化 QueryPlan，后台只执行已持久化 views。assistant-mcp 生成规范 PromQL，最终数值回复由本地实际样本统计产生。
 `make e2e-mock`、`make e2e-real-metrics` 和有凭证的 `make e2e-real-agent` 已通过；Prometheus、MCP、DeepSeek 分层诊断、durable Task 结果语义分析和跨模式旧 Session 恢复也已完成。Grafana Dashboard 写入仍未实现。最终执行计划与证据见
 [`docs/implementation/bounded_node_exporter_query_parameters_execution_plan.md`](docs/implementation/bounded_node_exporter_query_parameters_execution_plan.md) 和
 [`docs/implementation/bounded_node_exporter_query_parameters_progress.md`](docs/implementation/bounded_node_exporter_query_parameters_progress.md)。独立探针设计见

@@ -1,12 +1,11 @@
 # 当前骨架代码说明
 
-> 本文以 2026-07-14 的实际代码为准，说明已可工作的有界 node_exporter 查询闭环；正在执行的
-> 同步 Agent 意图规划变更见 [`natural_language_query_input_execution_plan.md`](natural_language_query_input_execution_plan.md)，长期设计请参照
+> 本文以 2026-07-15 的实际代码为准，说明已可工作的同步 Agent 规划与有界 node_exporter 查询闭环；长期设计请参照
 > [`code_skeleton_design.md`](code_skeleton_design.md)。
 
 ## 当前可演示的能力
 
-用户在 Grafana App Plugin 中提交分析请求后，系统会把结构化控件与有限自然语言解析为持久化 QueryPlan，并通过 SSE 返回 `node_exporter` CPU、内存可用率和系统负载时序图。查询范围限制为最近 30 秒至 6 小时，resolution 只能是 auto 或注册 step；Mock/真实指标模式固定选择三视图，显式 Eino/DeepSeek 模式只让模型选择视图。PromQL、有效范围、step 和 CPU rate window 均由本地代码决定，用户可见数值回复由实际查询结果在本地汇总。
+用户在 Grafana App Plugin 中只提交自然语言。AI Core 同步调用 Mock 或 Eino IntentPlanner，将注册 views 与可选 range/step 与 API hint/本地默认值合并，校验后冻结持久化 QueryPlan。后台仅执行这份计划的 `cpu|memory|load` views，PromQL 由 assistant-mcp 注册表编译，数值回复由实际查询结果在本地汇总。
 
 ```text
 Grafana 浏览器前端
@@ -133,7 +132,7 @@ docker compose -p mini-torchbearing-real-agent-manual \
 3. 输入任意非空分析请求，例如“帮我看看 node_exporter 最近 30 分钟的 CPU、内存和系统负载”，点击“开始分析”。
 4. Mock/真实指标模式应看到固定助手说明和三张图；真实 Agent 的“概览”应产生三张图，“只看 CPU”应只产生 CPU 图。刷新页面后，URL 中的 Session/Task 标识会使页面恢复结果。
 
-Mock 和真实指标模式不根据输入生成不同的分析计划；任何非空输入都会走同一个确定性三视图计划。只有真实 Agent 模式会在受限 CPU、内存、负载范围内根据输入选择视图。
+Mock 和真实 Eino 模式都通过同一 IntentPlanner Port 生成受限计划；二者都由同一确定性执行器按持久化 views 顺序查询。
 
 ### Mock 模式点击“开始分析”后实际发生的事
 
@@ -142,10 +141,10 @@ Mock 和真实指标模式不根据输入生成不同的分析计划；任何非
 |阶段|输入与去向|内部处理|可见/持久化输出|
 |-|-|-|-|
 |1. 创建会话|前端在没有 URL Session 时调用 `POST .../resources/sessions`，标题固定为 `Node exporter mock analysis`。|Plugin Backend 从 Grafana 登录态构造用户/组织/权限上下文，并代理到 AI Core。AI Core 在 SQLite 中创建 Session。|浏览器获得 `sessionId`。|
-|2. 创建任务|前端把用户输入、`datasourceUid: prometheus-main`、所选相对范围、auto/显式 resolution 和新的 idempotency key 发送到 `POST .../resources/tasks`。|AI Core 让消息中的明确时间/间隔覆盖结构化默认值，校验范围/点数预算，冻结绝对时间并持久化 QueryPlan、用户 Message、Task 和首个事件。相同 key 与相同原始请求返回同一 Task。|浏览器获得 `taskId` 并写入 URL；右栏可读取最终生效参数。|
+|2. 创建任务|前端只把用户输入、`datasourceUid: prometheus-main` 和新的 idempotency key 发送到 `POST .../resources/tasks`。|AI Core 在已完成幂等预检后同步规划 views/range/step，本地校验并冻结 QueryPlan；Planner 失败不写入 Message、Task 或幂等记录。|浏览器获得 `taskId`；右栏只读显示最终生效参数。|
 |3. 启动工作流|Task 提交成功后，AI Core 在事务提交后异步运行工作流。|Task 依次进入 planning、running_tools、validating、completed；每次状态改变及后续事件都先写 SQLite，再通知 SSE 订阅者。|任务状态会实时变化，即使 SSE 断开也能从数据库重放。|
-|4. Mock Agent 计划|Mock Agent 只负责固定选择三个视图；AI Core 已在任务创建时解析有界时间/step。|它固定搜索 `node exporter cpu memory load` 并查询 CPU、内存和负载；每个查询使用 Task QueryPlan，规范 PromQL 由 MCP 注册表返回。|先看到“正在生成固定的 node_exporter 分析视图…”，最终回复由本地 formatter 按实际范围、step/window 和样本统计生成。|
-|5. 真实 MCP 通信|AI Core 的 MCP Gateway 通过 HTTP 调用 assistant-mcp，并携带从 Grafana 派生的身份上下文。|依次调用 1 次 `grafana.search_metrics`、3 次 `grafana.get_metric_labels`、3 次 `grafana.query_prometheus`。MCP 服务做权限、输入/输出 Schema 校验后才进入 Adapter。|SSE 出现对应的 `tool.started` / `tool.completed` 和指标候选事件。|
+|4. 确定性执行|工作流读取 Task QueryPlan.views。|按持久化顺序为每个 view 各调用一次 Validate/Execute；不再让模型二次选图，unsupported 零查询完成。|最终回复由本地 formatter 按实际范围、step/window 和样本统计生成。|
+|5. 真实 MCP 通信|AI Core 的 MCP Gateway 通过 HTTP 调用 assistant-mcp，并携带从 Grafana 派生的身份上下文。|每个 persisted view 调用 1 次 `grafana.query_prometheus`；search/labels 仅保留为独立诊断能力。|SSE 出现一一配对的 `tool.started` / `tool.completed`。|
 |6. Mock 数据读取|MCP 的 Mock Prometheus Adapter 按注册 view 从 `data/mock-scenarios/node_exporter_overview` 读取基准数据。|查询不访问真实 Prometheus；fixture 会按本轮绝对范围和 step 确定性重采样，CPU 表达式由本轮 window 渲染。|每个查询返回具有精确首尾范围和 step 间隔的 matrix；未知 view/window 会在读取 fixture 前拒绝。|
 |7. 图表与页面恢复|AI Core 为三项结果创建 Chart 和 Execution，并写入事件流；前端订阅 `.../events?afterSequence=N`。|前端 reducer 只接收连续 sequence，缺号或断线会从最后序号重连；mapper 将持久化 series 转成 Grafana DataFrame 并交给 `TimeSeries`。|出现三张图及 PromQL 折叠区。刷新页面时，前端从 URL 读取 ID，再从 sequence 0 重放事件，因此能恢复相同结果。|
 

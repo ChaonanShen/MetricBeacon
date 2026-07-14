@@ -1,6 +1,6 @@
 # 自然语言单输入查询执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
 > implementationAuthorized: true
 > decision: accepted by ADR-021, which supersedes ADR-020

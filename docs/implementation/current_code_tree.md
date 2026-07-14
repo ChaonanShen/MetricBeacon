@@ -1,6 +1,6 @@
 # 当前代码树（分享版）
 
-> 更新日期：2026-07-14。省略 `node_modules/`、`dist/`、`build/`、测试输出和 Go 模块缓存；
+> 更新日期：2026-07-15。省略 `node_modules/`、`dist/`、`build/`、测试输出和 Go 模块缓存；
 > 该树用于说明当前有界 node_exporter 查询闭环的代码归属，而非逐文件清单。
 
 ```text
@@ -26,7 +26,7 @@ mini-torchbearing/
 │       │   │       ├── sse.ts             # SSE 订阅、重连与 sequence 处理
 │       │   │       ├── route.ts           # Session/Task URL 恢复与旧 ID 清理
 │       │   │       ├── time-range.ts      # 图表时间范围转换
-│       │   │       ├── query-options.ts   # 有界范围/resolution 控件与请求映射
+│       │   │       ├── query-input.ts     # 自然语言与固定 datasource 请求映射
 │       │   │       └── *.test.ts          # 前端单元测试
 │       │   ├── backend/                   # Grafana Plugin SDK 后端（Go）
 │       │   │   ├── cmd/plugin/            # 后端进程入口
@@ -46,14 +46,15 @@ mini-torchbearing/
 │   │   ├── internal/
 │   │   │   ├── domain/                    # 纯领域：Session、Task/QueryPlan、Chart、Execution
 │   │   │   ├── application/
-│   │   │   │   ├── commands/              # Session/Task 命令与有限查询参数解析
+│   │   │   │   ├── commands/              # Session/Task 命令、Planner 合并与 QueryPlan 冻结
 │   │   │   │   ├── workflows/             # 分析工作流与事件持久化
 │   │   │   │   └── dto/                   # 应用层数据传递对象
 │   │   │   ├── ports/                     # 存储、Agent、MCP、时钟等抽象接口
 │   │   │   ├── adapters/
 │   │   │   │   ├── inbound/http/          # AI Core HTTP API 与 SSE
 │   │   │   │   └── outbound/              # SQLite、MCP、Mock Agent、Eino Agent、时钟/ID
-│   │   │   │       ├── agent/eino/         # view-only Eino Tool 与本地摘要隔离
+│   │   │   │       ├── agent/eino/         # 无 Tool 的严格 JSON IntentPlanner Adapter
+│   │   │   │       ├── agent/mock/         # 确定性意图解析与 persisted-view 执行器
 │   │   │   │       └── agent/localresult/  # Mock/Eino 共用的可信事实 formatter
 │   │   │   └── bootstrap/                 # 服务依赖组装
 │   │   ├── migrations/sqlite/             # SQLite 迁移（含 QueryPlan views/step/实际样本范围回填）
