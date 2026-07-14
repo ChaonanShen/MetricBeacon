@@ -39,6 +39,12 @@ The completed UI slice is
 It narrows P2 to a read-only three-pane Workbench shell; its execution evidence
 is tracked in [`implementation/three_pane_workbench_progress.md`](implementation/three_pane_workbench_progress.md).
 
+The active diagnostic slice is
+[`implementation/real_backend_diagnostics_execution_plan.md`](implementation/real_backend_diagnostics_execution_plan.md).
+It adds independent Prometheus, MCP, and DeepSeek probes plus safe recovery when switching between run modes with
+independent AI Core volumes. Progress is tracked in
+[`implementation/real_backend_diagnostics_progress.md`](implementation/real_backend_diagnostics_progress.md).
+
 ## Reading and conflict rules
 
 | Question | Read first | Authority when documents disagree |
@@ -65,6 +71,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/node_exporter_real_analysis_progress.md` | Completed progress record | Gate status and verification evidence for that slice. |
 | `implementation/three_pane_workbench_execution_plan.md` | Completed execution plan | Narrow read-only three-pane Workbench UI slice; progress is tracked in `implementation/three_pane_workbench_progress.md`. |
 | `implementation/three_pane_workbench_progress.md` | Completed progress record | Gate status and verification evidence for the three-pane Workbench UI slice. |
+| `implementation/real_backend_diagnostics_execution_plan.md` | Active execution plan | Independent real-backend probes and cross-mode stale-Session recovery. |
+| `implementation/real_backend_diagnostics_progress.md` | Active progress record | Gate status and verification evidence for the real-backend diagnostic slice. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
 | `implementation/chart_trio_ui_fit_plan.md` | Completed evidence | Historical chart-layout improvement record. |
