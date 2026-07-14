@@ -1,7 +1,8 @@
 # 三图归位（Chart Trio UI Fit）计划
 
-status: proposed
+status: completed
 createdAt: 2026-07-14
+completedAt: 2026-07-14
 sourceCommit: 18037fc
 visualBaseline: `current_ui.png`
 
@@ -299,3 +300,32 @@ Grafana 13.1.0 API 无法完成 display processor 或布局，必须先记录具
 
 如果需要拆成两个提交，第一提交只包含 UI/mapper，第二提交只包含测试；不得把无关格式化或
 仓库其他清理混入其中。
+
+## 10. 完成记录
+
+实施已按小步提交完成：
+
+1. `f0ca394 docs: add chart trio UI fit plan`
+2. `e35908b fix(ui): add chart display metadata`
+3. `12d1271 fix(ui): make chart cards responsive`
+4. `5de075d test(ui): cover responsive chart rendering`
+
+实际变更保持在图表展示范围内：ChartCard 改为显式的 Grafana 基础布局，Grid 和
+`ResizeObserver` 驱动实际绘图宽度；mapper 为字段写入 unit 和简洁 displayName；组件层按当前
+theme 补全数值 display processor；浏览器测试覆盖三图、单位/图例、无 `undefined`、宽窄视口、
+PromQL 展开、边界与刷新恢复。
+
+验证证据：
+
+- `make test-frontend` 通过（5 个 Vitest 文件、10 项测试及 TypeScript 检查）；
+- `npm run build` 通过；
+- `make check` 通过；
+- 使用隔离 Compose 的 13000/18080/18081 端口运行完整 mock API E2E 和 Playwright browser E2E，
+  均通过；
+- 宽屏页面截图人工复核确认：标题、状态、坐标轴、曲线和图例均在各自卡片内，CPU/内存以百分比
+  显示，系统负载以数值显示，未出现 `undefined`。
+
+默认 `make e2e-mock` 首次尝试未能占用 `127.0.0.1:8081`，因为用户环境已有 SSH 转发和现有
+`mini-torchbearing-*` 服务在使用该端口。为避免影响这些服务，未停止或修改它们；替代验证使用
+同一份 Compose 服务定义，仅临时重映射宿主机端口，并在结束后清理了该隔离项目的容器、网络和
+volume。
