@@ -1,14 +1,13 @@
-import { AppRootProps, type DataFrame, type TimeRange } from '@grafana/data';
-import { Button, Card, Field, Input, Spinner, TimeSeries } from '@grafana/ui';
+import { AppRootProps } from '@grafana/data';
+import { Button, Field, Grid, Input, Spinner } from '@grafana/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { resourceClient, type CreateTask } from '../api/resource';
-import { ChartWireToDataFrame } from './mapper';
+import { ChartCard } from './ChartCard';
 import { resetWorkbench, taskEventReducer } from './reducer';
 import { readWorkbenchRoute, replaceWorkbenchRoute } from './route';
 import { subscribeTaskEvents } from './sse';
-import { chartTimeRange } from './time-range';
 import { initialWorkbenchState } from './types';
 
 export function Workbench(_props: AppRootProps) {
@@ -53,12 +52,10 @@ export function Workbench(_props: AppRootProps) {
     <p>Task 状态：{state.taskStatus ?? task.data?.status ?? 'idle'}</p>
     {state.error && <p role="alert">{state.error.code}: {state.error.message}</p>}
     {state.assistantText && <section><h3>助手</h3><p>{state.assistantText}</p></section>}
-    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12 }}>
-      {charts.map(({ chart, execution }) => <ChartCard key={chart.id} title={chart.title} status={String(chart.status)} expression={chart.queries?.[0]?.expression} frame={execution ? ChartWireToDataFrame(execution.series) : undefined} timeRange={chartTimeRange(chart, execution)} />)}
+    <section aria-label="分析图表">
+      <Grid minColumnWidth={44} gap={2} alignItems="stretch">
+        {charts.map(({ chart, execution }) => <ChartCard key={chart.id} chart={chart} execution={execution} />)}
+      </Grid>
     </section>
   </main>;
-}
-
-function ChartCard({ title, status, expression, frame, timeRange }: { title: string; status: string; expression?: string; frame?: DataFrame; timeRange?: TimeRange }) {
-  return <div data-testid="timeseries-panel"><Card><h3>{title}</h3><p>状态：{status}</p>{expression && <details><summary>PromQL</summary><code>{expression}</code></details>}{frame && timeRange && <TimeSeries width={420} height={220} timeRange={timeRange} timeZone="browser" frames={[frame]} legend={{ showLegend: true, placement: 'bottom', calcs: [] }} />}</Card></div>;
 }
