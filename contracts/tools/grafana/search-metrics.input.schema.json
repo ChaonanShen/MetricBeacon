@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["datasourceUid", "query", "limit"],
   "properties": {
-    "datasourceUid": {"const": "mock-prometheus"},
+    "datasourceUid": {"type": "string", "enum": ["prometheus-main"]},
     "query": {"type": "string", "minLength": 1},
     "limit": {"type": "integer", "minimum": 1, "maximum": 100}
   }

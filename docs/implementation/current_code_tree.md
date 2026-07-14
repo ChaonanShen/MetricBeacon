@@ -49,7 +49,7 @@ mini-torchbearing/
 │   │   │   │   ├── inbound/http/          # AI Core HTTP API 与 SSE
 │   │   │   │   └── outbound/              # SQLite、MCP、Mock Agent、时钟/ID
 │   │   │   └── bootstrap/                 # 服务依赖组装
-│   │   ├── migrations/sqlite/             # SQLite 数据库迁移
+│   │   ├── migrations/sqlite/             # SQLite 数据库迁移（含多轮关联和 datasource UID 前移）
 │   │   └── Dockerfile
 │   │
 │   └── assistant-mcp/                     # MCP 工具服务（Go）

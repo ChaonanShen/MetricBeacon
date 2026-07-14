@@ -67,8 +67,8 @@ export interface components {
         QueryPrometheusOutput: components["schemas"]["query-prometheus.output.schema"];
         /** grafana.search_metrics input */
         "search-metrics.input.schema": {
-            /** @constant */
-            datasourceUid: "mock-prometheus";
+            /** @enum {string} */
+            datasourceUid: "prometheus-main";
             query: string;
             limit: number;
         };
@@ -79,12 +79,17 @@ export interface components {
             description: string;
             labels: string[];
             score: number;
-            sources: {
+            sources: ({
                 /** @constant */
                 type: "mock_fixture";
                 /** @constant */
                 reference: "node_exporter_overview";
-            }[];
+            } | {
+                /** @constant */
+                type: "prometheus_metadata";
+                /** @enum {string} */
+                reference: "node_cpu_seconds_total" | "node_memory_MemAvailable_bytes" | "node_memory_MemTotal_bytes" | "node_load1";
+            })[];
         };
         /** grafana.search_metrics output */
         "search-metrics.output.schema": {
@@ -97,21 +102,26 @@ export interface components {
                     description: string;
                     labels: string[];
                     score: number;
-                    sources: {
+                    sources: ({
                         /** @constant */
                         type: "mock_fixture";
                         /** @constant */
                         reference: "node_exporter_overview";
-                    }[];
+                    } | {
+                        /** @constant */
+                        type: "prometheus_metadata";
+                        /** @enum {string} */
+                        reference: "node_cpu_seconds_total" | "node_memory_MemAvailable_bytes" | "node_memory_MemTotal_bytes" | "node_load1";
+                    })[];
                 };
             };
         };
         /** grafana.get_metric_labels input */
         "get-metric-labels.input.schema": {
-            /** @constant */
-            datasourceUid: "mock-prometheus";
             /** @enum {string} */
-            metricName: "node_cpu_seconds_total" | "node_memory_MemAvailable_bytes" | "node_load1";
+            datasourceUid: "prometheus-main";
+            /** @enum {string} */
+            metricName: "node_cpu_seconds_total" | "node_memory_MemAvailable_bytes" | "node_memory_MemTotal_bytes" | "node_load1";
         };
         /** grafana.get_metric_labels output */
         "get-metric-labels.output.schema": {
@@ -123,8 +133,8 @@ export interface components {
         };
         /** grafana.query_prometheus input */
         "query-prometheus.input.schema": {
-            /** @constant */
-            datasourceUid: "mock-prometheus";
+            /** @enum {string} */
+            datasourceUid: "prometheus-main";
             expression: string;
             /** Format: date-time */
             start: string;
@@ -138,6 +148,7 @@ export interface components {
             valid: boolean;
             errors: string[];
             warnings: string[];
+            canonicalExpression: string;
             metricNames: string[];
             labelNames: string[];
         };
@@ -166,6 +177,7 @@ export interface components {
                     valid: boolean;
                     errors: string[];
                     warnings: string[];
+                    canonicalExpression: string;
                     metricNames: string[];
                     labelNames: string[];
                 };

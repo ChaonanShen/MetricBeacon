@@ -27,6 +27,7 @@ type ValidateQueryRequest struct{ DatasourceUID, Expression string }
 type QueryValidationResult struct {
 	Valid                                     bool
 	Errors, Warnings, MetricNames, LabelNames []string
+	CanonicalExpression                       string
 }
 type ExecuteQueryRequest struct {
 	DatasourceUID, Expression string

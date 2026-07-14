@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["datasourceUid", "expression", "start", "end", "stepSeconds", "mode"],
   "properties": {
-    "datasourceUid": {"const": "mock-prometheus"},
+    "datasourceUid": {"type": "string", "enum": ["prometheus-main"]},
     "expression": {"type": "string", "minLength": 1},
     "start": {"type": "string", "format": "date-time"},
     "end": {"type": "string", "format": "date-time"},

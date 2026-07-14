@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["datasourceUid", "metricName"],
   "properties": {
-    "datasourceUid": {"const": "mock-prometheus"},
-    "metricName": {"type": "string", "enum": ["node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_load1"]}
+    "datasourceUid": {"type": "string", "enum": ["prometheus-main"]},
+    "metricName": {"type": "string", "enum": ["node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_memory_MemTotal_bytes", "node_load1"]}
   }
 }

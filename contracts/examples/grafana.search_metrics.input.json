@@ -1,5 +1,5 @@
 {
-  "datasourceUid": "mock-prometheus",
+  "datasourceUid": "prometheus-main",
   "query": "node exporter cpu memory load",
   "limit": 10
 }

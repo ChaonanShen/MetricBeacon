@@ -52,11 +52,12 @@ type QueryRequest struct {
 }
 
 type Validation struct {
-	Valid       bool
-	Errors      []string
-	Warnings    []string
-	MetricNames []string
-	LabelNames  []string
+	Valid               bool
+	Errors              []string
+	Warnings            []string
+	MetricNames         []string
+	LabelNames          []string
+	CanonicalExpression string
 }
 
 type Point struct {

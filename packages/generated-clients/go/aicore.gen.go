@@ -21,6 +21,21 @@ const (
 	InternalServiceIdentityScopes internalServiceIdentityContextKey = "InternalServiceIdentity.Scopes"
 )
 
+// Defines values for CreateTaskRequestSchemaAnalysisContextDatasourceUid.
+const (
+	CreateTaskRequestSchemaAnalysisContextDatasourceUidPrometheusMain CreateTaskRequestSchemaAnalysisContextDatasourceUid = "prometheus-main"
+)
+
+// Valid indicates whether the value is a known member of the CreateTaskRequestSchemaAnalysisContextDatasourceUid enum.
+func (e CreateTaskRequestSchemaAnalysisContextDatasourceUid) Valid() bool {
+	switch e {
+	case CreateTaskRequestSchemaAnalysisContextDatasourceUidPrometheusMain:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErrorCode.
 const (
 	AdapterNotConfigured   ErrorCode = "adapter_not_configured"
@@ -222,6 +237,21 @@ func (e TaskEventsSchemaType) Valid() bool {
 	}
 }
 
+// Defines values for TaskSchemaDatasourceUid.
+const (
+	TaskSchemaDatasourceUidPrometheusMain TaskSchemaDatasourceUid = "prometheus-main"
+)
+
+// Valid indicates whether the value is a known member of the TaskSchemaDatasourceUid enum.
+func (e TaskSchemaDatasourceUid) Valid() bool {
+	switch e {
+	case TaskSchemaDatasourceUidPrometheusMain:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskSchemaStatus.
 const (
 	Completed    TaskSchemaStatus = "completed"
@@ -310,12 +340,15 @@ type CreateSessionRequestSchema struct {
 // CreateTaskRequestSchema defines model for create-task-request.schema.
 type CreateTaskRequestSchema struct {
 	AnalysisContext struct {
-		DatasourceUid interface{}                                        `json:"datasourceUid"`
-		TimeRange     *CreateTaskRequestSchema_AnalysisContext_TimeRange `json:"timeRange,omitempty"`
+		DatasourceUid CreateTaskRequestSchemaAnalysisContextDatasourceUid `json:"datasourceUid"`
+		TimeRange     *CreateTaskRequestSchema_AnalysisContext_TimeRange  `json:"timeRange,omitempty"`
 	} `json:"analysisContext"`
 	Message   string `json:"message"`
 	SessionId string `json:"sessionId"`
 }
+
+// CreateTaskRequestSchemaAnalysisContextDatasourceUid defines model for CreateTaskRequestSchema.AnalysisContext.DatasourceUid.
+type CreateTaskRequestSchemaAnalysisContextDatasourceUid string
 
 // CreateTaskRequestSchemaAnalysisContextTimeRange0 defines model for .
 type CreateTaskRequestSchemaAnalysisContextTimeRange0 struct {
@@ -530,16 +563,16 @@ type TaskPageSchema struct {
 
 // TaskSchema defines model for task.schema.
 type TaskSchema struct {
-	CompletedAt    *time.Time        `json:"completedAt"`
-	CreatedAt      time.Time         `json:"createdAt"`
-	DatasourceUid  string            `json:"datasourceUid"`
-	Error          *TaskSchema_Error `json:"error"`
-	Id             string            `json:"id"`
-	InputMessageId string            `json:"inputMessageId"`
-	LatestSequence int               `json:"latestSequence"`
-	SessionId      string            `json:"sessionId"`
-	StartedAt      *time.Time        `json:"startedAt"`
-	Status         TaskSchemaStatus  `json:"status"`
+	CompletedAt    *time.Time              `json:"completedAt"`
+	CreatedAt      time.Time               `json:"createdAt"`
+	DatasourceUid  TaskSchemaDatasourceUid `json:"datasourceUid"`
+	Error          *TaskSchema_Error       `json:"error"`
+	Id             string                  `json:"id"`
+	InputMessageId string                  `json:"inputMessageId"`
+	LatestSequence int                     `json:"latestSequence"`
+	SessionId      string                  `json:"sessionId"`
+	StartedAt      *time.Time              `json:"startedAt"`
+	Status         TaskSchemaStatus        `json:"status"`
 	TimeRange      struct {
 		From time.Time `json:"from"`
 		To   time.Time `json:"to"`
@@ -547,6 +580,9 @@ type TaskSchema struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 	Version   int       `json:"version"`
 }
+
+// TaskSchemaDatasourceUid defines model for TaskSchema.DatasourceUid.
+type TaskSchemaDatasourceUid string
 
 // TaskSchema_Error defines model for TaskSchema.Error.
 type TaskSchema_Error struct {

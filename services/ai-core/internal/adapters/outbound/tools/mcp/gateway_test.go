@@ -27,17 +27,17 @@ func TestGatewayAndTypedAdaptersUseRealStreamableHTTP(t *testing.T) {
 		t.Fatalf("list tools: %#v, %v", descriptors, err)
 	}
 	catalog := NewMetricCatalogAdapter(gateway)
-	metrics, err := catalog.SearchMetrics(context.Background(), identity, dto.SearchMetricsRequest{DatasourceUID: "mock-prometheus", Query: "node", Limit: 10})
+	metrics, err := catalog.SearchMetrics(context.Background(), identity, dto.SearchMetricsRequest{DatasourceUID: "prometheus-main", Query: "node", Limit: 10})
 	if err != nil || len(metrics.Candidates) != 3 {
 		t.Fatalf("search metrics: %#v, %v", metrics, err)
 	}
-	labels, err := catalog.GetMetricLabels(context.Background(), identity, dto.GetMetricLabelsRequest{DatasourceUID: "mock-prometheus", MetricName: "node_cpu_seconds_total"})
+	labels, err := catalog.GetMetricLabels(context.Background(), identity, dto.GetMetricLabelsRequest{DatasourceUID: "prometheus-main", MetricName: "node_cpu_seconds_total"})
 	if err != nil || len(labels.LabelNames) != 1 || labels.LabelNames[0] != "instance" {
 		t.Fatalf("labels: %#v, %v", labels, err)
 	}
 	query := NewQueryEngineAdapter(gateway)
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
-	result, err := query.Execute(context.Background(), identity, dto.ExecuteQueryRequest{DatasourceUID: "mock-prometheus", Expression: "node_load1", TimeRange: common.AbsoluteTimeRange{From: now.Add(-time.Minute), To: now}, StepSeconds: 60})
+	result, err := query.Execute(context.Background(), identity, dto.ExecuteQueryRequest{DatasourceUID: "prometheus-main", Expression: "node_load1", TimeRange: common.AbsoluteTimeRange{From: now.Add(-time.Minute), To: now}, StepSeconds: 60})
 	if err != nil || result.Status != "success" || len(result.Series) != 1 {
 		t.Fatalf("query: %#v, %v", result, err)
 	}
@@ -55,7 +55,7 @@ func TestGatewayKeepsConcurrentRequestHeadersIsolated(t *testing.T) {
 		group.Add(1)
 		go func(requestID string) {
 			defer group.Done()
-			_, err := gateway.CallTool(context.Background(), requestcontext.Context{TenantID: "org:1", OrgID: "1", UserID: requestID, Permissions: []string{"datasources:query"}, RequestID: requestID, TraceID: requestID}, tools.Call{Name: "grafana.search_metrics", Version: "v1", Arguments: json.RawMessage(`{"datasourceUid":"mock-prometheus","query":"node","limit":10}`)})
+			_, err := gateway.CallTool(context.Background(), requestcontext.Context{TenantID: "org:1", OrgID: "1", UserID: requestID, Permissions: []string{"datasources:query"}, RequestID: requestID, TraceID: requestID}, tools.Call{Name: "grafana.search_metrics", Version: "v1", Arguments: json.RawMessage(`{"datasourceUid":"prometheus-main","query":"node","limit":10}`)})
 			if err != nil {
 				t.Errorf("call %s: %v", requestID, err)
 			}

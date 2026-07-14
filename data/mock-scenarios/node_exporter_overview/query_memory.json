@@ -1,5 +1,5 @@
 {
-  "validation":{"valid":true,"errors":[],"warnings":[],"metricNames":["node_memory_MemAvailable_bytes","node_memory_MemTotal_bytes"],"labelNames":["instance"]},
+  "validation":{"valid":true,"errors":[],"warnings":[],"metricNames":["node_memory_MemAvailable_bytes","node_memory_MemTotal_bytes"],"labelNames":["instance"],"canonicalExpression":"100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes"},
   "status":"success","resultType":"matrix","durationMs":12,"warnings":[],
   "series":[
     {"name":"node-a:9100","labels":{"instance":"node-a:9100","job":"node-exporter"},"points":[{"timestamp":"2026-07-13T10:00:00Z","value":68},{"timestamp":"2026-07-13T10:05:00Z","value":67},{"timestamp":"2026-07-13T10:10:00Z","value":65},{"timestamp":"2026-07-13T10:15:00Z","value":64},{"timestamp":"2026-07-13T10:20:00Z","value":66},{"timestamp":"2026-07-13T10:25:00Z","value":65},{"timestamp":"2026-07-13T10:30:00Z","value":65}]},

@@ -65,7 +65,7 @@ assert.ok(session.response.ok, `Create Session failed: ${JSON.stringify(session.
 const createTaskBody = {
   sessionId: session.body.id,
   message: 'show node exporter',
-  analysisContext: { datasourceUid: 'mock-prometheus', timeRange: { relativeDuration: '30m' } },
+  analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' } },
 };
 const idempotencyKey = `mock-e2e-task-${crypto.randomUUID()}`;
 const task = await requestJSON(`${resourceBase}/tasks`, {

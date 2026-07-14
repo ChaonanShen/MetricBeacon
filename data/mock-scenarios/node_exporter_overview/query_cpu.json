@@ -1,5 +1,5 @@
 {
-  "validation":{"valid":true,"errors":[],"warnings":[],"metricNames":["node_cpu_seconds_total"],"labelNames":["instance","mode"]},
+  "validation":{"valid":true,"errors":[],"warnings":[],"metricNames":["node_cpu_seconds_total"],"labelNames":["instance","mode"],"canonicalExpression":"100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))"},
   "status":"success","resultType":"matrix","durationMs":12,"warnings":[],
   "series":[
     {"name":"node-a:9100","labels":{"instance":"node-a:9100","job":"node-exporter"},"points":[{"timestamp":"2026-07-13T10:00:00Z","value":22},{"timestamp":"2026-07-13T10:05:00Z","value":24},{"timestamp":"2026-07-13T10:10:00Z","value":31},{"timestamp":"2026-07-13T10:15:00Z","value":35},{"timestamp":"2026-07-13T10:20:00Z","value":29},{"timestamp":"2026-07-13T10:25:00Z","value":27},{"timestamp":"2026-07-13T10:30:00Z","value":26}]},

@@ -13,7 +13,7 @@
       "additionalProperties": false,
       "required": ["datasourceUid"],
       "properties": {
-        "datasourceUid": {"const": "mock-prometheus"},
+        "datasourceUid": {"type": "string", "enum": ["prometheus-main"]},
         "timeRange": {
           "oneOf": [
             {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string", "format": "date-time"}, "to": {"type": "string", "format": "date-time"}}},

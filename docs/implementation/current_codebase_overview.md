@@ -45,6 +45,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 - 前端以 Session 级 Message/Task/runtimes 状态恢复工作台，历史事件重放至固定目标序列；只有非终态 Task 建立一个 SSE，收到终态事件后关闭。重复事件会忽略，sequence 间隙会从最后连续序列重连。
 - 每轮 AgentRuntime 接收当前 User Message 之外、按时间正序的最近至多 12 条持久化 User/Assistant 消息，并按完整消息边界限制在 12,000 个 Unicode 字符内；当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
+- Mock 与后续真实 Adapter 共用逻辑数据源 UID `prometheus-main`。Task、Chart 和 MCP Tool 契约均限制为该 UID；SQLite `0003` 会前移迁移历史 Task 及 Chart query JSON 中的旧 UID。查询验证结果必须返回规范 PromQL，Mock Agent 以该规范表达式执行查询并持久化到 Chart。
 - SSE 事件带有 Task、Session 和单调递增 sequence。事件先写入 durable store，客户端可通过 `afterSequence` 或 `Last-Event-ID` 获取断线后的后缀。
 - 前端只能访问 Grafana Plugin Resource API；它不直连 AI Core、MCP 或 Prometheus。
 - `scripts/check-boundaries.sh` 会阻止 AI Core 的 domain/application/ports import 外部 SDK、Adapter 或 Mock fixture。
@@ -104,7 +105,7 @@ Compose 为 AI Core 挂载了单独的 named volume，所以在容器运行期�
 |阶段|输入与去向|内部处理|可见/持久化输出|
 |-|-|-|-|
 |1. 创建会话|前端在没有 URL Session 时调用 `POST .../resources/sessions`，标题固定为 `Node exporter mock analysis`。|Plugin Backend 从 Grafana 登录态构造用户/组织/权限上下文，并代理到 AI Core。AI Core 在 SQLite 中创建 Session。|浏览器获得 `sessionId`。|
-|2. 创建任务|前端把用户输入、`datasourceUid: mock-prometheus`、`relativeDuration: 30m` 和一个新的 idempotency key 发送到 `POST .../resources/tasks`。|AI Core 将相对时间冻结为当前时刻前 30 分钟到当前时刻；写入用户 Message、Task 和首个 `task.created` 事件。相同 key 与相同原始请求会返回同一个 Task，不同请求会得到 `idempotency_conflict`。|浏览器获得 `taskId`，并把 `sessionId`/`taskId` 写入 URL。|
+|2. 创建任务|前端把用户输入、`datasourceUid: prometheus-main`、`relativeDuration: 30m` 和一个新的 idempotency key 发送到 `POST .../resources/tasks`。|AI Core 将相对时间冻结为当前时刻前 30 分钟到当前时刻；写入用户 Message、Task 和首个 `task.created` 事件。相同 key 与相同原始请求会返回同一个 Task，不同请求会得到 `idempotency_conflict`。|浏览器获得 `taskId`，并把 `sessionId`/`taskId` 写入 URL。|
 |3. 启动工作流|Task 提交成功后，AI Core 在事务提交后异步运行工作流。|Task 依次进入 planning、running_tools、validating、completed；每次状态改变及后续事件都先写 SQLite，再通知 SSE 订阅者。|任务状态会实时变化，即使 SSE 断开也能从数据库重放。|
 |4. Mock Agent 计划|Agent 只检查输入是否非空，不解析自然语言内容。|它固定搜索 `node exporter cpu memory load`，并固定选择 CPU、内存和负载三个指标；这正是未来真实 Agent 的替换点。|先看到“正在生成固定的 node_exporter 分析视图…”，最终固定文本为“已生成 node_exporter 的 CPU、内存和系统负载视图。”|
 |5. 真实 MCP 通信|AI Core 的 MCP Gateway 通过 HTTP 调用 assistant-mcp，并携带从 Grafana 派生的身份上下文。|依次调用 1 次 `grafana.search_metrics`、3 次 `grafana.get_metric_labels`、3 次 `grafana.query_prometheus`。MCP 服务做权限、输入/输出 Schema 校验后才进入 Adapter。|SSE 出现对应的 `tool.started` / `tool.completed` 和指标候选事件。|

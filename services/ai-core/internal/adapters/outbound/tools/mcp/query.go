@@ -61,6 +61,9 @@ func (a *QueryEngineAdapter) query(ctx context.Context, identity requestcontext.
 	if err := json.Unmarshal(result.Content, &wire); err != nil || wire.ResultType != "matrix" || (wire.Status != "success" && wire.Status != "failed") {
 		return dto.QueryExecutionResult{}, common.NewError(common.SchemaValidationFailed, "MCP query result does not match the contract", false)
 	}
+	if !wire.Validation.Valid || wire.Validation.CanonicalExpression == "" {
+		return dto.QueryExecutionResult{}, common.NewError(common.SchemaValidationFailed, "MCP query validation is incomplete", false)
+	}
 	output := dto.QueryExecutionResult{Status: wire.Status, DurationMS: wire.DurationMS, Warnings: wire.Warnings, Validation: wire.Validation, Series: make([]chart.Series, len(wire.Series))}
 	for i, series := range wire.Series {
 		output.Series[i] = chart.Series{Name: series.Name, Labels: series.Labels, Points: make([]chart.Point, len(series.Points))}

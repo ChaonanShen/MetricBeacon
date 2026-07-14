@@ -79,7 +79,7 @@ export function Workbench(_props: AppRootProps) {
     mutationFn: async () => {
       if (!pendingTask.current) {
         const activeSession = sessionId ? { id: sessionId } : await resourceClient.createSession('Node exporter mock analysis');
-        pendingTask.current = { sessionId: activeSession.id, message: message.trim(), analysisContext: { datasourceUid: 'mock-prometheus', timeRange: { relativeDuration: '30m' } } };
+        pendingTask.current = { sessionId: activeSession.id, message: message.trim(), analysisContext: { datasourceUid: 'prometheus-main', timeRange: { relativeDuration: '30m' } } };
         if (!sessionId) setSessionId(activeSession.id);
       }
       idempotencyKey.current ??= crypto.randomUUID();

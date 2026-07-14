@@ -52,7 +52,7 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 		t.Fatal("session id is missing")
 	}
 
-	body := `{"sessionId":"` + sessionBody.ID + `","message":"show node exporter","analysisContext":{"datasourceUid":"mock-prometheus","timeRange":{"relativeDuration":"30m"}}}`
+	body := `{"sessionId":"` + sessionBody.ID + `","message":"show node exporter","analysisContext":{"datasourceUid":"prometheus-main","timeRange":{"relativeDuration":"30m"}}}`
 	taskResponse := request(t, http.MethodPost, server.URL+"/v1/tasks", body, "request-task", "task-key")
 	if taskResponse.StatusCode != http.StatusAccepted {
 		t.Fatalf("task response: %d", taskResponse.StatusCode)

@@ -4,9 +4,9 @@
   "title": "grafana.query_prometheus output",
   "$defs": {
     "validation": {
-      "type": "object", "additionalProperties": false, "required": ["valid", "errors", "warnings", "metricNames", "labelNames"],
+      "type": "object", "additionalProperties": false, "required": ["valid", "errors", "warnings", "metricNames", "labelNames", "canonicalExpression"],
       "properties": {
-        "valid": {"type": "boolean"}, "errors": {"type": "array", "items": {"type": "string"}}, "warnings": {"type": "array", "items": {"type": "string"}},
+        "valid": {"type": "boolean"}, "errors": {"type": "array", "items": {"type": "string"}}, "warnings": {"type": "array", "items": {"type": "string"}}, "canonicalExpression": {"type": "string", "minLength": 1},
         "metricNames": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "labelNames": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
       }
     }

@@ -257,7 +257,8 @@ export interface components {
             /** @enum {string} */
             status: "created" | "planning" | "running_tools" | "validating" | "completed" | "failed";
             inputMessageId: string;
-            datasourceUid: string;
+            /** @enum {string} */
+            datasourceUid: "prometheus-main";
             timeRange: {
                 /** Format: date-time */
                 from: string;
@@ -291,8 +292,8 @@ export interface components {
             sessionId: string;
             message: string;
             analysisContext: {
-                /** @constant */
-                datasourceUid: "mock-prometheus";
+                /** @enum {string} */
+                datasourceUid: "prometheus-main";
                 timeRange?: {
                     /** Format: date-time */
                     from: string;
@@ -613,7 +614,8 @@ export interface components {
             refId: string;
             expression: string;
             legend: string;
-            datasourceUid: string;
+            /** @enum {string} */
+            datasourceUid: "prometheus-main";
             timeRange: {
                 /** Format: date-time */
                 from: string;
@@ -644,7 +646,8 @@ export interface components {
                     refId: string;
                     expression: string;
                     legend: string;
-                    datasourceUid: string;
+                    /** @enum {string} */
+                    datasourceUid: "prometheus-main";
                     timeRange: {
                         /** Format: date-time */
                         from: string;

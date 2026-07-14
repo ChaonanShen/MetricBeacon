@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { initialSessionWorkbenchState, sessionReducer } from './session-reducer';
 
-const task = { id: 'task-1', sessionId: 'session-1', status: 'created', inputMessageId: 'message-1', datasourceUid: 'mock-prometheus', timeRange: { from: '2026-07-14T00:00:00Z', to: '2026-07-14T00:30:00Z' }, latestSequence: 0, error: null, createdAt: '2026-07-14T00:00:00Z', startedAt: null, completedAt: null, updatedAt: '2026-07-14T00:00:00Z', version: 1 } as never;
+const task = { id: 'task-1', sessionId: 'session-1', status: 'created', inputMessageId: 'message-1', datasourceUid: 'prometheus-main', timeRange: { from: '2026-07-14T00:00:00Z', to: '2026-07-14T00:30:00Z' }, latestSequence: 0, error: null, createdAt: '2026-07-14T00:00:00Z', startedAt: null, completedAt: null, updatedAt: '2026-07-14T00:00:00Z', version: 1 } as never;
 const userMessage = { id: 'message-1', sessionId: 'session-1', taskId: 'task-1', role: 'user', content: 'show cpu', createdAt: '2026-07-14T00:00:00Z' } as never;
 
 describe('sessionReducer', () => {

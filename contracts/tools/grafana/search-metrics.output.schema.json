@@ -15,7 +15,12 @@
         "score": {"type": "number", "minimum": 0, "maximum": 1},
         "sources": {
           "type": "array", "minItems": 1,
-          "items": {"type": "object", "additionalProperties": false, "required": ["type", "reference"], "properties": {"type": {"const": "mock_fixture"}, "reference": {"const": "node_exporter_overview"}}}
+          "items": {
+            "oneOf": [
+              {"type": "object", "additionalProperties": false, "required": ["type", "reference"], "properties": {"type": {"const": "mock_fixture"}, "reference": {"const": "node_exporter_overview"}}},
+              {"type": "object", "additionalProperties": false, "required": ["type", "reference"], "properties": {"type": {"const": "prometheus_metadata"}, "reference": {"type": "string", "enum": ["node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_memory_MemTotal_bytes", "node_load1"]}}}
+            ]
+          }
         }
       }
     }

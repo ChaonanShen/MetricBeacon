@@ -4,8 +4,35 @@
 package grafanatools
 
 import (
+	"encoding/json"
 	"time"
+
+	"github.com/oapi-codegen/runtime"
 )
+
+// Defines values for CandidateSources1Reference.
+const (
+	CandidateSources1ReferenceNodeCpuSecondsTotal         CandidateSources1Reference = "node_cpu_seconds_total"
+	CandidateSources1ReferenceNodeLoad1                   CandidateSources1Reference = "node_load1"
+	CandidateSources1ReferenceNodeMemoryMemAvailableBytes CandidateSources1Reference = "node_memory_MemAvailable_bytes"
+	CandidateSources1ReferenceNodeMemoryMemTotalBytes     CandidateSources1Reference = "node_memory_MemTotal_bytes"
+)
+
+// Valid indicates whether the value is a known member of the CandidateSources1Reference enum.
+func (e CandidateSources1Reference) Valid() bool {
+	switch e {
+	case CandidateSources1ReferenceNodeCpuSecondsTotal:
+		return true
+	case CandidateSources1ReferenceNodeLoad1:
+		return true
+	case CandidateSources1ReferenceNodeMemoryMemAvailableBytes:
+		return true
+	case CandidateSources1ReferenceNodeMemoryMemTotalBytes:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for CandidateType.
 const (
@@ -34,21 +61,54 @@ func (e CandidateType) Valid() bool {
 	}
 }
 
+// Defines values for GetMetricLabelsInputSchemaDatasourceUid.
+const (
+	GetMetricLabelsInputSchemaDatasourceUidPrometheusMain GetMetricLabelsInputSchemaDatasourceUid = "prometheus-main"
+)
+
+// Valid indicates whether the value is a known member of the GetMetricLabelsInputSchemaDatasourceUid enum.
+func (e GetMetricLabelsInputSchemaDatasourceUid) Valid() bool {
+	switch e {
+	case GetMetricLabelsInputSchemaDatasourceUidPrometheusMain:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetMetricLabelsInputSchemaMetricName.
 const (
-	NodeCpuSecondsTotal         GetMetricLabelsInputSchemaMetricName = "node_cpu_seconds_total"
-	NodeLoad1                   GetMetricLabelsInputSchemaMetricName = "node_load1"
-	NodeMemoryMemAvailableBytes GetMetricLabelsInputSchemaMetricName = "node_memory_MemAvailable_bytes"
+	GetMetricLabelsInputSchemaMetricNameNodeCpuSecondsTotal         GetMetricLabelsInputSchemaMetricName = "node_cpu_seconds_total"
+	GetMetricLabelsInputSchemaMetricNameNodeLoad1                   GetMetricLabelsInputSchemaMetricName = "node_load1"
+	GetMetricLabelsInputSchemaMetricNameNodeMemoryMemAvailableBytes GetMetricLabelsInputSchemaMetricName = "node_memory_MemAvailable_bytes"
+	GetMetricLabelsInputSchemaMetricNameNodeMemoryMemTotalBytes     GetMetricLabelsInputSchemaMetricName = "node_memory_MemTotal_bytes"
 )
 
 // Valid indicates whether the value is a known member of the GetMetricLabelsInputSchemaMetricName enum.
 func (e GetMetricLabelsInputSchemaMetricName) Valid() bool {
 	switch e {
-	case NodeCpuSecondsTotal:
+	case GetMetricLabelsInputSchemaMetricNameNodeCpuSecondsTotal:
 		return true
-	case NodeLoad1:
+	case GetMetricLabelsInputSchemaMetricNameNodeLoad1:
 		return true
-	case NodeMemoryMemAvailableBytes:
+	case GetMetricLabelsInputSchemaMetricNameNodeMemoryMemAvailableBytes:
+		return true
+	case GetMetricLabelsInputSchemaMetricNameNodeMemoryMemTotalBytes:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QueryPrometheusInputSchemaDatasourceUid.
+const (
+	QueryPrometheusInputSchemaDatasourceUidPrometheusMain QueryPrometheusInputSchemaDatasourceUid = "prometheus-main"
+)
+
+// Valid indicates whether the value is a known member of the QueryPrometheusInputSchemaDatasourceUid enum.
+func (e QueryPrometheusInputSchemaDatasourceUid) Valid() bool {
+	switch e {
+	case QueryPrometheusInputSchemaDatasourceUidPrometheusMain:
 		return true
 	default:
 		return false
@@ -91,17 +151,49 @@ func (e QueryPrometheusOutputSchemaStatus) Valid() bool {
 	}
 }
 
+// Defines values for SearchMetricsInputSchemaDatasourceUid.
+const (
+	PrometheusMain SearchMetricsInputSchemaDatasourceUid = "prometheus-main"
+)
+
+// Valid indicates whether the value is a known member of the SearchMetricsInputSchemaDatasourceUid enum.
+func (e SearchMetricsInputSchemaDatasourceUid) Valid() bool {
+	switch e {
+	case PrometheusMain:
+		return true
+	default:
+		return false
+	}
+}
+
 // Candidate defines model for candidate.
 type Candidate struct {
-	Description string   `json:"description"`
-	Labels      []string `json:"labels"`
-	MetricName  string   `json:"metricName"`
-	Score       float32  `json:"score"`
-	Sources     []struct {
-		Reference interface{} `json:"reference"`
-		Type      interface{} `json:"type"`
-	} `json:"sources"`
-	Type CandidateType `json:"type"`
+	Description string                   `json:"description"`
+	Labels      []string                 `json:"labels"`
+	MetricName  string                   `json:"metricName"`
+	Score       float32                  `json:"score"`
+	Sources     []Candidate_Sources_Item `json:"sources"`
+	Type        CandidateType            `json:"type"`
+}
+
+// CandidateSources0 defines model for .
+type CandidateSources0 struct {
+	Reference interface{} `json:"reference"`
+	Type      interface{} `json:"type"`
+}
+
+// CandidateSources1 defines model for .
+type CandidateSources1 struct {
+	Reference CandidateSources1Reference `json:"reference"`
+	Type      interface{}                `json:"type"`
+}
+
+// CandidateSources1Reference defines model for Candidate.Sources.1.Reference.
+type CandidateSources1Reference string
+
+// Candidate_Sources_Item defines model for candidate.sources.Item.
+type Candidate_Sources_Item struct {
+	union json.RawMessage
 }
 
 // CandidateType defines model for Candidate.Type.
@@ -109,9 +201,12 @@ type CandidateType string
 
 // GetMetricLabelsInputSchema defines model for get-metric-labels.input.schema.
 type GetMetricLabelsInputSchema struct {
-	DatasourceUid interface{}                          `json:"datasourceUid"`
-	MetricName    GetMetricLabelsInputSchemaMetricName `json:"metricName"`
+	DatasourceUid GetMetricLabelsInputSchemaDatasourceUid `json:"datasourceUid"`
+	MetricName    GetMetricLabelsInputSchemaMetricName    `json:"metricName"`
 }
+
+// GetMetricLabelsInputSchemaDatasourceUid defines model for GetMetricLabelsInputSchema.DatasourceUid.
+type GetMetricLabelsInputSchemaDatasourceUid string
 
 // GetMetricLabelsInputSchemaMetricName defines model for GetMetricLabelsInputSchema.MetricName.
 type GetMetricLabelsInputSchemaMetricName string
@@ -125,13 +220,16 @@ type GetMetricLabelsOutputSchema struct {
 
 // QueryPrometheusInputSchema defines model for query-prometheus.input.schema.
 type QueryPrometheusInputSchema struct {
-	DatasourceUid interface{}                    `json:"datasourceUid"`
-	End           time.Time                      `json:"end"`
-	Expression    string                         `json:"expression"`
-	Mode          QueryPrometheusInputSchemaMode `json:"mode"`
-	Start         time.Time                      `json:"start"`
-	StepSeconds   int                            `json:"stepSeconds"`
+	DatasourceUid QueryPrometheusInputSchemaDatasourceUid `json:"datasourceUid"`
+	End           time.Time                               `json:"end"`
+	Expression    string                                  `json:"expression"`
+	Mode          QueryPrometheusInputSchemaMode          `json:"mode"`
+	Start         time.Time                               `json:"start"`
+	StepSeconds   int                                     `json:"stepSeconds"`
 }
+
+// QueryPrometheusInputSchemaDatasourceUid defines model for QueryPrometheusInputSchema.DatasourceUid.
+type QueryPrometheusInputSchemaDatasourceUid string
 
 // QueryPrometheusInputSchemaMode defines model for QueryPrometheusInputSchema.Mode.
 type QueryPrometheusInputSchemaMode string
@@ -158,10 +256,13 @@ type QueryPrometheusOutputSchemaStatus string
 
 // SearchMetricsInputSchema defines model for search-metrics.input.schema.
 type SearchMetricsInputSchema struct {
-	DatasourceUid interface{} `json:"datasourceUid"`
-	Limit         int         `json:"limit"`
-	Query         string      `json:"query"`
+	DatasourceUid SearchMetricsInputSchemaDatasourceUid `json:"datasourceUid"`
+	Limit         int                                   `json:"limit"`
+	Query         string                                `json:"query"`
 }
+
+// SearchMetricsInputSchemaDatasourceUid defines model for SearchMetricsInputSchema.DatasourceUid.
+type SearchMetricsInputSchemaDatasourceUid string
 
 // SearchMetricsOutputSchema defines model for search-metrics.output.schema.
 type SearchMetricsOutputSchema struct {
@@ -170,11 +271,12 @@ type SearchMetricsOutputSchema struct {
 
 // Validation defines model for validation.
 type Validation struct {
-	Errors      []string `json:"errors"`
-	LabelNames  []string `json:"labelNames"`
-	MetricNames []string `json:"metricNames"`
-	Valid       bool     `json:"valid"`
-	Warnings    []string `json:"warnings"`
+	CanonicalExpression string   `json:"canonicalExpression"`
+	Errors              []string `json:"errors"`
+	LabelNames          []string `json:"labelNames"`
+	MetricNames         []string `json:"metricNames"`
+	Valid               bool     `json:"valid"`
+	Warnings            []string `json:"warnings"`
 }
 
 // GetMetricLabelsJSONRequestBody defines body for GetMetricLabels for application/json ContentType.
@@ -185,3 +287,65 @@ type QueryPrometheusJSONRequestBody = QueryPrometheusInputSchema
 
 // SearchMetricsJSONRequestBody defines body for SearchMetrics for application/json ContentType.
 type SearchMetricsJSONRequestBody = SearchMetricsInputSchema
+
+// AsCandidateSources0 returns the union data inside the Candidate_Sources_Item as a CandidateSources0
+func (t Candidate_Sources_Item) AsCandidateSources0() (CandidateSources0, error) {
+	var body CandidateSources0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCandidateSources0 overwrites any union data inside the Candidate_Sources_Item as the provided CandidateSources0
+func (t *Candidate_Sources_Item) FromCandidateSources0(v CandidateSources0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCandidateSources0 performs a merge with any union data inside the Candidate_Sources_Item, using the provided CandidateSources0
+func (t *Candidate_Sources_Item) MergeCandidateSources0(v CandidateSources0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCandidateSources1 returns the union data inside the Candidate_Sources_Item as a CandidateSources1
+func (t Candidate_Sources_Item) AsCandidateSources1() (CandidateSources1, error) {
+	var body CandidateSources1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCandidateSources1 overwrites any union data inside the Candidate_Sources_Item as the provided CandidateSources1
+func (t *Candidate_Sources_Item) FromCandidateSources1(v CandidateSources1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCandidateSources1 performs a merge with any union data inside the Candidate_Sources_Item, using the provided CandidateSources1
+func (t *Candidate_Sources_Item) MergeCandidateSources1(v CandidateSources1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t Candidate_Sources_Item) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *Candidate_Sources_Item) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}

@@ -55,7 +55,7 @@ func TestStreamableHTTPMCPTools(t *testing.T) {
 		}
 	}
 
-	search := call(t, context, client, "grafana.search_metrics", map[string]any{"datasourceUid": "mock-prometheus", "query": "node exporter", "limit": 10})
+	search := call(t, context, client, "grafana.search_metrics", map[string]any{"datasourceUid": "prometheus-main", "query": "node exporter", "limit": 10})
 	if search.IsError {
 		t.Fatalf("search returned an error: %#v", search)
 	}
@@ -67,7 +67,7 @@ func TestStreamableHTTPMCPTools(t *testing.T) {
 		t.Fatalf("unexpected search output: %#v", searchOutput)
 	}
 
-	labels := call(t, context, client, "grafana.get_metric_labels", map[string]any{"datasourceUid": "mock-prometheus", "metricName": "node_cpu_seconds_total"})
+	labels := call(t, context, client, "grafana.get_metric_labels", map[string]any{"datasourceUid": "prometheus-main", "metricName": "node_cpu_seconds_total"})
 	if labels.IsError {
 		t.Fatalf("labels returned an error: %#v", labels)
 	}
@@ -81,7 +81,7 @@ func TestStreamableHTTPMCPTools(t *testing.T) {
 	}
 
 	start := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
-	query := call(t, context, client, "grafana.query_prometheus", map[string]any{"datasourceUid": "mock-prometheus", "expression": `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`, "start": start.Format(time.RFC3339), "end": start.Add(30 * time.Minute).Format(time.RFC3339), "stepSeconds": 300, "mode": "execute"})
+	query := call(t, context, client, "grafana.query_prometheus", map[string]any{"datasourceUid": "prometheus-main", "expression": `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`, "start": start.Format(time.RFC3339), "end": start.Add(30 * time.Minute).Format(time.RFC3339), "stepSeconds": 300, "mode": "execute"})
 	if query.IsError {
 		t.Fatalf("query returned an error: %#v", query)
 	}
@@ -100,7 +100,7 @@ func TestStreamableHTTPMCPTools(t *testing.T) {
 	}
 	unauthorizedClient := newClient(t, server.URL+"/mcp", headers(false))
 	initialize(t, context, unauthorizedClient)
-	unauthorized := call(t, context, unauthorizedClient, "grafana.search_metrics", map[string]any{"datasourceUid": "mock-prometheus", "query": "node exporter", "limit": 10})
+	unauthorized := call(t, context, unauthorizedClient, "grafana.search_metrics", map[string]any{"datasourceUid": "prometheus-main", "query": "node exporter", "limit": 10})
 	if !unauthorized.IsError {
 		t.Fatal("request without datasources:query unexpectedly succeeded")
 	}

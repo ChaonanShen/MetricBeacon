@@ -92,7 +92,7 @@ func TestResourceHandlerUsesGrafanaIdentityAndGeneratedClient(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)
-		_, _ = w.Write([]byte(`{"id":"task_1","sessionId":"session_1","status":"created","inputMessageId":"message_1","datasourceUid":"mock-prometheus","timeRange":{"from":"2026-07-13T12:00:00Z","to":"2026-07-13T12:30:00Z"},"latestSequence":1,"error":null,"createdAt":"2026-07-13T12:00:00Z","startedAt":null,"completedAt":null,"updatedAt":"2026-07-13T12:00:00Z","version":1}`))
+		_, _ = w.Write([]byte(`{"id":"task_1","sessionId":"session_1","status":"created","inputMessageId":"message_1","datasourceUid":"prometheus-main","timeRange":{"from":"2026-07-13T12:00:00Z","to":"2026-07-13T12:30:00Z"},"latestSequence":1,"error":null,"createdAt":"2026-07-13T12:00:00Z","startedAt":null,"completedAt":null,"updatedAt":"2026-07-13T12:00:00Z","version":1}`))
 	}))
 	defer upstream.Close()
 	client, err := generated.NewClient(upstream.URL, generated.WithHTTPClient(&http.Client{Timeout: time.Second}))
@@ -101,7 +101,7 @@ func TestResourceHandlerUsesGrafanaIdentityAndGeneratedClient(t *testing.T) {
 	}
 	handler := &ResourceHandler{Client: client, MaxResponse: 1 << 20}
 	sender := &captureSender{}
-	request := &backend.CallResourceRequest{Method: http.MethodPost, Path: "tasks", Headers: map[string][]string{"X-MTB-Tenant-ID": {"forged"}, "Idempotency-Key": {"key-1"}}, Body: []byte(`{"sessionId":"session_1","message":"show metrics","analysisContext":{"datasourceUid":"mock-prometheus","timeRange":{"relativeDuration":"30m"}}}`), PluginContext: backend.PluginContext{OrgID: 42, User: &backend.User{Login: "grafana-user", Role: "Viewer"}}}
+	request := &backend.CallResourceRequest{Method: http.MethodPost, Path: "tasks", Headers: map[string][]string{"X-MTB-Tenant-ID": {"forged"}, "Idempotency-Key": {"key-1"}}, Body: []byte(`{"sessionId":"session_1","message":"show metrics","analysisContext":{"datasourceUid":"prometheus-main","timeRange":{"relativeDuration":"30m"}}}`), PluginContext: backend.PluginContext{OrgID: 42, User: &backend.User{Login: "grafana-user", Role: "Viewer"}}}
 	if err := handler.CallResource(context.Background(), request, sender); err != nil {
 		t.Fatal(err)
 	}

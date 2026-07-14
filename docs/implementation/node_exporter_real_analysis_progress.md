@@ -1,10 +1,10 @@
 # Node Exporter Real Analysis Progress
 
 lastUpdated: 2026-07-14
-currentGate: P2.2
+currentGate: P3.1
 status: active
 headCommit: pending
-worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E coverage are implemented. Container E2E remains unverified in this workspace because the user's existing local stack owns ports 3000, 8080 and 8081.
+worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E coverage are implemented. P3.1 has adopted the shared datasource UID and canonical-expression contract with a forward SQLite migration. Container E2E remains unverified in this workspace because the user's existing local stack owns ports 3000, 8080 and 8081.
 
 ## Gate Status
 
@@ -18,6 +18,7 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
   - [x] P2.1 Session reducer, page recovery, finite replay and terminal SSE handling
   - [ ] P2.2 Container E2E execution (blocked by existing local stack port bindings)
 - [ ] P3 Real Prometheus and node_exporter
+  - [x] P3.1 Shared `prometheus-main` datasource UID, canonical-expression contract and migration
 - [ ] P4 Static Profile and constrained Eino runtime
 - [ ] P5 End-to-end closeout
 
@@ -43,7 +44,8 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 |`make test-frontend`|passed|2026-07-14|Session reducer merges history pages, preserves task runtimes, completes finite replay and closes the active SSE stream on a terminal event.|
 |`node --check tests/e2e/mock/api-e2e.mjs && npx playwright test --list`|passed|2026-07-14|Expanded Mock API/Playwright E2E scripts parse and test discovery succeeds.|
 |`make e2e-mock`|blocked|2026-07-14|Docker cannot bind 127.0.0.1 ports 3000, 8080 and 8081 because an existing user-managed `mini-torchbearing-*` Compose stack is running; it was not stopped.|
+|`make validate-contracts generated-client-diff test-sqlite test-assistant-mcp test-ai-mcp`|passed|2026-07-14|P3.1 validates all generated UID/canonical-expression contracts; SQLite verifies Task and Chart query JSON forward migration from `mock-prometheus`.|
 
 ## Next Slice
 
-Re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081; then P2 can be marked complete before P3 starts.
+Implement P3.2's shared node_exporter query registry and AST policy. Re-run `make e2e-mock` after the user-managed local stack releases ports 3000, 8080 and 8081; that pending P2 container gate remains required for final closeout.

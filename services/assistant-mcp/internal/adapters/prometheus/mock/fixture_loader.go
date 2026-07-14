@@ -76,7 +76,7 @@ func decodeFixture(path string, destination any) error {
 }
 
 func validateFixture(value fixture) error {
-	if len(value.Search.Candidates) < 4 || len(value.Labels) != 3 || len(value.Queries) != 3 {
+	if len(value.Search.Candidates) < 4 || len(value.Labels) != 4 || len(value.Queries) != 3 {
 		return runtime.NewError(runtime.SchemaValidationFailed, "mock scenario fixture is incomplete", false)
 	}
 	for _, candidate := range value.Search.Candidates {
@@ -84,14 +84,14 @@ func validateFixture(value fixture) error {
 			return runtime.NewError(runtime.SchemaValidationFailed, "metric fixture is invalid", false)
 		}
 	}
-	for _, name := range []string{"node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_load1"} {
+	for _, name := range []string{"node_cpu_seconds_total", "node_memory_MemAvailable_bytes", "node_memory_MemTotal_bytes", "node_load1"} {
 		labels, ok := value.Labels[name]
 		if !ok || len(labels.LabelNames) == 0 || len(labels.SampleValues) == 0 {
 			return runtime.NewError(runtime.SchemaValidationFailed, "metric labels fixture is invalid", false)
 		}
 	}
 	for _, result := range value.Queries {
-		if !result.Validation.Valid || result.Status != "success" || result.ResultType != "matrix" || len(result.Series) < 2 || result.DurationMS < 0 {
+		if !result.Validation.Valid || result.Validation.CanonicalExpression == "" || result.Status != "success" || result.ResultType != "matrix" || len(result.Series) < 2 || result.DurationMS < 0 {
 			return runtime.NewError(runtime.SchemaValidationFailed, "query fixture is invalid", false)
 		}
 		for _, series := range result.Series {

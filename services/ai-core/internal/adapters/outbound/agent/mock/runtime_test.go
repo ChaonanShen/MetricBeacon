@@ -16,7 +16,7 @@ func TestRunBuildsFixedPlanThroughPorts(t *testing.T) {
 	now := time.Date(2026, 7, 13, 10, 30, 0, 0, time.UTC)
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
 	runtime := New(catalogStub{}, queryStub{})
-	result, err := runtime.Run(context.Background(), requestcontext.Context{TenantID: "org:1", OrgID: "1", UserID: "user:1"}, dto.AgentRunRequest{TaskID: "task_1", SessionID: "session_1", UserMessage: "anything", DatasourceUID: "mock-prometheus", TimeRange: timeRange}, sinkStub{})
+	result, err := runtime.Run(context.Background(), requestcontext.Context{TenantID: "org:1", OrgID: "1", UserID: "user:1"}, dto.AgentRunRequest{TaskID: "task_1", SessionID: "session_1", UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange}, sinkStub{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func TestRunBuildsFixedPlanThroughPorts(t *testing.T) {
 func TestRunRejectsMissingRequiredMetric(t *testing.T) {
 	now := time.Now().UTC()
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-time.Minute), now)
-	_, err := New(catalogStub{missing: true}, queryStub{}).Run(context.Background(), requestcontext.Context{}, dto.AgentRunRequest{UserMessage: "anything", DatasourceUID: "mock-prometheus", TimeRange: timeRange}, sinkStub{})
+	_, err := New(catalogStub{missing: true}, queryStub{}).Run(context.Background(), requestcontext.Context{}, dto.AgentRunRequest{UserMessage: "anything", DatasourceUID: "prometheus-main", TimeRange: timeRange}, sinkStub{})
 	var domainErr *common.DomainError
 	if !errors.As(err, &domainErr) || domainErr.Code != common.SchemaValidationFailed {
 		t.Fatalf("expected schema error, got %v", err)
@@ -50,8 +50,8 @@ func (catalogStub) GetMetricLabels(context.Context, requestcontext.Context, dto.
 
 type queryStub struct{}
 
-func (queryStub) Validate(context.Context, requestcontext.Context, dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
-	return dto.QueryValidationResult{Valid: true}, nil
+func (queryStub) Validate(_ context.Context, _ requestcontext.Context, request dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
+	return dto.QueryValidationResult{Valid: true, CanonicalExpression: request.Expression}, nil
 }
 func (queryStub) Execute(context.Context, requestcontext.Context, dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
 	return dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "node-a"}}, Validation: dto.QueryValidationResult{Valid: true}}, nil

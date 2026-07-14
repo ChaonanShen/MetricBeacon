@@ -61,7 +61,7 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 		ToolName:     "grafana.search_metrics",
 		ToolVersion:  "v1",
 		Status:       task.ToolCallStarted,
-		InputSummary: []byte(`{"datasourceUid":"mock-prometheus"}`),
+		InputSummary: []byte(`{"datasourceUid":"prometheus-main"}`),
 		StartedAt:    data.now,
 		Version:      1,
 	}
@@ -84,7 +84,7 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 		t.Fatalf("unexpected tool calls: %#v, %v", toolCalls, err)
 	}
 
-	query := chart.QuerySpec{RefID: "A", Expression: "up", Legend: "{{instance}}", DatasourceUID: "mock-prometheus", TimeRange: data.timeRange}
+	query := chart.QuerySpec{RefID: "A", Expression: "up", Legend: "{{instance}}", DatasourceUID: "prometheus-main", TimeRange: data.timeRange}
 	draft, err := chart.New("chart_1", tenantID, data.session.ID, data.task.ID, "CPU usage", "percent", []chart.QuerySpec{query}, data.now)
 	if err != nil {
 		t.Fatal(err)
@@ -251,6 +251,14 @@ func TestMultiTurnMigrationBackfillsMessagesAndSourceCallIDs(t *testing.T) {
 	if err != nil || len(calls) != 1 || calls[0].SourceCallID != "legacy:tool_1" {
 		t.Fatalf("tool calls: %#v, %v", calls, err)
 	}
+	loadedTask, err := store.Tasks().Get(ctx, tenantID, "task_1")
+	if err != nil || loadedTask.DatasourceUID != "prometheus-main" {
+		t.Fatalf("task datasource: %#v, %v", loadedTask, err)
+	}
+	charts, err := store.Charts().ListByTask(ctx, tenantID, "task_1")
+	if err != nil || len(charts) != 1 || charts[0].Queries[0].DatasourceUID != "prometheus-main" {
+		t.Fatalf("chart datasource: %#v, %v", charts, err)
+	}
 }
 
 func TestMultiTurnMigrationRejectsAmbiguousActiveTasks(t *testing.T) {
@@ -283,7 +291,7 @@ func TestOnlyOneConcurrentActiveTaskCanBeCreatedForSession(t *testing.T) {
 			<-start
 			taskID := fmt.Sprintf("task_concurrent_%d", index)
 			message, _ := session.NewMessage(fmt.Sprintf("message_concurrent_%d", index), tenantID, analysisSession.ID, taskID, session.RoleUser, "show cpu", now)
-			item, _ := task.New(taskID, tenantID, analysisSession.ID, message.ID, "mock-prometheus", timeRange, now)
+			item, _ := task.New(taskID, tenantID, analysisSession.ID, message.ID, "prometheus-main", timeRange, now)
 			errs <- store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
 				if err := tx.Messages().Append(ctx, message); err != nil {
 					return err
@@ -349,6 +357,9 @@ func seedV1Database(t *testing.T, path string, duplicateActive bool) {
 		}
 		return
 	}
+	if _, err := db.Exec(`INSERT INTO charts (id, tenant_id, session_id, task_id, title, visualization, unit, queries_json, status, created_at, updated_at, version) VALUES ('chart_1', ?, 'session_1', 'task_1', 'CPU', 'timeseries', 'percent', '[{"refId":"A","expression":"up","legend":"{{instance}}","datasourceUid":"mock-prometheus","timeRange":{"from":"2026-07-13T10:00:00Z","to":"2026-07-13T10:30:00Z"}}]', 'ready', ?, ?, 1)`, tenantID, stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := db.Exec(`INSERT INTO messages (id, tenant_id, session_id, role, content, created_at) VALUES ('message_assistant', ?, 'session_1', 'assistant', 'result', ?)`, tenantID, stamp); err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +394,7 @@ func createTaskFixture(t *testing.T, ctx context.Context, store repositories.App
 	if err != nil {
 		t.Fatal(err)
 	}
-	analysisTask, err := task.New("task_1", tenantID, analysisSession.ID, message.ID, "mock-prometheus", timeRange, now)
+	analysisTask, err := task.New("task_1", tenantID, analysisSession.ID, message.ID, "prometheus-main", timeRange, now)
 	if err != nil {
 		t.Fatal(err)
 	}
