@@ -4,7 +4,7 @@ type Event = Omit<GeneratedTaskEvent, 'payload'> & { payload: Record<string, unk
 
 export type Subscription = { close(): void };
 
-export function subscribeTaskEvents(url: (afterSequence: number) => string, afterSequence: () => number, onEvent: (event: Event) => void, onError: () => void): Subscription {
+export function subscribeTaskEvents(url: (afterSequence: number) => string, afterSequence: () => number, onEvent: (event: Event) => void, onError: () => void, isTerminal: (event: Event) => boolean = () => false): Subscription {
   let source: EventSource | undefined;
   let closed = false;
   let attempt = 0;
@@ -55,6 +55,10 @@ export function subscribeTaskEvents(url: (afterSequence: number) => string, afte
       lastAcceptedSequence = event.sequence;
       attempt = 0;
       onEvent(event);
+      if (isTerminal(event)) {
+        closed = true;
+        currentSource.close();
+      }
     } catch {
       currentSource.close();
       reconnect();

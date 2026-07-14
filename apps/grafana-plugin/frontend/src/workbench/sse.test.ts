@@ -89,4 +89,18 @@ describe('subscribeTaskEvents', () => {
     expect(urls).toEqual([0, 1]);
     subscription.close();
   });
+
+  it('closes permanently when it receives a terminal event', () => {
+    vi.stubGlobal('window', { setTimeout, clearTimeout });
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const subscription = subscribeTaskEvents(() => '/events?afterSequence=0', () => 0, vi.fn(), vi.fn(), (incoming) => incoming.type === 'task.completed');
+
+    const first = FakeEventSource.instances[0];
+    first.emit('task.completed', { ...event(1), type: 'task.completed' });
+    first.onerror?.();
+
+    expect(first.closed).toBe(true);
+    expect(FakeEventSource.instances).toHaveLength(1);
+    subscription.close();
+  });
 });

@@ -18,6 +18,7 @@ mini-torchbearing/
 │       │   │       ├── ChartCard.tsx      # 自适应三图卡片与图表状态
 │       │   │       ├── mapper.ts          # Chart wire 数据 -> Grafana DataFrame
 │       │   │       ├── reducer.ts         # TaskEvent 前端状态归约
+│       │   │       ├── session-reducer.ts # Session 历史、Task runtimes 与活动流状态
 │       │   │       ├── sse.ts             # SSE 订阅、重连与 sequence 处理
 │       │   │       ├── route.ts           # Session/Task URL 恢复
 │       │   │       ├── time-range.ts      # 图表时间范围转换

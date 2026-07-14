@@ -1,10 +1,10 @@
 # Node Exporter Real Analysis Progress
 
 lastUpdated: 2026-07-14
-currentGate: P2.1
+currentGate: P2.2
 status: active
 headCommit: pending
-worktreeSummary: G0 and P1 are complete. The Plugin Backend now exposes tenant-derived Message/Task history and finite replay reads while preserving request-context-controlled terminal SSE. P2 persistent Session workbench is next.
+worktreeSummary: G0, P1 and the P2 Session workbench are complete. The browser restores paged Session history, finite Task replay and at most one active Task stream; P2 E2E persistence/replay coverage is next.
 
 ## Gate Status
 
@@ -14,7 +14,7 @@ worktreeSummary: G0 and P1 are complete. The Plugin Backend now exposes tenant-d
   - [x] P1.2a AI Core history pages and finite replay
   - [x] P1.2b Agent context and terminal stream behavior
   - [x] P1.3 Plugin history/replay proxy
-- [ ] P2 Persistent Session workbench
+- [x] P2 Persistent Session workbench
 - [ ] P3 Real Prometheus and node_exporter
 - [ ] P4 Static Profile and constrained Eino runtime
 - [ ] P5 End-to-end closeout
@@ -38,7 +38,8 @@ worktreeSummary: G0 and P1 are complete. The Plugin Backend now exposes tenant-d
 |`make test-ai-core-domain test-sqlite test-ai-mcp test-plugin-backend test-frontend validate-contracts generated-client-diff`|passed|2026-07-14|AI Core history/replay, storage, existing Plugin and frontend suites pass; all 24 JSON Schemas validate and generated artifacts are reproducible.|
 |`make test-ai-core-domain test-sqlite`|passed|2026-07-14|Conversation context includes only the preceding twelve persisted messages in chronological order; SQLite regression suite remains green.|
 |`make test-plugin-backend`|passed|2026-07-14|Plugin Resource API proxies tenant-scoped Message/Task history and finite event replay; SSE uses a request-context-controlled client without a global timeout.|
+|`make test-frontend`|passed|2026-07-14|Session reducer merges history pages, preserves task runtimes, completes finite replay and closes the active SSE stream on a terminal event.|
 
 ## Next Slice
 
-P2.1 adds the frontend Session reducer and initial history/replay recovery path.
+P2.2 adds Mock API and Playwright coverage for multi-turn persistence, refresh and finite terminal replay.
