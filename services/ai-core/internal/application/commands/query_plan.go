@@ -21,7 +21,7 @@ const (
 
 var allowedSteps = []int{5, 10, 15, 30, 60, 120, 300}
 var rangePattern = regexp.MustCompile(`(?:最近|过去|近)\s*([0-9零〇一二两三四五六七八九十百]+)\s*(秒|分钟|小时|s|m|h)`)
-var stepPattern = regexp.MustCompile(`每(?:个)?\s*([0-9零〇一二两三四五六七八九十百]+)\s*(秒|分钟|s|m)`)
+var stepPattern = regexp.MustCompile(`每(?:个|隔)?\s*([0-9零〇一二两三四五六七八九十百]+)\s*(秒|分钟|s|m)`)
 
 type RequestedTimeRange struct {
 	Absolute         *common.AbsoluteTimeRange
@@ -29,15 +29,24 @@ type RequestedTimeRange struct {
 }
 
 func ResolveQueryPlan(message string, requested RequestedTimeRange, requestedStep *int, now time.Time) (common.AbsoluteTimeRange, task.QueryPlan, error) {
+	duration, _ := parseMessageDuration(message, rangePattern)
+	stepDuration, hasStep := parseMessageDuration(message, stepPattern)
+	var step *int
+	if hasStep {
+		seconds := int(stepDuration / time.Second)
+		step = &seconds
+	}
+	return ResolvePlannedQueryPlan(nil, optionalDuration(duration), step, requested, requestedStep, now)
+}
+
+func ResolvePlannedQueryPlan(views []string, plannedRange *time.Duration, plannedStep *int, requested RequestedTimeRange, requestedStep *int, now time.Time) (common.AbsoluteTimeRange, task.QueryPlan, error) {
 	now = now.UTC()
 	duration := requested.RelativeDuration
 	if duration == 0 {
 		duration = defaultRange
 	}
-	if requested.Absolute == nil {
-		if parsed, ok := parseMessageDuration(message, rangePattern); ok {
-			duration = parsed
-		}
+	if requested.Absolute == nil && plannedRange != nil {
+		duration = *plannedRange
 	}
 	var timeRange common.AbsoluteTimeRange
 	var err error
@@ -54,10 +63,9 @@ func ResolveQueryPlan(message string, requested RequestedTimeRange, requestedSte
 		return common.AbsoluteTimeRange{}, task.QueryPlan{}, common.NewError(common.InvalidArgument, "query range must be between 30 seconds and 6 hours", false)
 	}
 
-	explicitStep := requestedStep
-	if parsed, ok := parseMessageDuration(message, stepPattern); ok {
-		seconds := int(parsed / time.Second)
-		explicitStep = &seconds
+	explicitStep := plannedStep
+	if explicitStep == nil {
+		explicitStep = requestedStep
 	}
 	step := autoStep(duration)
 	if explicitStep != nil {
@@ -75,8 +83,15 @@ func ResolveQueryPlan(message string, requested RequestedTimeRange, requestedSte
 	} else if duration <= time.Hour {
 		window = 60
 	}
-	plan, err := task.NewQueryPlan(nil, step, window)
+	plan, err := task.NewQueryPlan(views, step, window)
 	return timeRange, plan, err
+}
+
+func optionalDuration(value time.Duration) *time.Duration {
+	if value == 0 {
+		return nil
+	}
+	return &value
 }
 
 func autoStep(duration time.Duration) int {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -20,7 +21,9 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/application/workflows"
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
+	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
+	"mini-torchbearing.local/services/ai-core/internal/ports/repositories"
 )
 
 func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
@@ -33,7 +36,8 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 	notifier := inmemory.New()
 	clock, generator := clockadapter.NewSystem(), idadapter.New()
 	workflow := workflows.RunAnalysisWorkflow{Store: store, Notifier: notifier, Runtime: httpRuntime{}, IDs: generator, Clock: clock}
-	api := &API{Store: store, Notifier: notifier, Commands: commands.New(store, notifier, workflow, generator, clock)}
+	planner := &httpPlanner{}
+	api := &API{Store: store, Notifier: notifier, Commands: commands.New(store, notifier, workflow, generator, clock, planner)}
 	server := httptest.NewServer(NewHandler(api))
 	defer server.Close()
 
@@ -69,7 +73,7 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 		t.Fatal(err)
 	}
 	taskResponse.Body.Close()
-	if taskBody.ID == "" || len(taskBody.QueryPlan.Views) != 0 || taskBody.QueryPlan.StepSeconds != 10 || taskBody.QueryPlan.CPURateWindowSeconds != 60 {
+	if taskBody.ID == "" || len(taskBody.QueryPlan.Views) != 1 || taskBody.QueryPlan.Views[0] != "cpu" || taskBody.QueryPlan.StepSeconds != 10 || taskBody.QueryPlan.CPURateWindowSeconds != 60 {
 		t.Fatalf("task id or resolved query plan is missing: %#v", taskBody)
 	}
 
@@ -87,6 +91,9 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 	if retryBody.ID != taskBody.ID {
 		t.Fatalf("retry task id = %q, want %q", retryBody.ID, taskBody.ID)
 	}
+	if planner.calls != 1 {
+		t.Fatalf("completed retry called planner %d times, want once", planner.calls)
+	}
 
 	conflictBody := strings.Replace(body, "show node exporter", "different request", 1)
 	conflictResponse := request(t, http.MethodPost, server.URL+"/v1/tasks", conflictBody, "request-task-conflict", "task-key")
@@ -94,6 +101,17 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 	if conflictResponse.StatusCode != http.StatusConflict {
 		t.Fatalf("different-body retry response: %d", conflictResponse.StatusCode)
 	}
+	planner.failure = common.NewError(common.DependencyUnavailable, "planner unavailable", true)
+	failedResponse := request(t, http.MethodPost, server.URL+"/v1/tasks", body, "request-task-planner-failed", "planner-failed-key")
+	failedResponse.Body.Close()
+	if failedResponse.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("planner failure response: %d", failedResponse.StatusCode)
+	}
+	_, err = store.Idempotency().GetResult(ctx, repositories.IdempotencyKey{TenantID: "org:1", Scope: "create_task", Key: "planner-failed-key"})
+	if !hasHTTPTestCode(err, common.ResourceNotFound) {
+		t.Fatalf("planner failure persisted idempotency: %v", err)
+	}
+	planner.failure = nil
 
 	streamContext, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -170,6 +188,24 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 	if invalidTokenResponse.StatusCode != http.StatusBadRequest {
 		t.Fatalf("cross-resource page token response: %d", invalidTokenResponse.StatusCode)
 	}
+}
+
+type httpPlanner struct {
+	calls   int
+	failure error
+}
+
+func (p *httpPlanner) Plan(context.Context, requestcontext.Context, agent.IntentPlanRequest) (agent.IntentPlan, error) {
+	p.calls++
+	if p.failure != nil {
+		return agent.IntentPlan{}, p.failure
+	}
+	return agent.IntentPlan{Status: agent.IntentPlanned, Views: []string{"cpu"}}, nil
+}
+
+func hasHTTPTestCode(err error, code common.ErrorCode) bool {
+	var domainErr *common.DomainError
+	return errors.As(err, &domainErr) && domainErr.Code == code
 }
 
 func waitTaskTerminal(t *testing.T, store *storage.Store, taskID string) {

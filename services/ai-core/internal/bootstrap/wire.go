@@ -50,6 +50,7 @@ func New(ctx context.Context, config Config) (*Application, error) {
 	catalog := mcpadapter.NewMetricCatalogAdapter(gateway)
 	queries := mcpadapter.NewQueryEngineAdapter(gateway)
 	var runtime agent.Runtime = mock.New(catalog, queries)
+	var planner agent.IntentPlanner = mock.Planner{}
 	if config.AgentDriver == "eino" {
 		nodeProfile, err := profile.Load(config.AgentProfilePath)
 		if err != nil {
@@ -69,7 +70,7 @@ func New(ctx context.Context, config Config) (*Application, error) {
 			_ = store.Close()
 			return nil, common.NewError(common.AdapterNotConfigured, "DeepSeek model configuration is invalid", false)
 		}
-		runtime, err = einoagent.New(chatModel, catalog, queries, nodeProfile, einoagent.Limits{MaxIterations: config.AgentMaxIterations, MaxToolCalls: config.AgentMaxToolCalls, Timeout: config.AgentTimeout})
+		planner, err = einoagent.NewPlanner(chatModel, nodeProfile, config.AgentTimeout)
 		if err != nil {
 			_ = store.Close()
 			return nil, err
@@ -80,7 +81,7 @@ func New(ctx context.Context, config Config) (*Application, error) {
 		_ = store.Close()
 		return nil, err
 	}
-	commandService := commands.New(store, notifier, workflow, generator, clock)
+	commandService := commands.New(store, notifier, workflow, generator, clock, planner)
 	api := httpapi.API{Commands: commandService, Store: store, Notifier: notifier, Readiness: func(checkCtx context.Context) error {
 		identity := requestcontext.Context{TenantID: "readiness", OrgID: "0", UserID: "readiness", Roles: []string{"Admin"}, Permissions: []string{"datasources:query"}, RequestID: "readyz", TraceID: "readyz"}
 		descriptors, err := gateway.ListTools(checkCtx, identity, tools.Filter{Namespace: "grafana"})

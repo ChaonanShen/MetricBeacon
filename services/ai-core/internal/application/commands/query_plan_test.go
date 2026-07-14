@@ -52,3 +52,21 @@ func TestResolveQueryPlanPrecedenceAndLimits(t *testing.T) {
 		t.Fatal("expected minimum range failure")
 	}
 }
+
+func TestResolvePlannedQueryPlanPrecedenceAndViews(t *testing.T) {
+	now := time.Date(2026, 7, 14, 15, 0, 0, 0, time.UTC)
+	plannedRange := time.Minute
+	plannedStep, requestedStep := 5, 30
+	timeRange, plan, err := ResolvePlannedQueryPlan([]string{"cpu"}, &plannedRange, &plannedStep, RequestedTimeRange{RelativeDuration: 30 * time.Minute}, &requestedStep, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if timeRange.To.Sub(timeRange.From) != time.Minute || plan.StepSeconds != 5 || plan.CPURateWindowSeconds != 30 || len(plan.Views) != 1 || plan.Views[0] != "cpu" {
+		t.Fatalf("planned intent did not override API hints: range=%s plan=%#v", timeRange.To.Sub(timeRange.From), plan)
+	}
+	absolute, _ := common.NewAbsoluteTimeRange(now.Add(-2*time.Hour), now.Add(-time.Hour))
+	_, plan, err = ResolvePlannedQueryPlan([]string{"memory"}, &plannedRange, nil, RequestedTimeRange{Absolute: &absolute}, &requestedStep, now)
+	if err != nil || plan.CPURateWindowSeconds != 60 || plan.StepSeconds != 30 {
+		t.Fatalf("absolute/API fallback precedence failed: %#v, %v", plan, err)
+	}
+}

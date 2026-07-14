@@ -7,15 +7,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
+	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/application/workflows"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
+	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
 	"mini-torchbearing.local/services/ai-core/internal/ports/clocks"
 	"mini-torchbearing.local/services/ai-core/internal/ports/events"
 	"mini-torchbearing.local/services/ai-core/internal/ports/ids"
@@ -30,11 +33,12 @@ type Service struct {
 	Workflow workflows.RunAnalysisWorkflow
 	IDs      ids.Generator
 	Clock    clocks.Clock
+	Planner  agent.IntentPlanner
 	workers  chan struct{}
 }
 
-func New(store repositories.ApplicationStore, notifier events.Notifier, workflow workflows.RunAnalysisWorkflow, generator ids.Generator, clock clocks.Clock) *Service {
-	return &Service{Store: store, Notifier: notifier, Workflow: workflow, IDs: generator, Clock: clock, workers: make(chan struct{}, 4)}
+func New(store repositories.ApplicationStore, notifier events.Notifier, workflow workflows.RunAnalysisWorkflow, generator ids.Generator, clock clocks.Clock, planner agent.IntentPlanner) *Service {
+	return &Service{Store: store, Notifier: notifier, Workflow: workflow, IDs: generator, Clock: clock, Planner: planner, workers: make(chan struct{}, 4)}
 }
 
 type CreateSessionInput struct{ Title, IdempotencyKey string }
@@ -79,15 +83,11 @@ func (s *Service) CreateSession(ctx context.Context, identity requestcontext.Con
 }
 
 func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Context, input CreateTaskInput) (task.AnalysisTask, error) {
-	if s == nil || s.Store == nil || s.IDs == nil || s.Clock == nil {
+	if s == nil || s.Store == nil || s.IDs == nil || s.Clock == nil || s.Planner == nil {
 		return task.AnalysisTask{}, common.NewError(common.InternalError, "command service is not configured", true)
 	}
 	if identity.TenantID == "" || strings.TrimSpace(input.SessionID) == "" || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > 4_000 || strings.TrimSpace(input.DatasourceUID) == "" || input.IdempotencyKey == "" {
 		return task.AnalysisTask{}, common.NewError(common.InvalidArgument, "task fields and idempotency key are required", false)
-	}
-	resolvedRange, queryPlan, err := ResolveQueryPlan(input.Message, input.TimeRange, input.StepSeconds, s.Clock.Now())
-	if err != nil {
-		return task.AnalysisTask{}, err
 	}
 	var result task.AnalysisTask
 	shouldRun := false
@@ -99,8 +99,33 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 			StepSeconds                                 *int
 		}{identity.TenantID, input.SessionID, input.Message, input.DatasourceUID, input.TimeRange, input.StepSeconds})
 	}
+	key := repositories.IdempotencyKey{TenantID: identity.TenantID, Scope: "create_task", Key: input.IdempotencyKey}
+	if existing, getErr := s.Store.Idempotency().GetResult(ctx, key); getErr == nil {
+		if existing.RequestHash != requestHash {
+			return task.AnalysisTask{}, common.NewError(common.IdempotencyConflict, "idempotency key was already used with a different request", false)
+		}
+		if existing.Status == "completed" {
+			return s.Store.Tasks().Get(ctx, identity.TenantID, existing.ResourceID)
+		}
+	} else if !hasErrorCode(getErr, common.ResourceNotFound) {
+		return task.AnalysisTask{}, getErr
+	}
+	if _, err := s.Store.Sessions().Get(ctx, identity.TenantID, input.SessionID); err != nil {
+		return task.AnalysisTask{}, err
+	}
+	history := s.planningHistory(ctx, identity.TenantID, input.SessionID)
+	intent, err := s.Planner.Plan(ctx, identity, agent.IntentPlanRequest{Message: input.Message, History: history})
+	if err != nil {
+		return task.AnalysisTask{}, err
+	}
+	if intent.Status != agent.IntentPlanned && intent.Status != agent.IntentUnsupported {
+		return task.AnalysisTask{}, common.NewError(common.DependencyUnavailable, "query intent planner returned an invalid status", true)
+	}
+	resolvedRange, queryPlan, err := ResolvePlannedQueryPlan(intent.Views, intent.RangeDuration, intent.StepSeconds, input.TimeRange, input.StepSeconds, s.Clock.Now())
+	if err != nil {
+		return task.AnalysisTask{}, err
+	}
 	err = s.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
-		key := repositories.IdempotencyKey{TenantID: identity.TenantID, Scope: "create_task", Key: input.IdempotencyKey}
 		record, err := tx.Idempotency().Reserve(ctx, key, requestHash, s.Clock.Now().Add(idempotencyTTL))
 		if err != nil {
 			return err
@@ -169,5 +194,31 @@ func hash(value any) string {
 }
 
 func taskSnapshot(value task.AnalysisTask) map[string]any {
-	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}}
+	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"views": value.QueryPlan.Views, "stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}}
+}
+
+func (s *Service) planningHistory(ctx context.Context, tenantID, sessionID string) []dto.ConversationMessage {
+	messages, err := s.Store.Messages().ListBySession(ctx, tenantID, sessionID)
+	if err != nil {
+		return nil
+	}
+	history := make([]dto.ConversationMessage, 0, 12)
+	characters := 0
+	for index := len(messages) - 1; index >= 0 && len(history) < 12; index-- {
+		count := utf8.RuneCountInString(messages[index].Content)
+		if characters+count > 12_000 {
+			break
+		}
+		characters += count
+		history = append(history, dto.ConversationMessage{Role: string(messages[index].Role), Content: messages[index].Content})
+	}
+	for left, right := 0, len(history)-1; left < right; left, right = left+1, right-1 {
+		history[left], history[right] = history[right], history[left]
+	}
+	return history
+}
+
+func hasErrorCode(err error, code common.ErrorCode) bool {
+	var domainErr *common.DomainError
+	return errors.As(err, &domainErr) && domainErr.Code == code
 }
