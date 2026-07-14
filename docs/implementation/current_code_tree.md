@@ -12,6 +12,7 @@ mini-torchbearing/
 │       │   │   ├── module.tsx             # Plugin 前端入口
 │       │   │   ├── api/
 │       │   │   │   ├── resource.ts        # Plugin Resource API 客户端
+│       │   │   │   ├── resource-error.ts  # Resource 404 恢复判定与安全错误展示
 │       │   │   │   └── generated/         # 由 OpenAPI 生成的前端类型
 │       │   │   └── workbench/             # 分析工作台
 │       │   │       ├── Workbench.tsx      # 页面编排、任务创建、SSE 订阅与本地选择
@@ -23,7 +24,7 @@ mini-torchbearing/
 │       │   │       ├── reducer.ts         # TaskEvent 前端状态归约
 │       │   │       ├── session-reducer.ts # Session 历史、Task runtimes 与活动流状态
 │       │   │       ├── sse.ts             # SSE 订阅、重连与 sequence 处理
-│       │   │       ├── route.ts           # Session/Task URL 恢复
+│       │   │       ├── route.ts           # Session/Task URL 恢复与旧 ID 清理
 │       │   │       ├── time-range.ts      # 图表时间范围转换
 │       │   │       └── *.test.ts          # 前端单元测试
 │       │   ├── backend/                   # Grafana Plugin SDK 后端（Go）

@@ -7,7 +7,7 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 ## 当前状态
 
 基本 Mock 闭环和持久化多轮工作台已经实现：输入任意非空消息会产生 node_exporter CPU、内存和负载三图。
-`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 已可通过显式 `eino` 配置接入 DeepSeek，有凭证的两轮端到端 smoke 已通过。当前正在补充分层诊断与模式切换恢复；Grafana Dashboard 写入仍未实现。范围、安全边界和 Gate 见
+`make e2e-real-metrics` 使用本地 Prometheus/node_exporter 验证同一 MCP/API 链路；真实 Agent/LLM 已可通过显式 `eino` 配置接入 DeepSeek，有凭证的两轮端到端 smoke 已通过。Prometheus、MCP、DeepSeek 分层诊断和跨模式旧 Session 恢复也已完成；Grafana Dashboard 写入仍未实现。范围、安全边界和 Gate 见
 [`docs/implementation/real_backend_diagnostics_execution_plan.md`](docs/implementation/real_backend_diagnostics_execution_plan.md)。
 
 ## 模块边界
@@ -55,6 +55,8 @@ make diagnose-deepseek
 ```
 
 该探针先检查配置 model 是否出现在 `/models`，再要求最小 Chat Completion 返回严格 JSON `pong`。它绕过 Grafana、AI Core、Agent 与 MCP，适合把模型连通性问题和编排/工具问题分开。
+
+三种手动 Compose 示例使用独立 project/AI Core volume。切换模式后若浏览器 URL 仍带上一模式的 Session/Task，Workbench 会在当前环境明确返回 `resource_not_found` 时清理旧 ID 并提示重新提交；网络、权限或其他依赖错误不会触发自动清理，而会显示在对话栏。
 
 ### Docker/Colima 前置检查
 

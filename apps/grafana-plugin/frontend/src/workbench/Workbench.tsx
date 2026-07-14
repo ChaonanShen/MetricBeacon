@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { resourceClient, type CreateTask, type GeneratedTaskEvent, type Task } from '../api/resource';
+import { formatResourceError, isResourceNotFound } from '../api/resource-error';
 import { ChartCanvas } from './ChartCanvas';
 import { ContextPane } from './ContextPane';
 import { ConversationPane } from './ConversationPane';
-import { readWorkbenchRoute, replaceWorkbenchRoute } from './route';
+import { clearWorkbenchRoute, readWorkbenchRoute, replaceWorkbenchRoute } from './route';
 import { initialSessionWorkbenchState, isTerminal, sessionReducer } from './session-reducer';
 import { subscribeTaskEvents } from './sse';
 
@@ -19,12 +20,18 @@ export function Workbench(_props: AppRootProps) {
   const [message, setMessage] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>(initialRoute.sessionId);
   const [selectedChartId, setSelectedChartId] = useState<string>();
+  const [recoveryNotice, setRecoveryNotice] = useState<string>();
   const [state, dispatch] = useReducer(sessionReducer, initialSessionWorkbenchState);
   const sequenceByTask = useRef<Record<string, number>>({});
   const replayedTasks = useRef(new Set<string>());
   const idempotencyKey = useRef<string>();
   const pendingTask = useRef<CreateTask>();
-  const session = useQuery({ queryKey: ['mini-torchbearing-session', sessionId], queryFn: () => resourceClient.getSession(sessionId!), enabled: Boolean(sessionId) });
+  const session = useQuery({
+    queryKey: ['mini-torchbearing-session', sessionId],
+    queryFn: () => resourceClient.getSession(sessionId!),
+    enabled: Boolean(sessionId),
+    retry: (failureCount, error) => !isResourceNotFound(error) && failureCount < 3,
+  });
   const history = useQuery({
     queryKey: ['mini-torchbearing-session-history', sessionId],
     queryFn: async () => Promise.all([resourceClient.listMessages(sessionId!), resourceClient.listTasks(sessionId!)]),
@@ -32,6 +39,19 @@ export function Workbench(_props: AppRootProps) {
   });
 
   const taskOrderKey = state.taskOrder.join(',');
+  useEffect(() => {
+    if (!sessionId || !session.isError || !isResourceNotFound(session.error)) return;
+    setSessionId(undefined);
+    setSelectedChartId(undefined);
+    setRecoveryNotice('已清除当前运行环境中不存在的旧会话，请重新提交分析。');
+    sequenceByTask.current = {};
+    replayedTasks.current = new Set<string>();
+    idempotencyKey.current = undefined;
+    pendingTask.current = undefined;
+    dispatch({ type: 'session.cleared' });
+    clearWorkbenchRoute();
+  }, [session.error, session.isError, sessionId]);
+
   useEffect(() => {
     if (!history.data) return;
     const [messages, tasks] = history.data;
@@ -46,6 +66,7 @@ export function Workbench(_props: AppRootProps) {
       let targetSequence = 0;
       do {
         const page = await resourceClient.replayEvents(task.id, pageToken);
+        if (cancelled) return;
         targetSequence = page.targetSequence;
         for (const event of page.items as Event[]) {
           sequenceByTask.current[task.id] = event.sequence;
@@ -95,6 +116,7 @@ export function Workbench(_props: AppRootProps) {
       idempotencyKey.current = undefined;
       pendingTask.current = undefined;
       setSessionId(created.sessionId);
+      setRecoveryNotice(undefined);
       dispatch({ type: 'task.created', task: created.task });
       replaceWorkbenchRoute(created.sessionId, created.task.id);
       client.setQueryData(['mini-torchbearing-session', created.sessionId], session.data);
@@ -112,6 +134,8 @@ export function Workbench(_props: AppRootProps) {
     onSuccess: ({ messages, tasks }) => dispatch({ type: 'history.loaded', messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken }),
   });
   const submit = () => { if (message.trim() && !activeTask) create.mutate(); };
+  const staleSession = session.isError && isResourceNotFound(session.error);
+  const requestError = [create.error, loadMore.error, staleSession ? undefined : session.error, staleSession ? undefined : history.error].find(Boolean);
   const messages = state.messageOrder.map((id) => state.messagesById[id]);
   const charts = state.taskOrder.flatMap((taskID) => Object.values(state.runtimeByTaskId[taskID]?.charts ?? {}).map((chart) => ({ taskID, ...chart })));
   const chartIDs = charts.map(({ chart }) => chart.id).join(',');
@@ -125,7 +149,7 @@ export function Workbench(_props: AppRootProps) {
     <h2>Mini Torchbearing Workbench</h2>
     <Stack direction={{ xs: 'column', xl: 'row' }} gap={2} height={{ xs: 'auto', xl: 'calc(100dvh - 112px)' }} alignItems="stretch">
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
-        <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
+        <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
       </Box>
       <ChartCanvas charts={charts} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>

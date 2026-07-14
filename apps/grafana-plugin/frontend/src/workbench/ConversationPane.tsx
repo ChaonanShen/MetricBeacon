@@ -13,12 +13,14 @@ type Props = {
   busy: boolean;
   canLoadMore: boolean;
   loadingMore: boolean;
+  notice?: string;
+  requestError?: string;
   onMessageChange: (message: string) => void;
   onSubmit: () => void;
   onLoadMore: () => void;
 };
 
-export function ConversationPane({ sessionTitle, messages, tasks, runtimeByTaskId, activeTask, message, busy, canLoadMore, loadingMore, onMessageChange, onSubmit, onLoadMore }: Props) {
+export function ConversationPane({ sessionTitle, messages, tasks, runtimeByTaskId, activeTask, message, busy, canLoadMore, loadingMore, notice, requestError, onMessageChange, onSubmit, onLoadMore }: Props) {
   return <Pane aria-label="对话" data-testid="conversation-pane" minHeight={{ xs: '420px', xl: 0 }}>
     <Stack direction="column" gap={2} height="100%" minHeight={0}>
       <Box padding={3} paddingBottom={0}>
@@ -40,6 +42,8 @@ export function ConversationPane({ sessionTitle, messages, tasks, runtimeByTaskI
       </ScrollContainer>
       <Box padding={3} paddingTop={0}>
         <Stack direction="column" gap={2}>
+          {notice && <Text role="status">{notice}</Text>}
+          {requestError && <Text role="alert" color="error">{requestError}</Text>}
           {activeTask && <Text>Task 状态：{runtimeByTaskId[activeTask.id]?.taskStatus ?? activeTask.status}</Text>}
           <Field label="分析请求">
             <Input value={message} onChange={(event) => onMessageChange(event.currentTarget.value)} placeholder="例如：查看 node exporter" />

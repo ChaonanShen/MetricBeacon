@@ -1,7 +1,8 @@
 # 真实后端分层诊断执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-14
+> completedAt: 2026-07-14
 > implementationAuthorized: true
 > dependsOn: `node_exporter_real_analysis_execution_plan.md`、
 > `current_codebase_overview.md`、`three_pane_workbench_execution_plan.md`

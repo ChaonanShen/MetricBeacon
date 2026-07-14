@@ -21,6 +21,7 @@ export const initialSessionWorkbenchState: SessionWorkbenchState = {
 };
 
 export type SessionAction =
+  | { type: 'session.cleared' }
   | { type: 'history.loaded'; messages: Message[]; tasks: Task[]; messageNextPageToken: string | null; taskNextPageToken: string | null }
   | { type: 'task.created'; task: Task }
   | { type: 'task.replayed'; taskId: string; targetSequence: number }
@@ -28,6 +29,8 @@ export type SessionAction =
 
 export function sessionReducer(state: SessionWorkbenchState, action: SessionAction): SessionWorkbenchState {
   switch (action.type) {
+    case 'session.cleared':
+      return initialSessionWorkbenchState;
     case 'history.loaded': {
       const messagesById = { ...state.messagesById };
       for (const message of action.messages) messagesById[message.id] = message;

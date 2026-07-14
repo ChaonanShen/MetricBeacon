@@ -13,3 +13,10 @@ export function replaceWorkbenchRoute(sessionId: string, taskId: string): void {
   url.searchParams.set('taskId', taskId);
   window.history.replaceState(window.history.state, '', url);
 }
+
+export function clearWorkbenchRoute(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('sessionId');
+  url.searchParams.delete('taskId');
+  window.history.replaceState(window.history.state, '', url);
+}

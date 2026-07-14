@@ -71,6 +71,16 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(page.getByText('undefined', { exact: true })).toHaveCount(0);
   await expectPlotsWithinPanels(page);
   await expectNoHorizontalOverflow(page);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/a/mini-torchbearing-app/workbench?theme=dark&sessionId=missing-session&taskId=missing-task');
+  await expect(page).toHaveURL((url) => url.searchParams.get('theme') === 'dark' && !url.searchParams.has('sessionId') && !url.searchParams.has('taskId'));
+  await expect(page.getByRole('status')).toHaveText('已清除当前运行环境中不存在的旧会话，请重新提交分析。');
+  await page.getByLabel('分析请求').fill('从当前运行模式重新分析 node_exporter');
+  await page.getByRole('button', { name: '开始分析' }).click();
+  await expect(page).toHaveURL(/sessionId=[^&]+&taskId=[^&]+/);
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(3);
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
 async function expectPlotsWithinPanels(page: import('@playwright/test').Page) {

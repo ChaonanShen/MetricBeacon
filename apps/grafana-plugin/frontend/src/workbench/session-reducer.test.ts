@@ -32,4 +32,11 @@ describe('sessionReducer', () => {
     expect(replayed.replayedTaskIds).toEqual({ 'task-1': true });
     expect(replayed.runtimeByTaskId['task-1'].latestSequence).toBe(0);
   });
+
+  it('clears all restored state when its session is absent from the current environment', () => {
+    const loaded = sessionReducer(initialSessionWorkbenchState, { type: 'history.loaded', messages: [userMessage], tasks: [task], messageNextPageToken: 'older-messages', taskNextPageToken: 'older-tasks' });
+    const cleared = sessionReducer(loaded, { type: 'session.cleared' });
+
+    expect(cleared).toEqual(initialSessionWorkbenchState);
+  });
 });
