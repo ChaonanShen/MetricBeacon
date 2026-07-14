@@ -269,14 +269,15 @@ func (s *runState) query(ctx context.Context, raw string) (string, error) {
 	if repeated {
 		return s.finishInvalid(ctx, callID, "grafana.query_prometheus", "each view may be queried once")
 	}
-	validation, err := s.runtime.queries.Validate(ctx, s.identity, dto.ValidateQueryRequest{DatasourceUID: s.request.DatasourceUID, Expression: view.CanonicalExpression})
+	cpuWindow := cpuWindowForView(view.Key, s.request.QueryPlan.CPURateWindowSeconds)
+	validation, err := s.runtime.queries.Validate(ctx, s.identity, dto.ValidateQueryRequest{DatasourceUID: s.request.DatasourceUID, View: view.Key, CPURateWindowSeconds: cpuWindow})
 	if err != nil {
 		return "", err
 	}
-	if !validation.Valid || validation.CanonicalExpression != view.CanonicalExpression {
+	if !validation.Valid || validation.CanonicalExpression == "" {
 		return "", common.NewError(common.SchemaValidationFailed, "query validation rejected the registered expression", false)
 	}
-	execution, err := s.runtime.queries.Execute(ctx, s.identity, dto.ExecuteQueryRequest{DatasourceUID: s.request.DatasourceUID, Expression: validation.CanonicalExpression, TimeRange: s.request.TimeRange, StepSeconds: s.request.QueryPlan.StepSeconds})
+	execution, err := s.runtime.queries.Execute(ctx, s.identity, dto.ExecuteQueryRequest{DatasourceUID: s.request.DatasourceUID, View: view.Key, CPURateWindowSeconds: cpuWindow, TimeRange: s.request.TimeRange, StepSeconds: s.request.QueryPlan.StepSeconds})
 	if err != nil {
 		return "", err
 	}
@@ -288,6 +289,13 @@ func (s *runState) query(ctx context.Context, raw string) (string, error) {
 		return "", err
 	}
 	return querySummary(view.Key, execution)
+}
+
+func cpuWindowForView(view string, value int) *int {
+	if view != "cpu" {
+		return nil
+	}
+	return &value
 }
 
 func (s *runState) invalidTool(ctx context.Context, toolName, reason string) (string, error) {

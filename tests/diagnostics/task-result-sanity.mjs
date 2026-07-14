@@ -6,6 +6,17 @@ export const canonicalExpressions = {
   load: 'node_load1',
 };
 
+const cpuExpressions = new Set([
+  '100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[30s])))',
+  '100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])))',
+  canonicalExpressions.cpu,
+]);
+
+function viewForExpression(expression) {
+  if (cpuExpressions.has(expression)) return 'cpu';
+  return Object.entries(canonicalExpressions).find(([view, canonical]) => view !== 'cpu' && expression === canonical)?.[0];
+}
+
 function eventTypeCounts(events) {
   const counts = {};
   for (const event of events) counts[event?.type ?? 'missing'] = (counts[event?.type ?? 'missing'] ?? 0) + 1;
@@ -60,7 +71,7 @@ export function analyzeTaskEvents(events, { expectedViews, expectedToolCalls } =
   for (const chart of charts) {
     if (typeof chart?.id !== 'string' || !Array.isArray(chart.queries) || chart.queries.length !== 1) fail('chart did not contain exactly one query', events);
     const expression = chart.queries[0]?.expression;
-    const view = Object.entries(canonicalExpressions).find(([, canonical]) => expression === canonical)?.[0];
+    const view = viewForExpression(expression);
     if (!view || views[view]) fail('chart expression was unknown or duplicated', events);
     const execution = executionByChart.get(chart.id);
     if (execution?.status !== 'success' || !Array.isArray(execution.series) || execution.seriesCount !== execution.series.length) {

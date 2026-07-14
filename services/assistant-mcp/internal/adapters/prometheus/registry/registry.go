@@ -5,6 +5,7 @@ package registry
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -29,10 +30,12 @@ type Definition struct {
 }
 
 var definitions = []Definition{
-	{View: "cpu", Title: "CPU 使用率", Unit: "percent", RefID: "A", CanonicalExpression: `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`, MetricNames: []string{"node_cpu_seconds_total"}, LabelNames: []string{"instance", "mode"}},
+	{View: "cpu", Title: "CPU 使用率", Unit: "percent", RefID: "A", CanonicalExpression: cpuExpression(300), MetricNames: []string{"node_cpu_seconds_total"}, LabelNames: []string{"instance", "mode"}},
 	{View: "memory", Title: "内存可用率", Unit: "percent", RefID: "B", CanonicalExpression: `100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes`, MetricNames: []string{"node_memory_MemAvailable_bytes", "node_memory_MemTotal_bytes"}, LabelNames: []string{"instance"}},
 	{View: "load", Title: "系统负载", Unit: "short", RefID: "C", CanonicalExpression: `node_load1`, MetricNames: []string{"node_load1"}, LabelNames: []string{"instance"}},
 }
+
+var cpuWindows = []int{30, 60, 300}
 
 var registeredMetrics = map[string]struct{}{
 	"node_cpu_seconds_total":         {},
@@ -52,17 +55,88 @@ func IsRegisteredMetric(metric string) bool {
 	return ok
 }
 
+// Resolve renders the canonical PromQL for a registered view. Callers choose
+// only bounded semantic parameters; raw PromQL never crosses the Port.
+func Resolve(view string, cpuRateWindowSeconds *int) (Definition, error) {
+	for _, definition := range definitions {
+		if definition.View != view {
+			continue
+		}
+		if view != "cpu" {
+			if cpuRateWindowSeconds != nil {
+				return Definition{}, errors.New("CPU rate window is only valid for the CPU view")
+			}
+			return checked(definition)
+		}
+		if cpuRateWindowSeconds == nil || !validCPUWindow(*cpuRateWindowSeconds) {
+			return Definition{}, errors.New("CPU view requires a registered rate window")
+		}
+		definition.CanonicalExpression = cpuExpression(*cpuRateWindowSeconds)
+		return checked(definition)
+	}
+	return Definition{}, errors.New("view is outside the node_exporter registry")
+}
+
+func cpuExpression(seconds int) string {
+	window := fmt.Sprintf("%ds", seconds)
+	if seconds%60 == 0 {
+		window = fmt.Sprintf("%dm", seconds/60)
+	}
+	return fmt.Sprintf(`100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[%s])))`, window)
+}
+
+func validCPUWindow(value int) bool {
+	for _, allowed := range cpuWindows {
+		if value == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+func checked(definition Definition) (Definition, error) {
+	if _, err := normalizedExpression(definition.CanonicalExpression); err != nil {
+		return Definition{}, errors.New("registry is invalid")
+	}
+	return definition, nil
+}
+
 // Validate accepts only one of the three registry expressions after PromQL
 // parsing and normalization. This deliberately permits whitespace and
 // redundant parentheses, but no semantic variation.
 func Validate(expression string) (Definition, error) {
+	normalized, err := normalizedExpression(expression)
+	if err != nil {
+		return Definition{}, err
+	}
+	candidates := append([]Definition(nil), definitions[1:]...)
+	for _, window := range cpuWindows {
+		definition, err := Resolve("cpu", &window)
+		if err != nil {
+			return Definition{}, errors.New("registry is invalid")
+		}
+		candidates = append(candidates, definition)
+	}
+	for _, definition := range candidates {
+		canonical, err := normalizedExpression(definition.CanonicalExpression)
+		if err != nil {
+			return Definition{}, errors.New("registry is invalid")
+		}
+		if normalized == canonical {
+			return definition, nil
+		}
+	}
+	return Definition{}, errors.New("expression is outside the node_exporter registry")
+}
+
+func normalizedExpression(expression string) (string, error) {
 	if utf8.RuneCountInString(expression) > MaxExpressionLength || strings.TrimSpace(expression) == "" {
-		return Definition{}, errors.New("expression is empty or exceeds the length limit")
+		return "", errors.New("expression is empty or exceeds the length limit")
 	}
 	expression = strings.TrimSpace(expression)
 	expr, err := parser.NewParser(parser.Options{}).ParseExpr(expression)
 	if err != nil {
-		return Definition{}, errors.New("expression is not valid PromQL")
+		return "", errors.New("expression is not valid PromQL")
 	}
 	nodes, selectors := 0, 0
 	parser.Inspect(expr, func(node parser.Node, _ []parser.Node) error {
@@ -73,19 +147,9 @@ func Validate(expression string) (Definition, error) {
 		return nil
 	})
 	if nodes > MaxASTNodes || selectors > MaxSelectors {
-		return Definition{}, errors.New("expression exceeds the AST policy limits")
+		return "", errors.New("expression exceeds the AST policy limits")
 	}
-	normalized := stripOuterParens(expr).String()
-	for _, definition := range definitions {
-		canonical, err := parser.NewParser(parser.Options{}).ParseExpr(definition.CanonicalExpression)
-		if err != nil {
-			return Definition{}, errors.New("registry is invalid")
-		}
-		if normalized == stripOuterParens(canonical).String() {
-			return definition, nil
-		}
-	}
-	return Definition{}, errors.New("expression is outside the node_exporter registry")
+	return stripOuterParens(expr).String(), nil
 }
 
 func stripOuterParens(expr parser.Expr) parser.Expr {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"time"
 
 	generated "mini-torchbearing.local/packages/generated-contracts/go"
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
@@ -65,10 +66,17 @@ func (s *Service) QueryPrometheus(ctx context.Context, identity requestcontext.C
 		return generated.QueryPrometheusOutputSchema{}, err
 	}
 	datasourceUID := string(input.DatasourceUid)
-	if datasourceUID != "prometheus-main" || strings.TrimSpace(input.Expression) == "" || !input.Start.Before(input.End) || input.StepSeconds < 1 || input.StepSeconds > 3600 || !input.Mode.Valid() {
+	view := string(input.View)
+	var cpuWindow *int
+	if input.CpuRateWindowSeconds != nil {
+		value := int(*input.CpuRateWindowSeconds)
+		cpuWindow = &value
+	}
+	windowValid := (view == "cpu" && input.CpuRateWindowSeconds != nil && input.CpuRateWindowSeconds.Valid()) || (view != "cpu" && input.CpuRateWindowSeconds == nil)
+	if datasourceUID != "prometheus-main" || !input.View.Valid() || !windowValid || !input.Start.Before(input.End) || input.End.Sub(input.Start) > 6*time.Hour || !input.StepSeconds.Valid() || !input.Mode.Valid() || int(input.End.Sub(input.Start).Seconds())/int(input.StepSeconds)+1 > 1000 {
 		return generated.QueryPrometheusOutputSchema{}, runtime.NewError(runtime.SchemaValidationFailed, "Prometheus query input does not match the tool schema", false)
 	}
-	result, err := s.prometheus.Query(ctx, identity, prometheus.QueryRequest{DatasourceUID: datasourceUID, Expression: input.Expression, Start: input.Start, End: input.End, StepSeconds: input.StepSeconds, Mode: prometheus.QueryMode(input.Mode)})
+	result, err := s.prometheus.Query(ctx, identity, prometheus.QueryRequest{DatasourceUID: datasourceUID, View: view, CPURateWindowSeconds: cpuWindow, Start: input.Start, End: input.End, StepSeconds: int(input.StepSeconds), Mode: prometheus.QueryMode(input.Mode)})
 	if err != nil {
 		return generated.QueryPrometheusOutputSchema{}, err
 	}

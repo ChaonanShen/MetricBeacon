@@ -52,7 +52,14 @@ func (catalogStub) GetMetricLabels(context.Context, requestcontext.Context, dto.
 type queryStub struct{}
 
 func (queryStub) Validate(_ context.Context, _ requestcontext.Context, request dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
-	return dto.QueryValidationResult{Valid: true, CanonicalExpression: request.Expression}, nil
+	return dto.QueryValidationResult{Valid: true, CanonicalExpression: canonicalForView(request.View)}, nil
+}
+
+func canonicalForView(view string) string {
+	if view == "cpu" {
+		return "cpu_registered_query"
+	}
+	return "node_" + view
 }
 func (queryStub) Execute(context.Context, requestcontext.Context, dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
 	return dto.QueryExecutionResult{Status: "success", Series: []chart.Series{{Name: "node-a"}}, Validation: dto.QueryValidationResult{Valid: true}}, nil

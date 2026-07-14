@@ -78,14 +78,15 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 		if err := emitTool(sink, ctx, "tool.started", callID, map[string]any{"toolName": "grafana.query_prometheus", "chartKey": spec.key}); err != nil {
 			return dto.AgentRunResult{}, err
 		}
-		validation, err := r.queries.Validate(ctx, identity, dto.ValidateQueryRequest{DatasourceUID: request.DatasourceUID, Expression: spec.expression})
+		cpuWindow := cpuWindowForView(spec.key, request.QueryPlan.CPURateWindowSeconds)
+		validation, err := r.queries.Validate(ctx, identity, dto.ValidateQueryRequest{DatasourceUID: request.DatasourceUID, View: spec.key, CPURateWindowSeconds: cpuWindow})
 		if err != nil {
 			return dto.AgentRunResult{}, err
 		}
 		if !validation.Valid || validation.CanonicalExpression == "" {
 			return dto.AgentRunResult{}, common.NewError(common.SchemaValidationFailed, "Prometheus query validation did not return a canonical expression", false)
 		}
-		execution, err := r.queries.Execute(ctx, identity, dto.ExecuteQueryRequest{DatasourceUID: request.DatasourceUID, Expression: validation.CanonicalExpression, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds})
+		execution, err := r.queries.Execute(ctx, identity, dto.ExecuteQueryRequest{DatasourceUID: request.DatasourceUID, View: spec.key, CPURateWindowSeconds: cpuWindow, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds})
 		if err != nil {
 			return dto.AgentRunResult{}, err
 		}
@@ -95,6 +96,13 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 		proposals = append(proposals, dto.ChartProposal{Key: spec.key, Title: spec.title, Visualization: "timeseries", Unit: spec.unit, Query: chart.QuerySpec{RefID: strings.ToUpper(spec.key[:1]), Expression: validation.CanonicalExpression, Legend: "{{instance}}", DatasourceUID: request.DatasourceUID, TimeRange: request.TimeRange, StepSeconds: request.QueryPlan.StepSeconds}, Execution: execution})
 	}
 	return dto.AgentRunResult{AssistantText: "已生成 node_exporter 的 CPU、内存和系统负载视图。", Proposals: proposals}, nil
+}
+
+func cpuWindowForView(view string, value int) *int {
+	if view != "cpu" {
+		return nil
+	}
+	return &value
 }
 
 func emit(sink agent.EventSink, ctx context.Context, eventType string, payload any) error {

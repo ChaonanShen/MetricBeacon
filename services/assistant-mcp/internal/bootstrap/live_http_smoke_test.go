@@ -57,21 +57,22 @@ func TestLivePrometheusMCPDiagnostic(t *testing.T) {
 	end := time.Now().UTC().Truncate(time.Second)
 	start := end.Add(-30 * time.Minute)
 	queries := []struct {
-		view       string
-		expression string
+		view      string
+		cpuWindow any
 	}{
-		{view: "cpu", expression: `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`},
-		{view: "memory", expression: `100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes`},
-		{view: "load", expression: `node_load1`},
+		{view: "cpu", cpuWindow: 60},
+		{view: "memory", cpuWindow: nil},
+		{view: "load", cpuWindow: nil},
 	}
 	for _, item := range queries {
 		result := call(t, ctx, client, "grafana.query_prometheus", map[string]any{
-			"datasourceUid": "prometheus-main",
-			"expression":    item.expression,
-			"start":         start.Format(time.RFC3339),
-			"end":           end.Format(time.RFC3339),
-			"stepSeconds":   300,
-			"mode":          "execute",
+			"datasourceUid":        "prometheus-main",
+			"view":                 item.view,
+			"cpuRateWindowSeconds": item.cpuWindow,
+			"start":                start.Format(time.RFC3339),
+			"end":                  end.Format(time.RFC3339),
+			"stepSeconds":          300,
+			"mode":                 "execute",
 		})
 		if result.IsError {
 			t.Fatalf("[mcp] query_prometheus view=%s returned an error", item.view)

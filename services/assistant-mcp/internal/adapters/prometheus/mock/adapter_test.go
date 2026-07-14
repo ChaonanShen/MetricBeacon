@@ -29,15 +29,16 @@ func TestAdapterContract(t *testing.T) {
 		t.Fatalf("unexpected labels result: %#v, %v", labels, err)
 	}
 	start := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
-	query, err := adapter.Query(context.Background(), identity, prometheus.QueryRequest{DatasourceUID: "prometheus-main", Expression: mock.CPUQuery, Start: start, End: start.Add(30 * time.Minute), StepSeconds: 300, Mode: prometheus.ModeExecute})
-	if err != nil || len(query.Series) != 2 || !query.Series[0].Points[0].Timestamp.Equal(start) {
+	cpuWindow := 30
+	query, err := adapter.Query(context.Background(), identity, prometheus.QueryRequest{DatasourceUID: "prometheus-main", View: "cpu", CPURateWindowSeconds: &cpuWindow, Start: start, End: start.Add(30 * time.Second), StepSeconds: 5, Mode: prometheus.ModeExecute})
+	if err != nil || len(query.Series) != 2 || len(query.Series[0].Points) != 7 || !query.Series[0].Points[0].Timestamp.Equal(start) || !query.Series[0].Points[6].Timestamp.Equal(start.Add(30*time.Second)) || query.Validation.CanonicalExpression == mock.CPUQuery {
 		t.Fatalf("unexpected query result: %#v, %v", query, err)
 	}
-	validated, err := adapter.Query(context.Background(), identity, prometheus.QueryRequest{DatasourceUID: "prometheus-main", Expression: mock.CPUQuery, Start: start, End: start.Add(30 * time.Minute), StepSeconds: 300, Mode: prometheus.ModeValidate})
+	validated, err := adapter.Query(context.Background(), identity, prometheus.QueryRequest{DatasourceUID: "prometheus-main", View: "cpu", CPURateWindowSeconds: &cpuWindow, Start: start, End: start.Add(30 * time.Second), StepSeconds: 5, Mode: prometheus.ModeValidate})
 	if err != nil || len(validated.Series) != 0 || !validated.Validation.Valid {
 		t.Fatalf("unexpected validation result: %#v, %v", validated, err)
 	}
-	_, err = adapter.Query(context.Background(), identity, prometheus.QueryRequest{DatasourceUID: "prometheus-main", Expression: "up", Start: start, End: start.Add(time.Minute), StepSeconds: 300, Mode: prometheus.ModeExecute})
+	_, err = adapter.Query(context.Background(), identity, prometheus.QueryRequest{DatasourceUID: "prometheus-main", View: "unknown", Start: start, End: start.Add(time.Minute), StepSeconds: 300, Mode: prometheus.ModeExecute})
 	requireCode(t, err, runtime.SchemaValidationFailed)
 }
 

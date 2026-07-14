@@ -38,7 +38,7 @@ func TestRuntimeKeepsRawSeriesOutOfModelInput(t *testing.T) {
 	if len(result.Proposals) != 1 || result.Proposals[0].Key != "cpu" || result.Proposals[0].Query.RefID != "A" {
 		t.Fatalf("unexpected chart proposals: %#v", result.Proposals)
 	}
-	if queries.execute.StepSeconds != 300 || queries.execute.Expression != result.Proposals[0].Query.Expression {
+	if queries.execute.StepSeconds != 300 || queries.execute.View != "cpu" || queries.execute.CPURateWindowSeconds == nil || *queries.execute.CPURateWindowSeconds != 300 {
 		t.Fatalf("query was not constrained to the canonical execution: %#v", queries.execute)
 	}
 	if !sink.hasToolPair("query-cpu", "grafana.query_prometheus") {
@@ -169,7 +169,11 @@ type fakeQueries struct {
 }
 
 func (*fakeQueries) Validate(_ context.Context, _ requestcontext.Context, input dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
-	return dto.QueryValidationResult{Valid: true, CanonicalExpression: input.Expression}, nil
+	canonical := "node_" + input.View
+	if input.View == "cpu" {
+		canonical = `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`
+	}
+	return dto.QueryValidationResult{Valid: true, CanonicalExpression: canonical}, nil
 }
 func (q *fakeQueries) Execute(_ context.Context, _ requestcontext.Context, input dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
 	q.execute = input

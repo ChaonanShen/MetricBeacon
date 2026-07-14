@@ -51,13 +51,14 @@ func loadFixture(directory string) (fixture, error) {
 	result.Queries = make(map[string]prometheus.QueryResult, 3)
 	for _, entry := range []struct {
 		file       string
+		view       string
 		expression string
-	}{{"query_cpu.json", CPUQuery}, {"query_memory.json", MemoryQuery}, {"query_load.json", LoadQuery}} {
+	}{{"query_cpu.json", "cpu", CPUQuery}, {"query_memory.json", "memory", MemoryQuery}, {"query_load.json", "load", LoadQuery}} {
 		var query prometheus.QueryResult
 		if err := decodeFixture(filepath.Join(directory, entry.file), &query); err != nil {
 			return fixture{}, err
 		}
-		result.Queries[entry.expression] = query
+		result.Queries[entry.view] = query
 	}
 	if err := validateFixture(result); err != nil {
 		return fixture{}, err
@@ -91,12 +92,12 @@ func validateFixture(value fixture) error {
 			return runtime.NewError(runtime.SchemaValidationFailed, "metric labels fixture is invalid", false)
 		}
 	}
-	for expression, result := range value.Queries {
-		definition, err := registry.Validate(expression)
-		if err != nil || definition.CanonicalExpression != expression {
+	for view, result := range value.Queries {
+		definition, err := registry.Validate(result.Validation.CanonicalExpression)
+		if err != nil || definition.View != view {
 			return runtime.NewError(runtime.SchemaValidationFailed, "query fixture is outside the node_exporter registry", false)
 		}
-		if !result.Validation.Valid || result.Validation.CanonicalExpression != expression || result.Status != "success" || result.ResultType != "matrix" || len(result.Series) < 2 || result.DurationMS < 0 {
+		if !result.Validation.Valid || result.Validation.CanonicalExpression == "" || result.Status != "success" || result.ResultType != "matrix" || len(result.Series) < 2 || result.DurationMS < 0 {
 			return runtime.NewError(runtime.SchemaValidationFailed, "query fixture is invalid", false)
 		}
 		for _, series := range result.Series {
@@ -117,20 +118,25 @@ func unavailable(message string) error {
 	return runtime.NewError(runtime.DependencyUnavailable, message, true)
 }
 
-func shiftToRange(value prometheus.QueryResult, start time.Time) prometheus.QueryResult {
+func resampleToRange(value prometheus.QueryResult, start, end time.Time, stepSeconds int) prometheus.QueryResult {
 	if len(value.Series) == 0 || len(value.Series[0].Points) == 0 {
 		return value
 	}
-	delta := start.UTC().Sub(value.Series[0].Points[0].Timestamp.UTC())
 	result := value
 	result.Series = make([]prometheus.Series, len(value.Series))
 	for seriesIndex, series := range value.Series {
-		copied := prometheus.Series{Name: series.Name, Labels: make(map[string]string, len(series.Labels)), Points: make([]prometheus.Point, len(series.Points))}
+		pointCount := int(end.Sub(start)/(time.Duration(stepSeconds)*time.Second)) + 1
+		copied := prometheus.Series{Name: series.Name, Labels: make(map[string]string, len(series.Labels)), Points: make([]prometheus.Point, pointCount)}
 		for key, item := range series.Labels {
 			copied.Labels[key] = item
 		}
-		for pointIndex, point := range series.Points {
-			copied.Points[pointIndex] = prometheus.Point{Timestamp: point.Timestamp.Add(delta).UTC(), Value: point.Value}
+		for pointIndex := range copied.Points {
+			position := float64(pointIndex) * float64(len(series.Points)-1) / float64(max(pointCount-1, 1))
+			left := int(position)
+			right := min(left+1, len(series.Points)-1)
+			fraction := position - float64(left)
+			value := series.Points[left].Value + (series.Points[right].Value-series.Points[left].Value)*fraction
+			copied.Points[pointIndex] = prometheus.Point{Timestamp: start.UTC().Add(time.Duration(pointIndex*stepSeconds) * time.Second), Value: value}
 		}
 		result.Series[seriesIndex] = copied
 	}

@@ -20,6 +20,7 @@ import (
 
 func TestAdapterContract(t *testing.T) {
 	var requests []string
+	cpuWindow := 300
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, request *stdhttp.Request) {
 		requests = append(requests, request.Method+" "+request.URL.Path)
 		switch request.URL.Path {
@@ -57,7 +58,7 @@ func TestAdapterContract(t *testing.T) {
 		t.Fatalf("unexpected labels result: %#v, %v", labels, err)
 	}
 	start := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
-	query, err := adapter.Query(context.Background(), identity, prometheus.QueryRequest{DatasourceUID: registry.DatasourceUID, Expression: " ( " + registry.Definitions()[0].CanonicalExpression + " ) ", Start: start, End: start.Add(30 * time.Minute), StepSeconds: 300, Mode: prometheus.ModeExecute})
+	query, err := adapter.Query(context.Background(), identity, prometheus.QueryRequest{DatasourceUID: registry.DatasourceUID, View: "cpu", CPURateWindowSeconds: &cpuWindow, Start: start, End: start.Add(30 * time.Minute), StepSeconds: 300, Mode: prometheus.ModeExecute})
 	if err != nil || len(query.Series) != 1 || len(query.Series[0].Points) != 1 || len(query.Warnings) != 1 {
 		t.Fatalf("unexpected query result: %#v, %v", query, err)
 	}
@@ -77,11 +78,11 @@ func TestValidateDoesNotContactPrometheusAndRejectsLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now().UTC()
-	result, err := adapter.Query(context.Background(), requestcontext.Context{}, prometheus.QueryRequest{DatasourceUID: registry.DatasourceUID, Expression: registry.Definitions()[2].CanonicalExpression, Start: start, End: start.Add(time.Minute), StepSeconds: 60, Mode: prometheus.ModeValidate})
+	result, err := adapter.Query(context.Background(), requestcontext.Context{}, prometheus.QueryRequest{DatasourceUID: registry.DatasourceUID, View: "load", Start: start, End: start.Add(time.Minute), StepSeconds: 60, Mode: prometheus.ModeValidate})
 	if err != nil || !result.Validation.Valid || result.Validation.CanonicalExpression != registry.Definitions()[2].CanonicalExpression {
 		t.Fatalf("unexpected validation: %#v, %v", result, err)
 	}
-	_, err = adapter.Query(context.Background(), requestcontext.Context{}, prometheus.QueryRequest{DatasourceUID: registry.DatasourceUID, Expression: registry.Definitions()[2].CanonicalExpression, Start: start, End: start.Add(6*time.Hour + time.Second), StepSeconds: 60, Mode: prometheus.ModeExecute})
+	_, err = adapter.Query(context.Background(), requestcontext.Context{}, prometheus.QueryRequest{DatasourceUID: registry.DatasourceUID, View: "load", Start: start, End: start.Add(6*time.Hour + time.Second), StepSeconds: 60, Mode: prometheus.ModeExecute})
 	requireCode(t, err, runtime.SchemaValidationFailed)
 }
 
@@ -163,7 +164,7 @@ func TestAdapterRejectsResponseLimits(t *testing.T) {
 				t.Fatal(err)
 			}
 			if test.query {
-				_, err = adapter.Query(context.Background(), requestcontext.Context{}, prometheus.QueryRequest{DatasourceUID: registry.DatasourceUID, Expression: registry.Definitions()[2].CanonicalExpression, Start: start, End: start.Add(time.Minute), StepSeconds: 60, Mode: prometheus.ModeExecute})
+				_, err = adapter.Query(context.Background(), requestcontext.Context{}, prometheus.QueryRequest{DatasourceUID: registry.DatasourceUID, View: "load", Start: start, End: start.Add(time.Minute), StepSeconds: 60, Mode: prometheus.ModeExecute})
 			} else {
 				_, err = adapter.SearchMetrics(context.Background(), requestcontext.Context{}, prometheus.SearchMetricsRequest{DatasourceUID: registry.DatasourceUID, Query: "node", Limit: 1})
 			}

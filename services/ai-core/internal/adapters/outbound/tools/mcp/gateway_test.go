@@ -37,7 +37,7 @@ func TestGatewayAndTypedAdaptersUseRealStreamableHTTP(t *testing.T) {
 	}
 	query := NewQueryEngineAdapter(gateway)
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
-	result, err := query.Execute(context.Background(), identity, dto.ExecuteQueryRequest{DatasourceUID: "prometheus-main", Expression: "node_load1", TimeRange: common.AbsoluteTimeRange{From: now.Add(-time.Minute), To: now}, StepSeconds: 60})
+	result, err := query.Execute(context.Background(), identity, dto.ExecuteQueryRequest{DatasourceUID: "prometheus-main", View: "load", TimeRange: common.AbsoluteTimeRange{From: now.Add(-time.Minute), To: now}, StepSeconds: 60})
 	if err != nil || result.Status != "success" || len(result.Series) != 1 {
 		t.Fatalf("query: %#v, %v", result, err)
 	}

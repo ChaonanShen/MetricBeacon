@@ -3,6 +3,7 @@ package mock
 import (
 	"context"
 	"strings"
+	"time"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	"mini-torchbearing.local/services/assistant-mcp/internal/adapters/prometheus/registry"
@@ -48,14 +49,14 @@ func (a *Adapter) GetMetricLabels(_ context.Context, _ requestcontext.Context, r
 }
 
 func (a *Adapter) Query(_ context.Context, _ requestcontext.Context, request prometheus.QueryRequest) (prometheus.QueryResult, error) {
-	if request.DatasourceUID != registry.DatasourceUID || !request.Start.Before(request.End) || request.StepSeconds < 1 || request.StepSeconds > 3600 || (request.Mode != prometheus.ModeValidate && request.Mode != prometheus.ModeExecute) {
+	if request.DatasourceUID != registry.DatasourceUID || !request.Start.Before(request.End) || request.End.Sub(request.Start) > 6*time.Hour || !validStep(request.StepSeconds) || int(request.End.Sub(request.Start).Seconds())/request.StepSeconds+1 > 1000 || (request.Mode != prometheus.ModeValidate && request.Mode != prometheus.ModeExecute) {
 		return prometheus.QueryResult{}, runtime.NewError(runtime.SchemaValidationFailed, "Prometheus query request is invalid", false)
 	}
-	definition, err := registry.Validate(request.Expression)
+	definition, err := registry.Resolve(request.View, request.CPURateWindowSeconds)
 	if err != nil {
-		return prometheus.QueryResult{}, runtime.NewError(runtime.SchemaValidationFailed, "PromQL expression is outside the node_exporter registry", false)
+		return prometheus.QueryResult{}, runtime.NewError(runtime.SchemaValidationFailed, "node_exporter view parameters are outside the registry", false)
 	}
-	result, ok := a.fixture.Queries[definition.CanonicalExpression]
+	result, ok := a.fixture.Queries[definition.View]
 	if !ok {
 		return prometheus.QueryResult{}, runtime.NewError(runtime.DependencyUnavailable, "mock scenario does not provide the registered query", true)
 	}
@@ -64,7 +65,16 @@ func (a *Adapter) Query(_ context.Context, _ requestcontext.Context, request pro
 		result.Series = []prometheus.Series{}
 		return result, nil
 	}
-	return shiftToRange(result, request.Start), nil
+	return resampleToRange(result, request.Start, request.End, request.StepSeconds), nil
+}
+
+func validStep(value int) bool {
+	switch value {
+	case 5, 10, 15, 30, 60, 120, 300:
+		return true
+	default:
+		return false
+	}
 }
 
 func cloneLabels(value prometheus.MetricLabelsResult) prometheus.MetricLabelsResult {

@@ -81,7 +81,7 @@ func TestStreamableHTTPMCPTools(t *testing.T) {
 	}
 
 	start := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
-	query := call(t, context, client, "grafana.query_prometheus", map[string]any{"datasourceUid": "prometheus-main", "expression": `100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))`, "start": start.Format(time.RFC3339), "end": start.Add(30 * time.Minute).Format(time.RFC3339), "stepSeconds": 300, "mode": "execute"})
+	query := call(t, context, client, "grafana.query_prometheus", map[string]any{"datasourceUid": "prometheus-main", "view": "cpu", "cpuRateWindowSeconds": 60, "start": start.Format(time.RFC3339), "end": start.Add(30 * time.Minute).Format(time.RFC3339), "stepSeconds": 300, "mode": "execute"})
 	if query.IsError {
 		t.Fatalf("query returned an error: %#v", query)
 	}

@@ -26,6 +26,13 @@ test('summarizes a complete durable task result', () => {
   ]);
 });
 
+test('accepts bounded CPU rate-window variants', () => {
+  const summary = analyzeTaskEvents(completedTask({
+    expression: '100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[30s])))',
+  }), { expectedViews: ['cpu'], expectedToolCalls: 1 });
+  assert.equal(summary.views.cpu.samples, 1);
+});
+
 for (const [name, mutate, message] of [
   ['sequence gap', (events) => { events[2].sequence = 4; }, 'sequence expected'],
   ['mixed task identity', (events) => { events[2].taskId = 'task-2'; }, 'mixed task'],

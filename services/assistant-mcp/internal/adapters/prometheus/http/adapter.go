@@ -149,12 +149,12 @@ func (a *Adapter) GetMetricLabels(ctx context.Context, _ requestcontext.Context,
 }
 
 func (a *Adapter) Query(ctx context.Context, _ requestcontext.Context, request prometheus.QueryRequest) (prometheus.QueryResult, error) {
-	if request.DatasourceUID != registry.DatasourceUID || !request.Start.Before(request.End) || request.End.Sub(request.Start) > maxRange || request.StepSeconds < 1 || request.StepSeconds > 3600 || (request.Mode != prometheus.ModeValidate && request.Mode != prometheus.ModeExecute) {
+	if request.DatasourceUID != registry.DatasourceUID || !request.Start.Before(request.End) || request.End.Sub(request.Start) > maxRange || !validQueryStep(request.StepSeconds) || int(request.End.Sub(request.Start).Seconds())/request.StepSeconds+1 > 1000 || (request.Mode != prometheus.ModeValidate && request.Mode != prometheus.ModeExecute) {
 		return prometheus.QueryResult{}, invalid("Prometheus query request is invalid")
 	}
-	definition, err := registry.Validate(request.Expression)
+	definition, err := registry.Resolve(request.View, request.CPURateWindowSeconds)
 	if err != nil {
-		return prometheus.QueryResult{}, invalid("PromQL expression is outside the node_exporter registry")
+		return prometheus.QueryResult{}, invalid("node_exporter view parameters are outside the registry")
 	}
 	validation := prometheus.Validation{Valid: true, Errors: []string{}, Warnings: []string{}, MetricNames: append([]string{}, definition.MetricNames...), LabelNames: append([]string{}, definition.LabelNames...), CanonicalExpression: definition.CanonicalExpression}
 	if request.Mode == prometheus.ModeValidate {
@@ -180,6 +180,15 @@ func (a *Adapter) Query(ctx context.Context, _ requestcontext.Context, request p
 		return prometheus.QueryResult{}, err
 	}
 	return prometheus.QueryResult{Validation: validation, Status: "success", ResultType: "matrix", Series: series, DurationMS: int(time.Since(started).Milliseconds()), Warnings: warnings}, nil
+}
+
+func validQueryStep(value int) bool {
+	switch value {
+	case 5, 10, 15, 30, 60, 120, 300:
+		return true
+	default:
+		return false
+	}
 }
 
 // Ready performs the Prometheus-specific readiness probe. /healthz remains a

@@ -44,11 +44,14 @@ const (
 
 type QueryRequest struct {
 	DatasourceUID string
-	Expression    string
-	Start         time.Time
-	End           time.Time
-	StepSeconds   int
-	Mode          QueryMode
+	View          string
+	// CPURateWindowSeconds must be set to 30, 60 or 300 for the CPU
+	// view and must be nil for memory/load.
+	CPURateWindowSeconds *int
+	Start                time.Time
+	End                  time.Time
+	StepSeconds          int
+	Mode                 QueryMode
 }
 
 type Validation struct {

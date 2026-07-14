@@ -23,16 +23,22 @@ type MetricLabelsResult struct {
 	LabelNames   []string
 	SampleValues map[string][]string
 }
-type ValidateQueryRequest struct{ DatasourceUID, Expression string }
+type ValidateQueryRequest struct {
+	DatasourceUID        string
+	View                 string
+	CPURateWindowSeconds *int
+}
 type QueryValidationResult struct {
 	Valid                                     bool
 	Errors, Warnings, MetricNames, LabelNames []string
 	CanonicalExpression                       string
 }
 type ExecuteQueryRequest struct {
-	DatasourceUID, Expression string
-	TimeRange                 common.AbsoluteTimeRange
-	StepSeconds               int
+	DatasourceUID        string
+	View                 string
+	CPURateWindowSeconds *int
+	TimeRange            common.AbsoluteTimeRange
+	StepSeconds          int
 }
 type QueryExecutionResult struct {
 	Status     string

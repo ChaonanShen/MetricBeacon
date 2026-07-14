@@ -22,23 +22,24 @@ func NewQueryEngineAdapter(gateway tools.Gateway) *QueryEngineAdapter {
 
 func (a *QueryEngineAdapter) Validate(ctx context.Context, identity requestcontext.Context, request dto.ValidateQueryRequest) (dto.QueryValidationResult, error) {
 	now := time.Now().UTC()
-	output, err := a.query(ctx, identity, request.DatasourceUID, request.Expression, now.Add(-time.Minute), now, 60, "validate")
+	output, err := a.query(ctx, identity, request.DatasourceUID, request.View, request.CPURateWindowSeconds, now.Add(-time.Minute), now, 60, "validate")
 	return output.Validation, err
 }
 
 func (a *QueryEngineAdapter) Execute(ctx context.Context, identity requestcontext.Context, request dto.ExecuteQueryRequest) (dto.QueryExecutionResult, error) {
-	return a.query(ctx, identity, request.DatasourceUID, request.Expression, request.TimeRange.From, request.TimeRange.To, request.StepSeconds, "execute")
+	return a.query(ctx, identity, request.DatasourceUID, request.View, request.CPURateWindowSeconds, request.TimeRange.From, request.TimeRange.To, request.StepSeconds, "execute")
 }
 
-func (a *QueryEngineAdapter) query(ctx context.Context, identity requestcontext.Context, datasourceUID, expression string, start, end time.Time, stepSeconds int, mode string) (dto.QueryExecutionResult, error) {
+func (a *QueryEngineAdapter) query(ctx context.Context, identity requestcontext.Context, datasourceUID, view string, cpuRateWindowSeconds *int, start, end time.Time, stepSeconds int, mode string) (dto.QueryExecutionResult, error) {
 	arguments, _ := json.Marshal(struct {
-		DatasourceUID string    `json:"datasourceUid"`
-		Expression    string    `json:"expression"`
-		Start         time.Time `json:"start"`
-		End           time.Time `json:"end"`
-		StepSeconds   int       `json:"stepSeconds"`
-		Mode          string    `json:"mode"`
-	}{datasourceUID, expression, start.UTC(), end.UTC(), stepSeconds, mode})
+		DatasourceUID        string    `json:"datasourceUid"`
+		View                 string    `json:"view"`
+		CPURateWindowSeconds *int      `json:"cpuRateWindowSeconds"`
+		Start                time.Time `json:"start"`
+		End                  time.Time `json:"end"`
+		StepSeconds          int       `json:"stepSeconds"`
+		Mode                 string    `json:"mode"`
+	}{datasourceUID, view, cpuRateWindowSeconds, start.UTC(), end.UTC(), stepSeconds, mode})
 	result, err := a.gateway.CallTool(ctx, identity, tools.Call{Name: "grafana.query_prometheus", Version: "v1", Arguments: arguments})
 	if err != nil {
 		return dto.QueryExecutionResult{}, err
