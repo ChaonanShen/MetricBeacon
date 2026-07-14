@@ -17,7 +17,11 @@ async function requestJSON(url, init = {}) {
 }
 
 function parseSSE(raw) {
-  return raw.split(/\r?\n\r?\n/).flatMap((block) => {
+  const blocks = raw.split(/\r?\n\r?\n/);
+  if (!/\r?\n\r?\n$/.test(raw)) {
+    blocks.pop();
+  }
+  return blocks.flatMap((block) => {
     const data = block.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n');
     return data ? [JSON.parse(data)] : [];
   });
@@ -41,9 +45,10 @@ async function streamEvents(url) {
         break;
       }
       raw += decoder.decode(value, { stream: true });
-      if (raw.includes('"type":"task.completed"') || raw.includes('"type":"task.failed"')) {
+      const events = parseSSE(raw);
+      if (events.some((event) => event.type === 'task.completed' || event.type === 'task.failed')) {
         await reader.cancel();
-        break;
+        return events;
       }
     }
     return parseSSE(raw);

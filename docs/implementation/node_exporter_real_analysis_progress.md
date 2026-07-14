@@ -4,7 +4,7 @@ lastUpdated: 2026-07-14
 currentGate: P5.2
 status: active
 headCommit: pending
-worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E now pass, including durable multi-turn recovery and live node_exporter series. P5's DeepSeek Eino smoke harness is implemented and credential-gated; final closeout awaits a user-provided key for the external-model run.
+worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E have passed, including durable multi-turn recovery and live node_exporter series. The credentialed DeepSeek Eino smoke gate now passes; final closeout requires a fresh combined gate run.
 
 ## Gate Status
 
@@ -29,7 +29,7 @@ worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E n
 - [ ] P5 End-to-end closeout
   - [x] P5.1 Credential-gated real-agent smoke harness and leak checks
   - [x] P5.2a Execute Mock and real-metrics container gates
-  - [ ] P5.2b Execute credentialed real-agent container gate
+  - [x] P5.2b Execute credentialed real-agent container gate
 
 ## Locked G0 Decisions
 
@@ -69,7 +69,8 @@ worktreeSummary: G0 through P4 are complete. Mock and real-metrics Compose E2E n
 |`make e2e-real-agent` (without key)|passed|2026-07-14|Fails immediately with exit code 2 and a clear key-required message; it does not start containers or silently fall back to Mock.|
 |`GOWORK=off go test ./...` in `packages/generated-contracts/go`; assistant-mcp image build|passed|2026-07-14|The standalone generated-contracts Go module now declares the `oapi-codegen` runtime used by generated Grafana tool types, so the isolated assistant-mcp Docker build resolves its imports.|
 |`sh -n scripts/run-real-metrics-e2e.sh scripts/run-real-agent-e2e.sh`; live Prometheus readiness probe|passed|2026-07-14|The real-metrics and real-agent harnesses use URL-encoded GET queries: `up == 1` and a boolean two-scrape CPU condition, avoiding BusyBox `wget` POST form parsing differences.|
+|`zsh -lc 'set -a; source .env; set +a; make e2e-real-agent'`|passed|2026-07-14|DeepSeek Eino completed overview and CPU follow-up against live node_exporter data; the harness verified durable tool-pair events, history/replay recovery, terminal stream closure, and API/log/SQLite leak markers. The key was loaded only into the invoking process and was not logged or persisted.|
 
 ## Next Slice
 
-P5.1 provides `make e2e-real-agent`, which requires a user-provided `DEEPSEEK_API_KEY` and checks overview/CPU charts, durable tool pairs, replay/history restoration, real series and API/log/SQLite leak markers. Mock and real-metrics gates now pass; only the credentialed external-model run remains before final closeout.
+P5.1 provides `make e2e-real-agent`, which requires `DEEPSEEK_API_KEY` and checks overview/CPU charts, durable tool pairs, replay/history restoration, real series and API/log/SQLite leak markers. The credentialed external-model run has passed. Final closeout is a fresh combined `make check`, Mock, real-metrics, and real-agent gate run.

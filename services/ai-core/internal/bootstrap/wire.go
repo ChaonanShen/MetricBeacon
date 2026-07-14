@@ -57,14 +57,13 @@ func New(ctx context.Context, config Config) (*Application, error) {
 			return nil, err
 		}
 		chatModel, err := deepseekmodel.NewChatModel(ctx, &deepseekmodel.ChatModelConfig{
-			APIKey:             config.DeepSeekAPIKey,
-			BaseURL:            config.DeepSeekBaseURL,
-			Model:              config.DeepSeekModel,
-			MaxTokens:          2048,
-			Temperature:        0.1,
-			Timeout:            config.ModelTimeout,
-			ResponseFormatType: deepseekmodel.ResponseFormatTypeJSONObject,
-			ThinkingConfig:     &deepseek.ThinkingConfig{Type: "disabled"},
+			APIKey:         config.DeepSeekAPIKey,
+			BaseURL:        config.DeepSeekBaseURL,
+			Model:          config.DeepSeekModel,
+			MaxTokens:      2048,
+			Temperature:    0.1,
+			Timeout:        config.ModelTimeout,
+			ThinkingConfig: &deepseek.ThinkingConfig{Type: "disabled"},
 		})
 		if err != nil {
 			_ = store.Close()

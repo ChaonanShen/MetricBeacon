@@ -203,8 +203,10 @@ github.com/bytedance/sonic v1.15.0
 Runner 非 streaming。生产 Bootstrap 构造 DeepSeek model；Adapter 构造器只接收 Eino
 `ToolCallingChatModel`、现有 MetricCatalog/QueryEngine Ports、Profile 与 limits，测试注入 scripted fake。
 
-DeepSeek 固定：`MaxTokens=2048`、`Temperature=0.1`、JSON Object、thinking disabled、单次模型 30 秒、
-Task 总 60 秒。模型调用失败或最终 JSON 无法验证，使用安全文本映射为 `dependency_unavailable`；iteration/
+DeepSeek 固定：`MaxTokens=2048`、`Temperature=0.1`、thinking disabled、单次模型 30 秒、
+Task 总 60 秒。Profile 指令要求 JSON 对象，并接受被 Markdown fence 包裹的等价 JSON；因模型端不保证
+`response_format` 兼容性，只有已存在成功的本地查询结果时才可把非 JSON 的最终文本安全映射为该结果。
+模型调用失败、无本地结果的最终文本或无法验证的最终 JSON 映射为 `dependency_unavailable`；iteration/
 总时限用 `execution_interrupted`。
 
 新增只读 Profile `data/agent-knowledge/node_exporter.md`：UTF-8、最大 64 KiB，必须包含三视图、规范 PromQL、
@@ -375,9 +377,19 @@ README 和必要 ADR；不得 push、amend 或覆盖无关工作区修改。
     - 增量合并当前 `.env.example` 的用户修改，补完整变量和文件换行；绝不写真实 key。
     - 验证：bootstrap/config tests、Mock 无 key 启动、eino 缺 key/Profile 启动失败、`docker compose config`。
 
+14. `fix(agent): harden real deepseek completion`
+
+    - 把受限执行协议附加到 Profile，要求每个已完成视图先有成功的规范 `query_prometheus` 调用；兼容 JSON fence，
+      仅在本地 accumulator 已有成功结果时接受普通文本终态。
+    - SSE follow 仅在最后一个 durable event 已是 terminal event 后关闭，避免 Task 状态已终态但 terminal event
+      尚未重放时截断客户端。
+    - E2E SSE parser 只解析完整帧，不因读取到半帧而把成功流判为失败。
+    - 验证：`go test ./internal/adapters/inbound/http ./internal/adapters/outbound/agent/eino ./internal/bootstrap`、
+      `make e2e-real-agent`（加载用户提供的 key）。
+
 ### P5：端到端收口
 
-14. `test(e2e): add real agent smoke`
+15. `test(e2e): add real agent smoke`
 
     - `make e2e-real-agent` 在 key 为空时明确失败，不加入无凭证 `make check`。
     - 依次发送“概览”和“只看 CPU”，断言 3 图/1 图、注册表 PromQL、真实非空 series、工具 start/end 配对、

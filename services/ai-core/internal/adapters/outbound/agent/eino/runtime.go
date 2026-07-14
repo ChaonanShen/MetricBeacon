@@ -35,8 +35,19 @@ import (
 )
 
 const (
-	maxToolSummaryBytes = 16 << 10
-	queryStepSeconds    = 300
+	maxToolSummaryBytes   = 16 << 10
+	queryStepSeconds      = 300
+	finalResponseProtocol = `
+
+## Agent execution protocol
+
+For every supported view, call query_prometheus with that view's exact canonical PromQL before replying. Do not describe a supported view as completed unless its query_prometheus call succeeded. You may call search_metrics and get_metric_labels only to identify supported metrics; never invent a tool result.
+
+After all required tool calls, reply with exactly one JSON object and no Markdown or prose outside it:
+{"status":"completed","views":["cpu"],"answer":"short user-visible conclusion"}
+
+Use only the completed view keys cpu, memory, and load in views. If the request is unsupported, make no tool calls and reply exactly:
+{"status":"unsupported","views":[],"answer":"short user-visible explanation"}`
 )
 
 type Limits struct {
@@ -88,7 +99,7 @@ func (r *Runtime) Run(ctx context.Context, identity requestcontext.Context, requ
 	chatAgent, err := adk.NewChatModelAgent(ctx, &adk.ChatModelAgentConfig{
 		Name:          "node_exporter_analysis",
 		Description:   "Creates constrained node_exporter CPU, memory, and load analyses.",
-		Instruction:   r.profile.Content,
+		Instruction:   r.profile.Content + finalResponseProtocol,
 		Model:         r.model,
 		ToolsConfig:   adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{Tools: run.tools(), ExecuteSequentially: true}},
 		MaxIterations: r.limits.MaxIterations,
@@ -301,11 +312,14 @@ func (s *runState) finish(raw string) (dto.AgentRunResult, error) {
 		Views  []string `json:"views"`
 		Answer string   `json:"answer"`
 	}
-	if err := decodeStrict(raw, &response); err != nil || !utf8.ValidString(response.Answer) || utf8.RuneCountInString(response.Answer) == 0 || utf8.RuneCountInString(response.Answer) > 4096 {
-		return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned an invalid final response", true)
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := decodeStrict(trimJSONFence(raw), &response); err != nil {
+		return s.finishTextFallback(raw)
+	}
+	if !validAnswer(response.Answer) {
+		return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned an invalid final response", true)
+	}
 	if response.Status == "unsupported" {
 		if len(response.Views) != 0 || s.toolCalls != 0 || len(s.proposals) != 0 {
 			return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned an inconsistent unsupported response", true)
@@ -322,6 +336,36 @@ func (s *runState) finish(raw string) (dto.AgentRunResult, error) {
 		}
 	}
 	return dto.AgentRunResult{AssistantText: response.Answer, Proposals: proposals}, nil
+}
+
+func (s *runState) finishTextFallback(raw string) (dto.AgentRunResult, error) {
+	answer := strings.TrimSpace(raw)
+	if !validAnswer(answer) || len(s.proposals) == 0 {
+		return dto.AgentRunResult{}, common.NewError(common.DependencyUnavailable, "analysis model returned an invalid final response", true)
+	}
+	proposals := make([]dto.ChartProposal, 0, len(profile.Views()))
+	for _, view := range profile.Views() {
+		if proposal, ok := s.proposals[view.Key]; ok {
+			proposals = append(proposals, proposal)
+		}
+	}
+	return dto.AgentRunResult{AssistantText: answer, Proposals: proposals}, nil
+}
+
+func validAnswer(answer string) bool {
+	return utf8.ValidString(answer) && utf8.RuneCountInString(answer) > 0 && utf8.RuneCountInString(answer) <= 4096
+}
+
+func trimJSONFence(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if !strings.HasPrefix(trimmed, "```") || !strings.HasSuffix(trimmed, "```") {
+		return trimmed
+	}
+	trimmed = strings.TrimSuffix(strings.TrimPrefix(trimmed, "```json"), "```")
+	if trimmed == raw {
+		trimmed = strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(raw), "```"), "```")
+	}
+	return strings.TrimSpace(trimmed)
 }
 
 func agentMessages(request dto.AgentRunRequest) []adk.Message {

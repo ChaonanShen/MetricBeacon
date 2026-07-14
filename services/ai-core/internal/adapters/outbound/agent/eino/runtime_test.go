@@ -52,6 +52,11 @@ func TestRuntimeKeepsRawSeriesOutOfModelInput(t *testing.T) {
 			t.Fatalf("model input leaked %q: %s", forbidden, inputs)
 		}
 	}
+	for _, required := range []string{"call query_prometheus", `\"status\":\"completed\"`, `\"status\":\"unsupported\"`} {
+		if !strings.Contains(string(inputs), required) {
+			t.Fatalf("model input did not include the constrained execution protocol %q: %s", required, inputs)
+		}
+	}
 	if !strings.Contains(string(inputs), `\"series-1\"`) || !strings.Contains(string(inputs), `\"sampleCount\":2`) {
 		t.Fatalf("model did not receive the bounded local summary: %s", inputs)
 	}
@@ -61,6 +66,27 @@ func TestRuntimeRejectsFinalViewsWithoutSuccessfulTools(t *testing.T) {
 	runtime := newRuntime(t, &scriptedModel{responses: []*schema.Message{schema.AssistantMessage(`{"status":"completed","views":["cpu"],"answer":"not backed by a tool"}`, nil)}}, &fakeCatalog{}, &fakeQueries{})
 	_, err := runtime.Run(context.Background(), identity(), request(), &recordingSink{})
 	assertCode(t, err, common.DependencyUnavailable)
+}
+
+func TestRuntimeUsesSuccessfulQueriesForPlainTextFinalResponse(t *testing.T) {
+	model := &scriptedModel{responses: []*schema.Message{
+		schema.AssistantMessage("", []schema.ToolCall{{ID: "query-cpu", Type: "function", Function: schema.FunctionCall{Name: "query_prometheus", Arguments: `{"view":"cpu","expression":"100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))"}`}}}),
+		schema.AssistantMessage("CPU 视图已生成。", nil),
+	}}
+	runtime := newRuntime(t, model, &fakeCatalog{}, &fakeQueries{execution: dto.QueryExecutionResult{
+		Status: "success",
+		Series: []chart.Series{{
+			Name:   "cpu",
+			Points: []chart.Point{{Timestamp: time.Unix(1, 0), Value: 31}},
+		}},
+	}})
+	result, err := runtime.Run(context.Background(), identity(), request(), &recordingSink{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AssistantText != "CPU 视图已生成。" || len(result.Proposals) != 1 || result.Proposals[0].Key != "cpu" {
+		t.Fatalf("plain-text fallback did not use successful local query results: %#v", result)
+	}
 }
 
 func TestRuntimeStrictlyRejectsUnknownToolFieldsBeforeCatalogAccess(t *testing.T) {

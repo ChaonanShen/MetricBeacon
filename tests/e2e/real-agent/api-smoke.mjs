@@ -22,7 +22,11 @@ async function requestJSON(url, init = {}) {
 }
 
 function parseSSE(raw) {
-  return raw.split(/\r?\n\r?\n/).flatMap((block) => {
+  const blocks = raw.split(/\r?\n\r?\n/);
+  if (!/\r?\n\r?\n$/.test(raw)) {
+    blocks.pop();
+  }
+  return blocks.flatMap((block) => {
     const data = block.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n');
     return data ? [JSON.parse(data)] : [];
   });
@@ -33,7 +37,9 @@ async function terminalEvents(taskID) {
   const timeout = setTimeout(() => controller.abort(), 75_000);
   try {
     const response = await fetch(`${resourceBase}/tasks/${encodeURIComponent(taskID)}/events?afterSequence=0`, { headers: headers(), signal: controller.signal });
-    assert.equal(response.status, 200, `SSE failed: ${await response.text()}`);
+    if (response.status !== 200) {
+      assert.fail(`SSE failed: ${await response.text()}`);
+    }
     assert.ok(response.body, 'SSE response did not include a body');
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -42,9 +48,10 @@ async function terminalEvents(taskID) {
       const { done, value } = await reader.read();
       if (done) break;
       raw += decoder.decode(value, { stream: true });
-      if (raw.includes('"type":"task.completed"') || raw.includes('"type":"task.failed"')) {
+      const events = parseSSE(raw);
+      if (events.some((event) => event.type === 'task.completed' || event.type === 'task.failed')) {
         await reader.cancel();
-        break;
+        return events;
       }
     }
     return parseSSE(raw);
