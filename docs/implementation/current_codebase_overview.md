@@ -33,7 +33,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染三张图
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|工具先做权限和 Schema 校验，再调用 Prometheus Port；该服务不拥有 AI Core 的任务或数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码；opt-in HTTP Adapter 只请求本地注册的四项 metadata、15 分钟 series 和三条规范 PromQL，并执行响应、时间范围和基数上限。|
 |`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`|只读 node_exporter Agent Profile、其 loader 与受限 Eino AgentRuntime。|Profile 限制为 UTF-8、64 KiB，并校验三视图、规范 PromQL、解释、无数据/错误、最终回复和禁止项。Eino Adapter 以注入的 `ToolCallingChatModel` 和既有 MetricCatalog/QueryEngine Ports 运行三个严格 JSON Tool，限制串行调用、iteration 和总调用数；完整时序仅留在本地 accumulator，模型只收到最多 16 KiB 的匿名统计摘要。执行协议要求已完成视图先有成功查询，接受 JSON fence；只有已有成功 accumulator 结果时才可接受普通文本终态。Bootstrap 仅在显式 `eino` driver 下构造 thinking-disabled 的 DeepSeek model，并从镜像内只读 Profile 路径加载。|
-|`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建或恢复 Session、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|左栏保留对话与输入，中栏按容器宽度展示图表，右栏显示只读上下文和当前选择的图表详情。有限 replay 完成标记由 reducer 持有，可靠触发活动 Task 的单一 SSE；Resource client 显式编码 page/replay 参数。选择只存在于本地 UI 状态，不恢复、不写 URL 或服务端；未实现图表编辑、Canvas 持久化和 Dashboard 写入。|
+|`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建或恢复 Session、分页读取 Message/Task、做有限事件重放，并只为活动 Task 消费/重连 SSE；它把执行结果映射为 Grafana DataFrame 与时序图。|左栏保留对话与输入，中栏按容器宽度展示图表；宽屏使用较小 spacing token 保留两列，窄屏使用较宽卡片。右栏显示只读上下文和当前选择的图表详情。有限 replay 完成标记由 reducer 持有，可靠触发活动 Task 的单一 SSE；Resource client 显式编码 page/replay 参数。选择只存在于本地 UI 状态，不恢复、不写 URL 或服务端；未实现图表编辑、Canvas 持久化和 Dashboard 写入。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
 |`scripts/`、`Makefile`、`tests/e2e/`|工程门禁、代码生成、契约/边界检查与端到端验收入口。|`compose.mock-e2e.yaml` 启动 Mock 栈；`compose.real-metrics-e2e.yaml` 叠加 Prometheus 与 node_exporter，E2E 在真实 CPU 数据已有两个 scrape 后才提交任务。Real-metrics 浏览器验证图表渲染和恢复，不复用 Mock fixture 的实例标签断言；真实 series 由 API E2E 覆盖。`make e2e-real-agent` 再叠加 opt-in Eino/DeepSeek，要求显式 key，并检查概览/CPU、重放恢复、工具配对和 API/日志/SQLite 的泄漏标记。|
@@ -222,7 +222,7 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make lint`|Go 格式检查和前端 typecheck。|通过。|
 |`make boundary-check`、`make secret-scan`|AI Core 依赖边界和常见私钥/AKIA 模式扫描。|通过。|
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
-|`make e2e-mock`|构建前端与三个容器；API E2E 校验幂等、事件 sequence 连续性、三轮持久化、有限 replay 与 SSE 重放；Playwright 验证连续提交、刷新恢复，以及 1440px 三栏/多行画布、详情联动和 900px 纵向布局。|此前版本通过；三栏更新后的自动验收尚待补跑：2026-07-14 因 `127.0.0.1:8081` 被用户管理的 `ssh` 占用而未能启动容器。用户已完成基本人工验收且未发现问题。|
+|`make e2e-mock`|构建前端与三个容器；API E2E 校验幂等、事件 sequence 连续性、三轮持久化、有限 replay 与 SSE 重放；Playwright 验证连续提交、刷新恢复，以及 1440px 三栏/多行画布、详情联动和 900px 纵向布局。|通过；三栏标题断言限定在图表画布，Mock 双 series 详情断言通过。|
 |`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后执行 API/浏览器 E2E。|通过；确认三条注册表查询均有非空真实 series，结束后已删除 Compose 容器与 volume。|
 
 日常开发先运行 `make check`。三种完整链路的自动验收入口分别是：

@@ -34,7 +34,7 @@ slice. Its proposed scope, safety boundaries, and gate order are recorded in
 contains the detailed, decision-complete execution sequence and its progress
 record is [`implementation/node_exporter_real_analysis_progress.md`](implementation/node_exporter_real_analysis_progress.md).
 
-The active UI slice is
+The completed UI slice is
 [`implementation/three_pane_workbench_execution_plan.md`](implementation/three_pane_workbench_execution_plan.md).
 It narrows P2 to a read-only three-pane Workbench shell; its execution evidence
 is tracked in [`implementation/three_pane_workbench_progress.md`](implementation/three_pane_workbench_progress.md).
@@ -63,8 +63,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/node_exporter_real_analysis_plan.md` | Completed roadmap | Scope, safety boundaries and gate order for the finished multi-turn, real Prometheus/node_exporter and minimal Eino Agent slice. |
 | `implementation/node_exporter_real_analysis_execution_plan.md` | Completed execution plan | Decision-complete implementation sequence and completion evidence for that slice. |
 | `implementation/node_exporter_real_analysis_progress.md` | Completed progress record | Gate status and verification evidence for that slice. |
-| `implementation/three_pane_workbench_execution_plan.md` | Active execution plan | Narrow read-only three-pane Workbench UI slice; progress is tracked in `implementation/three_pane_workbench_progress.md`. |
-| `implementation/three_pane_workbench_progress.md` | Active progress record | Gate status and verification evidence for the three-pane Workbench UI slice. |
+| `implementation/three_pane_workbench_execution_plan.md` | Completed execution plan | Narrow read-only three-pane Workbench UI slice; progress is tracked in `implementation/three_pane_workbench_progress.md`. |
+| `implementation/three_pane_workbench_progress.md` | Completed progress record | Gate status and verification evidence for the three-pane Workbench UI slice. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
 | `implementation/chart_trio_ui_fit_plan.md` | Completed evidence | Historical chart-layout improvement record. |

@@ -1,6 +1,6 @@
 # 基础三栏工作台执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-14
 > implementationAuthorized: true
 > dependsOn: `../design/arch_design_detail.md` P2、`code_skeleton_design.md`、
@@ -135,3 +135,10 @@ make e2e-mock
 9. 每个提交仅包含对应 UI 切片和必须同步的演进文档。
 
 回滚只需反向恢复前端与测试提交；本计划没有数据库迁移、协议兼容或持久化数据风险。
+
+## 5. 完成记录
+
+2026-07-14 已完成自动验收。宽屏图表最小宽度使用 spacing token `21`，在 Grafana 自身导航和两个固定侧栏
+占用空间后仍形成两列；窄屏保留 token `34`。三栏布局使图表标题同时出现在中栏卡片和右栏详情中，E2E 已把
+标题断言限定到 `chart-canvas`；真实指标模式的单 node_exporter series 断言也与 Mock fixture 的双 series 断言分离。
+`make check`、`make e2e-mock` 和附加回归 `make e2e-real-metrics` 均通过。

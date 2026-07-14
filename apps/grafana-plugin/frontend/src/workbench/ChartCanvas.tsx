@@ -20,7 +20,7 @@ export function ChartCanvas({ charts, selectedChartId, onSelectChart }: Props) {
       <ScrollContainer grow={1} minHeight={0} padding={3} paddingTop={0} overflowY="auto">
         {charts.length === 0
           ? <Box paddingY={8}><Text color="secondary">分析生成的图表会显示在这里。</Text></Box>
-          : <Grid minColumnWidth={34} gap={2} alignItems="stretch">
+          : <Grid minColumnWidth={{ xs: 34, xl: 21 }} gap={2} alignItems="stretch">
             {charts.map(({ taskID, chart, execution }) => <ChartCard key={`${taskID}:${chart.id}`} chart={chart} execution={execution} selected={chart.id === selectedChartId} onSelect={() => onSelectChart(chart.id)} />)}
           </Grid>}
       </ScrollContainer>

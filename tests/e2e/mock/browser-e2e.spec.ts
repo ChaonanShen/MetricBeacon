@@ -17,13 +17,14 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
 
   await expect(page).toHaveURL(/sessionId=[^&]+&taskId=[^&]+/);
   await expect(page.getByText('已生成 node_exporter 的 CPU、内存和系统负载视图。')).toBeVisible();
+  const chartCanvas = page.getByTestId('chart-canvas');
   for (const title of chartTitles) {
-    await expect(page.getByText(title, { exact: true })).toBeVisible();
+    await expect(chartCanvas.getByText(title, { exact: true })).toBeVisible();
   }
   await expect(page.getByTestId('timeseries-panel')).toHaveCount(3);
   await expect(page.getByTestId('timeseries-plot')).toHaveCount(3);
-  await expect(page.getByText('PromQL', { exact: true })).toHaveCount(3);
-  await expect(page.getByText('已加载', { exact: true })).toHaveCount(3);
+  await expect(chartCanvas.getByText('PromQL', { exact: true })).toHaveCount(3);
+  await expect(chartCanvas.getByText('已加载', { exact: true })).toHaveCount(3);
   if (!realMetrics) {
     await expect(page.getByText('node-a:9100', { exact: true })).toHaveCount(3);
     await expect(page.getByText('node-b:9100', { exact: true })).toHaveCount(3);
@@ -47,7 +48,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(contextPane.getByText('内存可用率', { exact: true })).toBeVisible();
   await expect(contextPane.getByText('PromQL', { exact: true })).toBeVisible();
   await expect(contextPane.getByText('序列数', { exact: true })).toBeVisible();
-  await expect(contextPane.getByText('2', { exact: true })).toBeVisible();
+  await expect(contextPane.getByText(realMetrics ? '1' : '2', { exact: true })).toBeVisible();
 
   await page.getByTestId('timeseries-panel').first().locator('summary').click();
   await expect(page.getByTestId('timeseries-panel').first().locator('pre')).toBeVisible();
