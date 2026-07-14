@@ -30,8 +30,9 @@ documentation governance
 Skill, Playbook, Dashboard write, and alert integration remain outside this
 slice. Its proposed scope, safety boundaries, and gate order are recorded in
 [`implementation/node_exporter_real_analysis_plan.md`](implementation/node_exporter_real_analysis_plan.md).
-A separate detailed execution plan, or an explicitly promoted revision of that
-roadmap, must be approved before implementation begins.
+[`implementation/node_exporter_real_analysis_execution_plan.md`](implementation/node_exporter_real_analysis_execution_plan.md)
+contains the detailed, decision-complete execution sequence. It remains under
+review and does not authorize implementation until it is promoted to `active`.
 
 ## Reading and conflict rules
 
@@ -55,6 +56,7 @@ Surface the conflict and obtain a decision or add an ADR.
 | `design/` | Mostly stable | Project origin, product scope, and long-term architecture Proposals. See `design/README.md`. |
 | `implementation/code_skeleton_design.md` | Active, Implementation Blueprint | Mutable structural authority for code, contracts, Ports/Adapters, ownership, and verification. |
 | `implementation/node_exporter_real_analysis_plan.md` | Draft, under review | Proposed multi-turn, real Prometheus/node_exporter, and minimal Eino Agent roadmap; it does not authorize implementation. |
+| `implementation/node_exporter_real_analysis_execution_plan.md` | Draft, under review | Decision-complete execution plan for the roadmap. Promote it to `active` only with explicit implementation authorization. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
 | `implementation/chart_trio_ui_fit_plan.md` | Completed evidence | Historical chart-layout improvement record. |
