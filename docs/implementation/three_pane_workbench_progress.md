@@ -9,7 +9,7 @@
 |阶段|状态|证据|
 |-|-|-|
 |G0：激活执行记录|完成|计划已激活；文档路由已将其列为当前 UI 切片；`make validate-contracts` 与 `git diff --check` 待本提交验证。|
-|P1：实现三栏工作台|未开始|—|
+|P1：实现三栏工作台|完成|已提取 `ConversationPane`、`ChartCanvas`、`ContextPane`；宽屏三栏独立滚动、小屏纵向排列，图表改为容器宽度网格，并增加本地只读图表选择。`make test-frontend` 与 `make check` 待本提交验证。|
 |P2：Mock 浏览器验收并收口|未开始|—|
 
 ## 边界确认

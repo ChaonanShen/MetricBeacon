@@ -14,8 +14,11 @@ mini-torchbearing/
 │       │   │   │   ├── resource.ts        # Plugin Resource API 客户端
 │       │   │   │   └── generated/         # 由 OpenAPI 生成的前端类型
 │       │   │   └── workbench/             # 分析工作台
-│       │   │       ├── Workbench.tsx      # 页面编排、任务创建、SSE 订阅
-│       │   │       ├── ChartCard.tsx      # 自适应三图卡片与图表状态
+│       │   │       ├── Workbench.tsx      # 页面编排、任务创建、SSE 订阅与本地选择
+│       │   │       ├── ConversationPane.tsx # 对话、历史、Task 状态与输入
+│       │   │       ├── ChartCanvas.tsx    # 容器宽度驱动的图表画布与空态
+│       │   │       ├── ContextPane.tsx    # 只读 Session/Task/图表详情
+│       │   │       ├── ChartCard.tsx      # 时序卡片、图表状态与详情选择
 │       │   │       ├── mapper.ts          # Chart wire 数据 -> Grafana DataFrame
 │       │   │       ├── reducer.ts         # TaskEvent 前端状态归约
 │       │   │       ├── session-reducer.ts # Session 历史、Task runtimes 与活动流状态

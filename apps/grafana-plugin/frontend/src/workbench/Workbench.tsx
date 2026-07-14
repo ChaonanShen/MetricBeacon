@@ -1,10 +1,12 @@
 import { AppRootProps } from '@grafana/data';
-import { Button, Field, Grid, Input, Spinner } from '@grafana/ui';
+import { Box, Stack } from '@grafana/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { resourceClient, type CreateTask, type GeneratedTaskEvent, type Task } from '../api/resource';
-import { ChartCard } from './ChartCard';
+import { ChartCanvas } from './ChartCanvas';
+import { ContextPane } from './ContextPane';
+import { ConversationPane } from './ConversationPane';
 import { readWorkbenchRoute, replaceWorkbenchRoute } from './route';
 import { initialSessionWorkbenchState, isTerminal, sessionReducer } from './session-reducer';
 import { subscribeTaskEvents } from './sse';
@@ -16,6 +18,7 @@ export function Workbench(_props: AppRootProps) {
   const initialRoute = useMemo(() => readWorkbenchRoute(window.location.search), []);
   const [message, setMessage] = useState('');
   const [sessionId, setSessionId] = useState<string | undefined>(initialRoute.sessionId);
+  const [selectedChartId, setSelectedChartId] = useState<string>();
   const [state, dispatch] = useReducer(sessionReducer, initialSessionWorkbenchState);
   const sequenceByTask = useRef<Record<string, number>>({});
   const replayedTasks = useRef(new Set<string>());
@@ -111,28 +114,23 @@ export function Workbench(_props: AppRootProps) {
   const submit = () => { if (message.trim() && !activeTask) create.mutate(); };
   const messages = state.messageOrder.map((id) => state.messagesById[id]);
   const charts = state.taskOrder.flatMap((taskID) => Object.values(state.runtimeByTaskId[taskID]?.charts ?? {}).map((chart) => ({ taskID, ...chart })));
+  const chartIDs = charts.map(({ chart }) => chart.id).join(',');
+  useEffect(() => {
+    setSelectedChartId((current) => current && charts.some(({ chart }) => chart.id === current) ? current : charts[0]?.chart.id);
+  }, [chartIDs]);
+  const selectedChart = charts.find(({ chart }) => chart.id === selectedChartId);
+  const contextTask = selectedChart ? state.tasksById[selectedChart.taskID] : activeTask ?? state.tasksById[state.taskOrder[0]];
 
   return <main style={{ padding: 16 }}>
     <h2>Mini Torchbearing Workbench</h2>
-    <section aria-label="对话历史">
-      {messages.map((item) => <p key={item.id}><strong>{item.role === 'user' ? '你' : '助手'}：</strong>{item.content}</p>)}
-      {state.taskOrder.map((id) => {
-        const runtime = state.runtimeByTaskId[id];
-        return runtime?.assistantText && !messages.some((item) => item.taskId === id && item.role === 'assistant') ? <p key={`${id}-draft`}><strong>助手：</strong>{runtime.assistantText}</p> : null;
-      })}
-    </section>
-    <Field label="分析请求">
-      <Input value={message} onChange={(event) => setMessage(event.currentTarget.value)} placeholder="例如：查看 node exporter" />
-    </Field>
-    <Button onClick={submit} disabled={!message.trim() || create.isPending || Boolean(activeTask)}>开始分析</Button>
-    {(state.messageNextPageToken || state.taskNextPageToken) && <Button variant="secondary" onClick={() => loadMore.mutate()} disabled={loadMore.isPending}>加载更早记录</Button>}
-    {(create.isPending || session.isFetching || history.isFetching) && <Spinner />}
-    {activeTask && <p>Task 状态：{state.runtimeByTaskId[activeTask.id]?.taskStatus ?? activeTask.status}</p>}
-    {state.taskOrder.map((id) => state.runtimeByTaskId[id]?.error && <p role="alert" key={`${id}-error`}>{state.runtimeByTaskId[id].error!.code}: {state.runtimeByTaskId[id].error!.message}</p>)}
-    <section aria-label="分析图表">
-      <Grid columns={{ xs: 1, md: 2, xl: 6 }} gap={2} alignItems="stretch">
-        {charts.map(({ taskID, chart, execution }) => <ChartCard key={`${taskID}:${chart.id}`} chart={chart} execution={execution} />)}
-      </Grid>
-    </section>
+    <Stack direction={{ xs: 'column', xl: 'row' }} gap={2} height={{ xs: 'auto', xl: 'calc(100dvh - 112px)' }} alignItems="stretch">
+      <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
+        <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
+      </Box>
+      <ChartCanvas charts={charts} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />
+      <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
+        <ContextPane sessionTitle={session.data?.title} task={contextTask} runtime={contextTask ? state.runtimeByTaskId[contextTask.id] : undefined} selectedChart={selectedChart} />
+      </Box>
+    </Stack>
   </main>;
 }
