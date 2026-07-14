@@ -3057,6 +3057,12 @@ Chart Query 持久化 step，Execution 同时区分请求范围和实际返回�
 QueryPlan 与有界统计生成，不持久化未经校验的模型自由文本。详细字段、解析优先级和 Gate 见
 [`bounded_node_exporter_query_parameters_execution_plan.md`](bounded_node_exporter_query_parameters_execution_plan.md)。
 
+ADR-020 将 Workbench 收窄为自然语言单输入：浏览器只提交消息和固定逻辑数据源，不再提交默认时间范围或
+resolution。AI Core 的确定性 resolver 在 Task 创建前从当前消息解析并校验有界范围/step；未识别时使用服务端
+30 分钟/auto 策略。外部模型仍只选择注册 view，assistant-mcp 仍负责编译规范 PromQL。Workbench 可在查询后
+只读展示有效 QueryPlan，但不把它作为输入控件。详细 Gate 见
+[`natural_language_query_input_execution_plan.md`](natural_language_query_input_execution_plan.md)。
+
 验收断言至少包括：
 
 1. Prometheus target `up{job="node-exporter"}` 为 1。

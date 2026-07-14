@@ -36,5 +36,10 @@ The completed bounded-query slice is
 with gate evidence in
 [`bounded_node_exporter_query_parameters_progress.md`](bounded_node_exporter_query_parameters_progress.md).
 
+The active natural-language input refinement is
+[`natural_language_query_input_execution_plan.md`](natural_language_query_input_execution_plan.md),
+with gate evidence in
+[`natural_language_query_input_progress.md`](natural_language_query_input_progress.md).
+
 The related stable product and architecture material is in
 [`../design/README.md`](../design/README.md); ADRs remain in [`../adr/`](../adr/).

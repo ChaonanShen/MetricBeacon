@@ -2,6 +2,8 @@
 
 > Status: Accepted
 > Date: 2026-07-14
+> Note: The Workbench authoring-control clause is superseded by ADR-020; the
+> bounded QueryPlan and execution policy remains in force.
 
 ## Context
 
