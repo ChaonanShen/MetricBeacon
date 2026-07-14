@@ -15,7 +15,8 @@ actual codebase, rather than the old design-only description, is documented in
 [`implementation/current_codebase_overview.md`](implementation/current_codebase_overview.md)
 and [`implementation/current_code_tree.md`](implementation/current_code_tree.md).
 
-The next agreed implementation direction is:
+The next agreed implementation direction is under roadmap review and has not
+been authorized for code execution:
 
 ```text
 documentation governance
@@ -27,8 +28,10 @@ documentation governance
 ```
 
 Skill, Playbook, Dashboard write, and alert integration remain outside this
-slice. Its executable scope and gate order are recorded in
+slice. Its proposed scope, safety boundaries, and gate order are recorded in
 [`implementation/node_exporter_real_analysis_plan.md`](implementation/node_exporter_real_analysis_plan.md).
+A separate detailed execution plan, or an explicitly promoted revision of that
+roadmap, must be approved before implementation begins.
 
 ## Reading and conflict rules
 
@@ -51,7 +54,7 @@ Surface the conflict and obtain a decision or add an ADR.
 |---|---|---|
 | `design/` | Mostly stable | Project origin, product scope, and long-term architecture Proposals. See `design/README.md`. |
 | `implementation/code_skeleton_design.md` | Active, Implementation Blueprint | Mutable structural authority for code, contracts, Ports/Adapters, ownership, and verification. |
-| `implementation/node_exporter_real_analysis_plan.md` | Active | Current multi-turn, real Prometheus/node_exporter, and minimal Eino Agent execution plan. |
+| `implementation/node_exporter_real_analysis_plan.md` | Draft, under review | Proposed multi-turn, real Prometheus/node_exporter, and minimal Eino Agent roadmap; it does not authorize implementation. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
 | `implementation/chart_trio_ui_fit_plan.md` | Completed evidence | Historical chart-layout improvement record. |
