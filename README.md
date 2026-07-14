@@ -1,13 +1,14 @@
 # mini-torchbearing
 
-Grafana 内嵌的自然语言指标分析工作台。本仓库当前实现的唯一切片是确定性的
-`node_exporter` Mock 闭环，范围和 Gate 以
-[`docs/basic_mock_skeleton_execution_plan.md`](docs/basic_mock_skeleton_execution_plan.md) 为准。
+Grafana 内嵌的自然语言指标分析工作台。当前已完成确定性的 `node_exporter` Mock
+闭环；文档状态、阅读路由和下一阶段方向见
+[`docs/CLAUDE.md`](docs/CLAUDE.md)。
 
 ## 当前状态
 
 基本 Mock 闭环已经实现：输入任意非空消息会产生固定的 node_exporter CPU、内存和负载三图。
-仍未实现真实 Agent/LLM、真实 Prometheus 和 Grafana Dashboard 写入。
+下一阶段先建立持久化多轮对话，再逐步接入真实 Prometheus/node_exporter 与最小 Eino Agent。
+真实 Agent/LLM、Prometheus 和 Grafana Dashboard 写入目前都还没有实现。
 
 ## 模块边界
 

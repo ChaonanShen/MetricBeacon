@@ -1,18 +1,25 @@
 # Grafana 自然语言指标分析工作台：基本 Mock 闭环执行计划
 
-> 文档状态：Ready for Execution
+> 文档状态：Completed / Historical record
 > 版本：v1.2
 > 适用范围：首个基本骨架实现；完成确定性 Mock 纵向闭环
 > 依赖设计：`code_skeleton_design.md` v1.3
 > 最后更新：2026-07-13
 
+> 2026-07-14：G0–G8 与后续 remediation 均已完成并复核；验证证据见
+> [`development/basic_mock_progress.md`](development/basic_mock_progress.md)。本文件保留为
+> 历史实现记录，不再是新工作的执行入口。当前文档路由和下一阶段状态见
+> [`CLAUDE.md`](CLAUDE.md)。
+
 ---
 
-## 0. 新 Session 直接执行入口
+## 0. 历史执行入口（请勿作为新工作指令）
+
+本节保留原始执行指令，用于解释已完成的 G0–G8 验收证据；它不适用于当前或后续开发。
 
 本节是新会话的唯一必读入口。执行者应完整读取本文件，然后从 Gate G0 开始实施；除非遇到本节定义的停止条件，不需要重新询问产品范围、模块划分、Mock 场景、命名或验收口径。
 
-### 0.1 可直接复制的新 Session 指令
+### 0.1 原始可复制的新 Session 指令
 
 ```text
 在 /Users/a1111/proj/mini-torchbearing 中，严格按照
