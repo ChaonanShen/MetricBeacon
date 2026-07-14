@@ -41,5 +41,10 @@ The draft-review natural-language input refinement is
 with gate evidence in
 [`natural_language_query_input_progress.md`](natural_language_query_input_progress.md).
 
+The draft-review grouped chart-canvas refinement is
+[`grouped_chart_canvas_execution_plan.md`](grouped_chart_canvas_execution_plan.md),
+with future gate evidence in
+[`grouped_chart_canvas_progress.md`](grouped_chart_canvas_progress.md).
+
 The related stable product and architecture material is in
 [`../design/README.md`](../design/README.md); ADRs remain in [`../adr/`](../adr/).
