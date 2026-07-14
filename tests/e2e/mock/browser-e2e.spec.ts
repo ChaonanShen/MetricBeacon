@@ -37,8 +37,17 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(page.getByTestId('timeseries-panel')).toHaveCount(6);
   await expect(page.getByText('你：只看 CPU')).toBeVisible();
 
+  await expectThreePaneDesktopLayout(page);
   const widePanels = await panelBoxes(page);
-  expect(new Set(widePanels.map((box) => Math.round(box.y))).size).toBe(1);
+  expect(new Set(widePanels.map((box) => Math.round(box.y))).size).toBeGreaterThan(1);
+  expect(new Set(widePanels.map((box) => Math.round(box.x))).size).toBeGreaterThanOrEqual(2);
+
+  await page.getByRole('button', { name: '详情' }).nth(1).click();
+  const contextPane = page.getByTestId('context-pane');
+  await expect(contextPane.getByText('内存可用率', { exact: true })).toBeVisible();
+  await expect(contextPane.getByText('PromQL', { exact: true })).toBeVisible();
+  await expect(contextPane.getByText('序列数', { exact: true })).toBeVisible();
+  await expect(contextPane.getByText('2', { exact: true })).toBeVisible();
 
   await page.getByTestId('timeseries-panel').first().locator('summary').click();
   await expect(page.getByTestId('timeseries-panel').first().locator('pre')).toBeVisible();
@@ -46,6 +55,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
 
   await page.setViewportSize({ width: 900, height: 900 });
   await expect(page.getByTestId('timeseries-plot').first()).toBeVisible();
+  await expectThreePaneNarrowLayout(page);
   const narrowPanels = await panelBoxes(page);
   expect(narrowPanels[2].y).toBeGreaterThan(narrowPanels[0].y);
   await expectPlotsWithinPanels(page);
@@ -84,6 +94,34 @@ async function panelBoxes(page: import('@playwright/test').Page) {
     throw new Error('chart panel is not visible');
   }
   return boxes as Array<NonNullable<(typeof boxes)[number]>>;
+}
+
+async function expectThreePaneDesktopLayout(page: import('@playwright/test').Page) {
+  const [conversation, canvas, context] = await Promise.all([
+    page.getByTestId('conversation-pane').boundingBox(),
+    page.getByTestId('chart-canvas').boundingBox(),
+    page.getByTestId('context-pane').boundingBox(),
+  ]);
+  expect(conversation).not.toBeNull();
+  expect(canvas).not.toBeNull();
+  expect(context).not.toBeNull();
+  expect(conversation!.y).toBeCloseTo(canvas!.y, 0);
+  expect(canvas!.y).toBeCloseTo(context!.y, 0);
+  expect(conversation!.x).toBeLessThan(canvas!.x);
+  expect(canvas!.x).toBeLessThan(context!.x);
+}
+
+async function expectThreePaneNarrowLayout(page: import('@playwright/test').Page) {
+  const [conversation, canvas, context] = await Promise.all([
+    page.getByTestId('conversation-pane').boundingBox(),
+    page.getByTestId('chart-canvas').boundingBox(),
+    page.getByTestId('context-pane').boundingBox(),
+  ]);
+  expect(conversation).not.toBeNull();
+  expect(canvas).not.toBeNull();
+  expect(context).not.toBeNull();
+  expect(conversation!.y).toBeLessThan(canvas!.y);
+  expect(canvas!.y).toBeLessThan(context!.y);
 }
 
 async function expectNoHorizontalOverflow(page: import('@playwright/test').Page) {
