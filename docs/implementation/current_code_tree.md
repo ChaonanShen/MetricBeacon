@@ -81,6 +81,7 @@ mini-torchbearing/
 │   └── testkit-go/                        # 确定性时钟与 ID 测试工具
 │
 ├── data/
+│   ├── agent-knowledge/node_exporter.md   # 受校验的只读 node_exporter Agent Profile
 │   └── mock-scenarios/
 │       └── node_exporter_overview/        # 固定 Mock 场景
 │           ├── search_metrics.json

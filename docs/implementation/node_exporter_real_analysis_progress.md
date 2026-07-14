@@ -23,6 +23,7 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
   - [x] P3.3 Real Prometheus HTTP Adapter, driver config and readiness probe
   - [ ] P3.4 Real-metrics Compose topology (implemented; container E2E awaits port availability)
 - [ ] P4 Static Profile and constrained Eino runtime
+  - [x] P4.1 Read-only node_exporter Profile and local view metadata
 - [ ] P5 End-to-end closeout
 
 ## Locked G0 Decisions
@@ -52,6 +53,7 @@ worktreeSummary: G0 and P1 are complete; P2 Session workbench and multi-turn E2E
 |`make test-assistant-mcp`|passed|2026-07-14|P3.3 `httptest` coverage verifies the opt-in HTTP driver, canonical query POST, local validation, response/series limits, non-finite filtering, timeout/status/error mapping, redirect refusal and Prometheus readiness behavior.|
 |`make check`|passed|2026-07-14|P3.3 passes generated-client reproducibility, contract validation, Go/TypeScript tests, formatting, boundaries and secret scan.|
 |`sh -n scripts/run-real-metrics-e2e.sh && node --check tests/e2e/mock/api-e2e.mjs && docker compose -f compose.mock-e2e.yaml -f compose.real-metrics-e2e.yaml config`|passed|2026-07-14|P3.4 validates the real-metrics script syntax, optional real-series assertion and merged Compose topology without starting containers.|
+|`cd services/ai-core && go test ./internal/adapters/outbound/agent/profile`|passed|2026-07-14|P4.1 validates the repository Profile, fixed local view metadata and rejection of missing guidance, invalid UTF-8 and files over 64 KiB.|
 
 ## Next Slice
 
