@@ -45,6 +45,11 @@ It adds independent Prometheus, MCP, and DeepSeek probes plus safe recovery when
 independent AI Core volumes. Progress is tracked in
 [`implementation/real_backend_diagnostics_progress.md`](implementation/real_backend_diagnostics_progress.md).
 
+The active layered-result test slice is
+[`implementation/layered_result_diagnostics_execution_plan.md`](implementation/layered_result_diagnostics_execution_plan.md).
+It adds code-agent-readable semantic checks and safe summaries above the existing connectivity probes. Progress is tracked in
+[`implementation/layered_result_diagnostics_progress.md`](implementation/layered_result_diagnostics_progress.md).
+
 ## Reading and conflict rules
 
 | Question | Read first | Authority when documents disagree |
@@ -73,6 +78,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/three_pane_workbench_progress.md` | Completed progress record | Gate status and verification evidence for the three-pane Workbench UI slice. |
 | `implementation/real_backend_diagnostics_execution_plan.md` | Completed execution plan | Independent real-backend probes and cross-mode stale-Session recovery. |
 | `implementation/real_backend_diagnostics_progress.md` | Completed progress record | Gate status and verification evidence for the real-backend diagnostic slice. |
+| `implementation/layered_result_diagnostics_execution_plan.md` | Active execution plan | Layered metric semantics and durable Task result analysis. |
+| `implementation/layered_result_diagnostics_progress.md` | Active progress record | Gate status and verification evidence for the layered-result test slice. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
 | `implementation/chart_trio_ui_fit_plan.md` | Completed evidence | Historical chart-layout improvement record. |
