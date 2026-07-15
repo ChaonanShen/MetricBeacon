@@ -39,7 +39,10 @@ export function sessionReducer(state: SessionWorkbenchState, action: SessionActi
       const messagesById = { ...state.messagesById };
       for (const message of action.messages) messagesById[message.id] = message;
       const tasksById = { ...state.tasksById };
-      for (const task of action.tasks) tasksById[task.id] = task;
+      for (const task of action.tasks) {
+        const current = tasksById[task.id];
+        tasksById[task.id] = task.id === state.activeTaskId && current && !isTerminal(current.status) ? current : task;
+      }
       const taskOrder = orderTasks(tasksById);
       return {
         ...state,

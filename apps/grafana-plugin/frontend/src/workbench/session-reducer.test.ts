@@ -27,6 +27,19 @@ describe('sessionReducer', () => {
     expect(completed.runtimeByTaskId['task-1'].latestSequence).toBe(1);
   });
 
+  it('keeps a locally active task subscribed until its terminal event is reduced', () => {
+    const created = sessionReducer(selected(), { type: 'task.created', sessionId: 'session-1', task });
+    const completedFromHistory = Object.assign({}, task, { status: 'completed', latestSequence: 12 }) as never;
+    const refreshed = sessionReducer(created, { type: 'history.loaded', sessionId: 'session-1', messages: [], tasks: [completedFromHistory], messageNextPageToken: null, taskNextPageToken: null });
+
+    expect(refreshed.activeTaskId).toBe('task-1');
+    expect(refreshed.tasksById['task-1'].status).toBe('created');
+
+    const completed = sessionReducer(refreshed, { type: 'task.event', event: { eventId: 'event-1', taskId: 'task-1', sessionId: 'session-1', sequence: 1, type: 'task.completed', timestamp: '2026-07-14T00:00:01Z', payload: {} } as never });
+    expect(completed.activeTaskId).toBeUndefined();
+    expect(completed.tasksById['task-1'].status).toBe('completed');
+  });
+
   it('records a completed finite replay without advancing its event sequence', () => {
     const loaded = sessionReducer(selected(), historyLoaded);
     const replayed = sessionReducer(loaded, { type: 'task.replayed', sessionId: 'session-1', taskId: 'task-1', targetSequence: 5 });
