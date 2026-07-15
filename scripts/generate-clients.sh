@@ -28,6 +28,12 @@ node "$frontend/scripts/project-oas31-to-oas30.mjs" \
 node "$frontend/scripts/project-oas31-to-oas30.mjs" \
   "$generated_openapi/grafana-tools.codegen.source.yaml" \
   "$generated_openapi/grafana-tools.codegen.yaml"
+"$frontend/node_modules/.bin/redocly" bundle --config "$root/redocly.yaml" \
+  "$root/contracts/tools/incident/tools.openapi.yaml" \
+  -o "$generated_openapi/incident-tools.codegen.source.yaml"
+node "$frontend/scripts/project-oas31-to-oas30.mjs" \
+  "$generated_openapi/incident-tools.codegen.source.yaml" \
+  "$generated_openapi/incident-tools.codegen.yaml"
 for name in order-demo order-demo-fault
 do
   "$frontend/node_modules/.bin/redocly" bundle --config "$root/redocly.yaml" \
@@ -44,6 +50,8 @@ done
   -o "$root/packages/generated-clients/typescript/plugin-ai-core.ts"
 "$frontend/node_modules/.bin/openapi-typescript" "$root/contracts/tools/grafana/tools.openapi.yaml" \
   -o "$root/packages/generated-contracts/typescript/grafana-tools.ts"
+"$frontend/node_modules/.bin/openapi-typescript" "$root/contracts/tools/incident/tools.openapi.yaml" \
+  -o "$root/packages/generated-contracts/typescript/incident-tools.ts"
 
 go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.2 \
   -generate types,client -package aicore \
@@ -53,6 +61,10 @@ go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.2 \
   -generate types -package grafanatools \
   -o "$root/packages/generated-contracts/go/grafana_tools.gen.go" \
   "$generated_openapi/grafana-tools.codegen.yaml"
+go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.2 \
+  -generate types -package grafanatools \
+  -o "$root/packages/generated-contracts/go/incident_tools.gen.go" \
+  "$generated_openapi/incident-tools.codegen.yaml"
 go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.2 \
   -generate types,client -package orderdemo \
   -o "$root/packages/generated-clients/go/orderdemo/order_demo.gen.go" \

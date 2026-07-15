@@ -1,0 +1,62 @@
+openapi: 3.1.1
+info:
+  title: Mini Torchbearing Incident MCP Tool DTOs
+  version: v1
+  license: {name: UNLICENSED, identifier: UNLICENSED}
+servers: [{url: /}]
+security: []
+paths:
+  /knowledge.get_document:
+    post: {$ref: '#/components/x-operations/knowledgeGet'}
+  /skills.get_skill:
+    post: {$ref: '#/components/x-operations/skillGet'}
+  /playbook.resolve_alert:
+    post: {$ref: '#/components/x-operations/resolveAlert'}
+  /playbook.start_run:
+    post: {$ref: '#/components/x-operations/startRun'}
+  /playbook.resume_run:
+    post: {$ref: '#/components/x-operations/resumeRun'}
+  /order_service.get_runtime:
+    post: {$ref: '#/components/x-operations/getRuntime'}
+  /order_service.get_queue_snapshot:
+    post: {$ref: '#/components/x-operations/getQueue'}
+  /order_service.get_worker_state:
+    post: {$ref: '#/components/x-operations/getWorker'}
+  /order_service.get_worker_policy:
+    post: {$ref: '#/components/x-operations/getPolicy'}
+  /order_service.get_recent_outcomes:
+    post: {$ref: '#/components/x-operations/getRecent'}
+  /order_service.get_operation:
+    post: {$ref: '#/components/x-operations/getOperation'}
+components:
+  schemas:
+    AssetGetInput: {$ref: './inputs.schema.json#/$defs/AssetGetInput'}
+    ResolveAlertInput: {$ref: './inputs.schema.json#/$defs/ResolveAlertInput'}
+    StartRunInput: {$ref: './inputs.schema.json#/$defs/StartRunInput'}
+    ResumeRunInput: {$ref: './inputs.schema.json#/$defs/ResumeRunInput'}
+    EmptyInput: {$ref: './inputs.schema.json#/$defs/EmptyInput'}
+    RecentOutcomesInput: {$ref: './inputs.schema.json#/$defs/RecentOutcomesInput'}
+    GetOperationInput: {$ref: './inputs.schema.json#/$defs/GetOperationInput'}
+    AssetOutput: {$ref: './outputs.schema.json#/$defs/AssetOutput'}
+    ResolveAlertOutput: {$ref: './outputs.schema.json#/$defs/ResolveAlertOutput'}
+    StartRunOutput: {$ref: './outputs.schema.json#/$defs/StartRunOutput'}
+    ResumeRunOutput: {$ref: './outputs.schema.json#/$defs/ResumeRunOutput'}
+    RuntimeOutput: {$ref: './outputs.schema.json#/$defs/RuntimeOutput'}
+    QueueOutput: {$ref: './outputs.schema.json#/$defs/QueueOutput'}
+    WorkerOutput: {$ref: './outputs.schema.json#/$defs/WorkerOutput'}
+    PolicyOutput: {$ref: './outputs.schema.json#/$defs/PolicyOutput'}
+    RecentOutcomesOutput: {$ref: './outputs.schema.json#/$defs/RecentOutcomesOutput'}
+    OperationOutput: {$ref: './outputs.schema.json#/$defs/OperationOutput'}
+  x-operations:
+    knowledgeGet: {operationId: knowledgeGetDocument, summary: Load a pinned Knowledge document, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AssetGetInput'}}}}, responses: {'200': {description: Asset, content: {application/json: {schema: {$ref: '#/components/schemas/AssetOutput'}}}}}}
+    skillGet: {operationId: skillsGetSkill, summary: Load a pinned diagnostic Skill, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AssetGetInput'}}}}, responses: {'200': {description: Asset, content: {application/json: {schema: {$ref: '#/components/schemas/AssetOutput'}}}}}}
+    resolveAlert: {operationId: playbookResolveAlert, summary: Exactly map an alert to a Playbook, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ResolveAlertInput'}}}}, responses: {'200': {description: Mapping, content: {application/json: {schema: {$ref: '#/components/schemas/ResolveAlertOutput'}}}}}}
+    startRun: {operationId: playbookStartRun, summary: Start a bounded Playbook and pause for Agent diagnosis, x-mtb-timeout-ms: 5000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/StartRunInput'}}}}, responses: {'200': {description: Paused run, content: {application/json: {schema: {$ref: '#/components/schemas/StartRunOutput'}}}}}}
+    resumeRun: {operationId: playbookResumeRun, summary: Resume with a strict diagnosis and prepare a safe draft, x-mtb-timeout-ms: 5000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ResumeRunInput'}}}}, responses: {'200': {description: Next run state, content: {application/json: {schema: {$ref: '#/components/schemas/ResumeRunOutput'}}}}}}
+    getRuntime: {operationId: orderServiceGetRuntime, summary: Read order-service runtime identity, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/EmptyInput'}}}}, responses: {'200': {description: Runtime, content: {application/json: {schema: {$ref: '#/components/schemas/RuntimeOutput'}}}}}}
+    getQueue: {operationId: orderServiceGetQueueSnapshot, summary: Read order queue health, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/EmptyInput'}}}}, responses: {'200': {description: Queue, content: {application/json: {schema: {$ref: '#/components/schemas/QueueOutput'}}}}}}
+    getWorker: {operationId: orderServiceGetWorkerState, summary: Read worker state and version, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/EmptyInput'}}}}, responses: {'200': {description: Worker, content: {application/json: {schema: {$ref: '#/components/schemas/WorkerOutput'}}}}}}
+    getPolicy: {operationId: orderServiceGetWorkerPolicy, summary: Read the pinned healthy worker policy, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/EmptyInput'}}}}, responses: {'200': {description: Policy, content: {application/json: {schema: {$ref: '#/components/schemas/PolicyOutput'}}}}}}
+    getRecent: {operationId: orderServiceGetRecentOutcomes, summary: Read bounded recent outcomes, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RecentOutcomesInput'}}}}, responses: {'200': {description: Outcomes, content: {application/json: {schema: {$ref: '#/components/schemas/RecentOutcomesOutput'}}}}}}
+    getOperation: {operationId: orderServiceGetOperation, summary: Reconcile a typed operation, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GetOperationInput'}}}}, responses: {'200': {description: Receipt, content: {application/json: {schema: {$ref: '#/components/schemas/OperationOutput'}}}}}}
+

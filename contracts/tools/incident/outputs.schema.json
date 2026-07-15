@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/tools/incident/outputs.schema.json",
+  "$defs": {
+    "AssetOutput": {
+      "type": "object", "additionalProperties": false, "required": ["id", "version", "digest", "content"],
+      "properties": {"id": {"type": "string"}, "version": {"type": "string"}, "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "content": {"type": "string", "minLength": 1, "maxLength": 20000}}
+    },
+    "ResolveAlertOutput": {
+      "type": "object", "additionalProperties": false, "required": ["mappingId", "mappingDigest", "playbookId", "playbookVersion", "playbookDigest", "serviceRef"],
+      "properties": {"mappingId": {"type": "string"}, "mappingDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "playbookId": {"type": "string"}, "playbookVersion": {"type": "string"}, "playbookDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "serviceRef": {"const": "order-demo"}}
+    },
+    "StartRunOutput": {
+      "type": "object", "additionalProperties": false, "required": ["status", "checkpoint", "assetRefs", "capabilityIds"],
+      "properties": {
+        "status": {"const": "needs_agent"}, "checkpoint": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "assetRefs": {"type": "array", "minItems": 2, "maxItems": 3, "items": {"$ref": "#/$defs/AssetRef"}},
+        "capabilityIds": {"type": "array", "uniqueItems": true, "maxItems": 8, "items": {"type": "string"}}
+      }
+    },
+    "ResumeRunOutput": {
+      "type": "object", "additionalProperties": false, "required": ["status", "checkpoint", "intentDraft"],
+      "properties": {
+        "status": {"type": "string", "enum": ["needs_approval", "completed"]}, "checkpoint": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "intentDraft": {"anyOf": [{"$ref": "#/$defs/IntentDraft"}, {"type": "null"}]}
+      }
+    },
+    "AssetRef": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "id", "version", "digest"],
+      "properties": {"kind": {"type": "string", "enum": ["knowledge", "skill", "playbook"]}, "id": {"type": "string"}, "version": {"type": "string"}, "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+    },
+    "IntentDraft": {
+      "type": "object", "additionalProperties": false, "required": ["capabilityId", "serviceRef", "beforeConcurrency", "afterConcurrency", "risk"],
+      "properties": {"capabilityId": {"const": "order_service.restore_worker_concurrency"}, "serviceRef": {"const": "order-demo"}, "beforeConcurrency": {"const": 0}, "afterConcurrency": {"const": 2}, "risk": {"type": "string", "minLength": 1, "maxLength": 500}}
+    },
+    "RuntimeOutput": {
+      "type": "object", "additionalProperties": false, "required": ["serviceRef", "instanceEpoch", "startedAt", "supervisorStatus"],
+      "properties": {"serviceRef": {"const": "order-demo"}, "instanceEpoch": {"type": "string"}, "startedAt": {"type": "string", "format": "date-time"}, "supervisorStatus": {"type": "string", "enum": ["running", "degraded"]}}
+    },
+    "QueueOutput": {
+      "type": "object", "additionalProperties": false, "required": ["depth", "capacity", "oldestAgeSeconds", "observedAt"],
+      "properties": {"depth": {"type": "integer", "minimum": 0, "maximum": 100}, "capacity": {"const": 100}, "oldestAgeSeconds": {"type": "number", "minimum": 0}, "observedAt": {"type": "string", "format": "date-time"}}
+    },
+    "WorkerOutput": {
+      "type": "object", "additionalProperties": false, "required": ["serviceRef", "instanceEpoch", "configuredConcurrency", "effectiveConcurrency", "activeWorkers", "inflightOrders", "version", "observedAt"],
+      "properties": {"serviceRef": {"const": "order-demo"}, "instanceEpoch": {"type": "string"}, "configuredConcurrency": {"type": "integer", "minimum": 0, "maximum": 4}, "effectiveConcurrency": {"type": "integer", "minimum": 0, "maximum": 4}, "activeWorkers": {"type": "integer", "minimum": 0, "maximum": 4}, "inflightOrders": {"type": "integer", "minimum": 0, "maximum": 4}, "version": {"type": "integer", "minimum": 1}, "observedAt": {"type": "string", "format": "date-time"}}
+    },
+    "PolicyOutput": {
+      "type": "object", "additionalProperties": false, "required": ["serviceRef", "expectedConcurrency", "minConcurrency", "maxConcurrency", "version", "digest"],
+      "properties": {"serviceRef": {"const": "order-demo"}, "expectedConcurrency": {"const": 2}, "minConcurrency": {"const": 1}, "maxConcurrency": {"const": 4}, "version": {"const": "v1"}, "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+    },
+    "RecentOutcomesOutput": {
+      "type": "object", "additionalProperties": false, "required": ["orders"],
+      "properties": {"orders": {"type": "array", "maxItems": 20, "items": {"type": "object", "additionalProperties": false, "required": ["id", "status", "createdAt", "updatedAt", "failureReason"], "properties": {"id": {"type": "string"}, "status": {"type": "string", "enum": ["queued", "processing", "completed", "failed"]}, "createdAt": {"type": "string", "format": "date-time"}, "updatedAt": {"type": "string", "format": "date-time"}, "failureReason": {"anyOf": [{"type": "string", "enum": ["dependency_unavailable", "retry_exhausted"]}, {"type": "null"}]}}}}}
+    },
+    "OperationOutput": {
+      "type": "object", "additionalProperties": false, "required": ["operationId", "instanceEpoch", "beforeVersion", "afterVersion", "beforeConcurrency", "afterConcurrency", "intentDigest", "approvalId", "executedAt"],
+      "properties": {"operationId": {"type": "string"}, "instanceEpoch": {"type": "string"}, "beforeVersion": {"type": "integer"}, "afterVersion": {"type": "integer"}, "beforeConcurrency": {"const": 0}, "afterConcurrency": {"const": 2}, "intentDigest": {"type": "string"}, "approvalId": {"type": "string"}, "executedAt": {"type": "string", "format": "date-time"}}
+    }
+  }
+}
+
