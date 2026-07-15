@@ -28,7 +28,7 @@ Golden Scenario 将 worker concurrency 从健康值 2 真实修改为 0；订单
 
 ## 3. 业务与运维契约
 
-健康默认值为 concurrency 2、单订单处理 200ms、流量 2 orders/s、队列容量 100。业务 API 支持幂等创建和状态查询。Operational API 只提供运行时、队列、worker 配置、健康 policy、有限近期结果、类型化 worker CAS 更新、operation 查询和固定业务探针。
+健康默认值为 concurrency 2、单订单处理 200ms、流量 2 orders/s、队列容量 100。Prometheus 每 5 秒抓取，当前 Grafana 镜像按其 10 秒 scheduler base interval 评估规则。业务 API 支持幂等创建和状态查询。Operational API 只提供运行时、队列、worker 配置、健康 policy、有限近期结果、类型化 worker CAS 更新、operation 查询和固定业务探针。
 
 每次服务启动生成 `instanceEpoch`。写请求必须包含 `operationId, instanceEpoch, expectedVersion, expectedConcurrency, newConcurrency, intentDigest, approvalId`。第一阶段仅允许当前实例上 `0 -> 2`；重复相同请求返回原回执，operation ID 对应不同请求则冲突。
 
@@ -88,4 +88,3 @@ Approval 默认十分钟到期，使用 Idempotency-Key 和资源版本 CAS。Ap
 ## 8. 明确不做
 
 本阶段不实现任意 shell/SQL/PromQL/HTTP、通用 execute、自动批准、在线资产编辑、语义检索、多服务处置、生产级密钥管理或 PostgreSQL 接入。新增第二个写动作或改变服务所有权、权限、存储边界时必须先新增 ADR。
-

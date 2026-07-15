@@ -91,6 +91,9 @@ test('Compose resources are named by worktree, purpose, mode, and run', (t) => {
   assert.deepEqual(composeFiles('/repo', 'real-agent'), [
     '/repo/compose.mock-e2e.yaml', '/repo/compose.real-metrics-e2e.yaml', '/repo/compose.real-agent-e2e.yaml',
   ]);
+  assert.deepEqual(composeFiles('/repo', 'incident'), [
+    '/repo/compose.mock-e2e.yaml', '/repo/compose.real-metrics-e2e.yaml', '/repo/compose.incident-e2e.yaml',
+  ]);
 });
 
 test('published Docker port parsing rejects missing and zero ports', () => {

@@ -147,6 +147,7 @@ export function composeFiles(root, mode) {
   const metrics = join(root, 'compose.real-metrics-e2e.yaml');
   if (mode === 'real-metrics') return [base, metrics];
   if (mode === 'real-agent') return [base, metrics, join(root, 'compose.real-agent-e2e.yaml')];
+  if (mode === 'incident') return [base, metrics, join(root, 'compose.incident-e2e.yaml')];
   throw new Error(`unsupported mode: ${mode}`);
 }
 
@@ -358,6 +359,11 @@ function runE2E(config, mode, { frontendBuilt = false } = {}) {
       const environment = { ...context.environment, GRAFANA_URL: publishedURL(context, 'grafana', 3000) };
       run('node', [join(config.root, 'tests', 'e2e', 'real-agent', 'api-smoke.mjs')], { cwd: config.root, env: environment });
       assertRealAgentOutputSafe(context);
+    } else if (mode === 'incident') {
+      run(join(config.root, 'tests', 'e2e', 'incident', 'observability-e2e.sh'), [context.project, ...context.files], {
+        cwd: config.root,
+        env: context.environment,
+      });
     } else {
       runGrafanaE2E(context, mode === 'real-metrics');
     }
@@ -598,12 +604,12 @@ function parseCommandOptions(args, { allowFull = false, allowYes = false } = {})
     else if (allowYes && args[index] === '--yes') confirmed = true;
     else throw new Error(`unknown argument: ${args[index]}`);
   }
-  if (!['mock', 'real-metrics', 'real-agent'].includes(mode)) throw new Error(`unsupported mode: ${mode}`);
+  if (!['mock', 'real-metrics', 'real-agent', 'incident'].includes(mode)) throw new Error(`unsupported mode: ${mode}`);
   return { mode, full, confirmed };
 }
 
 function printUsage() {
-  process.stdout.write(`usage: ./scripts/mtb [command]\n\ncommands:\n  up [--mode mock|real-metrics|real-agent]       build and keep a development stack running (default)\n  verify [--full] [--mode ...]                   run gates and an isolated E2E\n  e2e [--mode ...]                               run only an isolated E2E\n  ps|logs|down [--mode ...]                      manage the current development stack\n  reset --yes [--mode ...]                       remove the current development stack and volume\n  init --slot N [--name ID] [--force]            initialize this worktree\n  config show|check                              inspect worktree configuration\n  diagnose real-metrics|deepseek                 run a layered diagnostic\n  run assistant-mcp|ai-core                      run one service on worktree-local ports\n  doctor                                         validate the local toolchain\n  deps                                           install stale or absent frontend dependencies\n`);
+  process.stdout.write(`usage: ./scripts/mtb [command]\n\ncommands:\n  up [--mode mock|real-metrics|real-agent|incident] build and keep a development stack running (default)\n  verify [--full] [--mode ...]                   run gates and an isolated E2E\n  e2e [--mode ...]                               run only an isolated E2E\n  ps|logs|down [--mode ...]                      manage the current development stack\n  reset --yes [--mode ...]                       remove the current development stack and volume\n  init --slot N [--name ID] [--force]            initialize this worktree\n  config show|check                              inspect worktree configuration\n  diagnose real-metrics|deepseek                 run a layered diagnostic\n  run assistant-mcp|ai-core                      run one service on worktree-local ports\n  doctor                                         validate the local toolchain\n  deps                                           install stale or absent frontend dependencies\n`);
 }
 
 export function main(args = process.argv.slice(2)) {

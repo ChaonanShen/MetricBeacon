@@ -1,0 +1,84 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: order-incident-webhook
+    receivers:
+      - uid: order_incident_webhook
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: http://ai-core:8080/internal/v1/alerts/grafana
+          httpMethod: POST
+          maxAlerts: "10"
+          extraHeaders:
+            X-MTB-Alert-Source: demo-grafana
+          hmacConfig:
+            secret: $ORDER_INCIDENT_WEBHOOK_SECRET
+            header: X-Grafana-Alerting-Signature
+            timestampHeader: X-MTB-Alert-Timestamp
+
+groups:
+  - orgId: 1
+    name: order-demo-incidents
+    folder: Mini Torchbearing Incidents
+    interval: 10s
+    rules:
+      - uid: order_queue_backlog
+        title: OrderQueueBacklog
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: prometheus-main
+            relativeTimeRange: {from: 30, to: 0}
+            model:
+              datasource: {type: prometheus, uid: prometheus-main}
+              editorMode: code
+              expr: '(mtb_demo_order_queue_depth > 10) and on() (mtb_demo_order_queue_oldest_age_seconds > 10) and on() (sum(increase(mtb_demo_orders_received_total{result="accepted"}[15s])) > 5) and on() (sum(increase(mtb_demo_orders_completed_total{result="completed"}[15s])) < sum(increase(mtb_demo_orders_received_total{result="accepted"}[15s])) * 0.5)'
+              instant: true
+              intervalMs: 5000
+              legendFormat: __auto
+              maxDataPoints: 43200
+              range: false
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            relativeTimeRange: {from: 0, to: 0}
+            model:
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            relativeTimeRange: {from: 0, to: 0}
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [C]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: B
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 15s
+        annotations:
+          summary: Order queue is growing while accepted orders are not completing.
+        labels:
+          service_ref: order-demo
+          severity: critical
+        notification_settings:
+          receiver: order-incident-webhook
+          group_by: [alertname, service_ref]
+          group_wait: 0s
+          group_interval: 5s
+          repeat_interval: 1h

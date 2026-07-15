@@ -48,7 +48,8 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |`apps/grafana-plugin/frontend`|React/Grafana 产品化工作台：创建/分页列出/恢复/切换私有 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|常驻 controller 下由 scoped Grafana theme Shell 编排；宽屏为 `Canvas / Context / Chat`，中宽折叠 Context，窄屏按 `Chat / Context / Canvas` 纵排。Context 只派生真实 Session/Task/QueryPlan，不伪造 Folder/权限。Session 无限分页由服务端 token 驱动，reducer 以 Session ID 拒绝迟到 history/replay/event。图表按 Task oldest-first 分组、最多两列。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 owner-scoped Session page、单 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
-|`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`scripts/mtb` 统一根 `.env` 的 worktree ID/slot、脱敏配置、工具链、按 lockfile 指纹执行的 `npm ci`、一次前端 build、三种 Compose mode、生命周期、诊断和快速/full verify。开发栈使用稳定 worktree project/slot 端口；E2E/诊断使用唯一 project 和 Docker 动态端口，并只清理本轮 volume/image/network。原 `make e2e-*` 和 `run-*.sh` 是兼容入口。|
+|`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`scripts/mtb` 统一根 `.env` 的 worktree ID/slot、脱敏配置、工具链、按 lockfile 指纹执行的 `npm ci`、一次前端 build、四种 Compose mode、生命周期、诊断和快速/full verify。开发栈使用稳定 worktree project/slot 端口；E2E/诊断使用唯一 project 和 Docker 动态端口，并只清理本轮 volume/image/network。原 `make e2e-*` 和 `run-*.sh` 是兼容入口。|
+|`compose.incident-e2e.yaml`、`deploy/grafana/provisioning`|可控订单故障的真实监控拓扑。|order-service 分别接入 business/ops/metrics internal network，fault-controller 使用共享 Unix Socket 且 `network_mode: none`；Prometheus 5 秒抓取，Grafana 以不可编辑 datasource、10 秒评估的 `OrderQueueBacklog` 和带 HMAC 的 Webhook contact point发现异常。AI Core Alert ingress 尚未实现，因此当前 Gate 只验收到 firing/resolved。|
 
 ## 关键数据与依赖边界
 
@@ -105,6 +106,7 @@ slot 不得与其他已初始化 worktree 重复：
 |确定性 Mock|`compose.mock-e2e.yaml`|Mock Agent，固定生成 CPU、内存、负载三视图|fixture|无外部服务或模型凭证|
 |真实指标|Mock 基础文件 + `compose.real-metrics-e2e.yaml`|Mock Agent，仍固定生成三视图|本地 Prometheus 抓取 node_exporter|Docker 可运行 Prometheus/node_exporter|
 |真实 Agent|上述两个文件 + `compose.real-agent-e2e.yaml`|受限 Eino/DeepSeek Agent|本地 Prometheus 抓取 node_exporter|`.env` 中配置 `DEEPSEEK_API_KEY`|
+|订单 Incident|Mock 基础 + real-metrics + `compose.incident-e2e.yaml`|当前仍为既有 Mock 分析 Agent|Prometheus 抓取 node_exporter 与真实 order-demo；Grafana Alert firing/resolved|Docker；Alert ingress/Incident workflow 属下一 Gate|
 
 长期开发栈都由统一入口准备依赖、编译一次 Plugin 前端并执行 Compose build/up/wait：
 
@@ -112,6 +114,7 @@ slot 不得与其他已初始化 worktree 重复：
 ./scripts/mtb                         # 等价于 up --mode mock
 ./scripts/mtb up --mode real-metrics
 ./scripts/mtb up --mode real-agent
+./scripts/mtb up --mode incident
 ```
 
 Mock 模式启动 `grafana`、`ai-core`、`assistant-mcp` 三个容器并从 fixture 返回确定性结果。真实指标

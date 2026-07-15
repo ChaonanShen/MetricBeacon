@@ -3,7 +3,7 @@ SHELL := /bin/sh
 .PHONY: bootstrap-check generate generated-client-diff validate-contracts lint test \
 	test-adapters test-ai-core-domain test-sqlite test-assistant-mcp test-order-demo test-ai-mcp \
 	test-ai-agent test-plugin-backend test-frontend-unit test-frontend test-diagnostics smoke e2e-mock e2e-real-metrics \
-	diagnose-real-metrics diagnose-deepseek dev dev-verify dev-verify-full check boundary-check secret-scan
+	e2e-real-agent e2e-incident diagnose-real-metrics diagnose-deepseek dev dev-verify dev-verify-full check boundary-check secret-scan
 
 bootstrap-check:
 	@./scripts/bootstrap-check.sh
@@ -54,7 +54,7 @@ test-frontend: test-frontend-unit
 
 test-diagnostics:
 	@node --test tests/diagnostics/*.test.mjs
-	@sh -n scripts/wait-for-real-metrics.sh scripts/probe-real-prometheus.sh scripts/run-real-metrics-diagnostic.sh scripts/run-real-metrics-e2e.sh scripts/run-real-agent-e2e.sh
+	@sh -n scripts/wait-for-real-metrics.sh scripts/probe-real-prometheus.sh scripts/run-real-metrics-diagnostic.sh scripts/run-real-metrics-e2e.sh scripts/run-real-agent-e2e.sh tests/e2e/incident/observability-e2e.sh
 
 smoke: test-ai-mcp test-plugin-backend test-frontend
 
@@ -66,6 +66,9 @@ e2e-real-metrics:
 
 e2e-real-agent:
 	@./scripts/run-real-agent-e2e.sh
+
+e2e-incident:
+	@./scripts/mtb e2e --mode incident
 
 diagnose-real-metrics:
 	@./scripts/run-real-metrics-diagnostic.sh

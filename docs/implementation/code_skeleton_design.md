@@ -57,6 +57,8 @@
 
 本地真实基础设施混合 E2E 额外运行 Prometheus 与 `node_exporter`。此时共有五个常驻运行容器：Grafana、AI Core、`assistant-mcp`、Prometheus、`node_exporter`；`plugin-build` 只能作为一次性构建任务，不计入常驻部署单元。模型仍默认使用 Deterministic Mock，以保证自然语言到工具计划的输出可重复；真实查询结果、插件通信、会话持久化和 Dashboard 写入走真实链路。
 
+订单 Incident profile 在此基础上增加 order-service、loadgen 和无网络 fault-controller。order-service 只加入相互独立的 business、ops、metrics internal network；fault-controller 只能共享 Unix Socket volume。Grafana 文件 provision 的 Prometheus datasource 和告警规则负责异常发现，不能携带修复动作。
+
 PostgreSQL、Redis、向量库和对象存储均不是首个骨架运行的前置条件。
 
 ### 2.2 契约先行

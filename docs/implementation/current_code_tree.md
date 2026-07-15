@@ -133,10 +133,13 @@ mini-torchbearing/
 │   └── run-*.sh                          # 保留原 Make/脚本入口的薄兼容层
 ├── docs/                                  # 架构、设计、ADR、开发计划与当前说明
 │   └── implementation/real_backend_test_matrix.md # code agent 分层测试与结果判读手册
-├── deploy/prometheus/prometheus.yml       # real-metrics 的 5 秒 node-exporter scrape 配置
+├── deploy/
+│   ├── prometheus/                        # node-exporter 与 incident/order-demo 的 5 秒 scrape 配置
+│   └── grafana/provisioning/              # incident Prometheus datasource、Alert rule 与 HMAC Webhook
 ├── compose.mock-e2e.yaml                  # assistant-mcp + AI Core + Grafana 的 Mock 环境
 ├── compose.real-metrics-e2e.yaml          # Prometheus/node-exporter real-metrics Compose overlay
 ├── compose.real-agent-e2e.yaml            # opt-in DeepSeek Eino Agent Compose overlay
+├── compose.incident-e2e.yaml              # order/loadgen/fault、隔离网络与 Grafana Alert overlay
 ├── Makefile                               # 测试、校验与 E2E 统一入口
 ├── go.work                                # Go workspace
 └── README.md                              # 项目入口说明
