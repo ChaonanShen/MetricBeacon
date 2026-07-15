@@ -147,6 +147,8 @@ func TestResourceHandlerProxiesHistoryAndFiniteReplayWithGrafanaIdentity(t *test
 		requests[r.URL.Path] = r.Clone(r.Context())
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
+		case "/v1/sessions":
+			_, _ = w.Write([]byte(`{"items":[],"nextPageToken":"next-session"}`))
 		case "/v1/sessions/session_1/messages":
 			_, _ = w.Write([]byte(`{"items":[],"nextPageToken":"next-message"}`))
 		case "/v1/sessions/session_1/tasks":
@@ -165,6 +167,7 @@ func TestResourceHandlerProxiesHistoryAndFiniteReplayWithGrafanaIdentity(t *test
 	handler := &ResourceHandler{Client: client, MaxResponse: 4 << 20}
 	pluginContext := backend.PluginContext{OrgID: 7, User: &backend.User{Login: "grafana-user", Role: "Viewer"}}
 	for _, request := range []*backend.CallResourceRequest{
+		{Method: http.MethodGet, Path: "sessions", URL: "?pageSize=20&pageToken=session-token", Headers: map[string][]string{"X-MTB-Tenant-ID": {"forged"}}, PluginContext: pluginContext},
 		{Method: http.MethodGet, Path: "sessions/session_1/messages", URL: "?pageSize=50&pageToken=message-token", Headers: map[string][]string{"X-MTB-Tenant-ID": {"forged"}}, PluginContext: pluginContext},
 		{Method: http.MethodGet, Path: "sessions/session_1/tasks", URL: "?pageSize=20&pageToken=task-token", Headers: map[string][]string{"X-MTB-User-ID": {"forged"}}, PluginContext: pluginContext},
 		{Method: http.MethodGet, Path: "tasks/task_1/events/replay", URL: "?pageSize=200&pageToken=replay-token", Headers: map[string][]string{"X-MTB-Org-ID": {"forged"}}, PluginContext: pluginContext},
@@ -178,6 +181,7 @@ func TestResourceHandlerProxiesHistoryAndFiniteReplayWithGrafanaIdentity(t *test
 		}
 	}
 	for path, wantQuery := range map[string]string{
+		"/v1/sessions":                    "pageSize=20&pageToken=session-token",
 		"/v1/sessions/session_1/messages": "pageSize=50&pageToken=message-token",
 		"/v1/sessions/session_1/tasks":    "pageSize=20&pageToken=task-token",
 		"/v1/tasks/task_1/events/replay":  "pageSize=200&pageToken=replay-token",
@@ -189,6 +193,18 @@ func TestResourceHandlerProxiesHistoryAndFiniteReplayWithGrafanaIdentity(t *test
 		if request.Header.Get("X-MTB-Tenant-ID") != "org:7" || request.Header.Get("X-MTB-User-ID") != "grafana-user" {
 			t.Fatalf("Grafana identity was not used for %s: %#v", path, request.Header)
 		}
+	}
+}
+
+func TestResourceHandlerRejectsInvalidSessionPageParameters(t *testing.T) {
+	handler := &ResourceHandler{Client: mustClient(t, "http://127.0.0.1:1")}
+	request := &backend.CallResourceRequest{Method: http.MethodGet, Path: "sessions", URL: "?pageSize=51", PluginContext: backend.PluginContext{OrgID: 1, User: &backend.User{Login: "grafana-user", Role: "Viewer"}}}
+	sender := &captureSender{}
+	if err := handler.CallResource(context.Background(), request, sender); err != nil {
+		t.Fatal(err)
+	}
+	if len(sender.responses) != 1 || sender.responses[0].Status != http.StatusBadRequest || !strings.Contains(string(sender.responses[0].Body), "Invalid session page parameters") {
+		t.Fatalf("responses: %#v", sender.responses)
 	}
 }
 

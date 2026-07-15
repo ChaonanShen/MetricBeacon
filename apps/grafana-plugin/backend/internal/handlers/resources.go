@@ -51,6 +51,8 @@ func (h *ResourceHandler) CallResource(ctx context.Context, request *backend.Cal
 	}
 	path := strings.Trim(strings.SplitN(request.Path, "?", 2)[0], "/")
 	switch {
+	case request.Method == http.MethodGet && path == "sessions":
+		return h.listSessions(ctx, client, request, requestContext, sender)
 	case request.Method == http.MethodPost && path == "sessions":
 		return h.createSession(ctx, client, request, requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "sessions/") && strings.Count(path, "/") == 1:
@@ -96,6 +98,15 @@ func (h *ResourceHandler) clientFor(request *backend.CallResourceRequest, stream
 		return h.Client, nil
 	}
 	return nil, errors.New("Grafana App settings are unavailable")
+}
+
+func (h *ResourceHandler) listSessions(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	params, err := sessionPageParams(request, identity)
+	if err != nil {
+		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid session page parameters", identity.RequestID, false)
+	}
+	response, err := client.ListSessions(ctx, params)
+	return h.forward(sender, response, err, identity.RequestID, false)
 }
 
 func (h *ResourceHandler) createSession(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
@@ -213,6 +224,20 @@ func sessionParams(identity requestcontext.Context) *generated.CreateSessionPara
 }
 func getSessionParams(identity requestcontext.Context) *generated.GetSessionParams {
 	return &generated.GetSessionParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+}
+func sessionPageParams(request *backend.CallResourceRequest, identity requestcontext.Context) (*generated.ListSessionsParams, error) {
+	query, err := resourceQuery(request)
+	if err != nil {
+		return nil, err
+	}
+	params := &generated.ListSessionsParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+	if err := setPageSize(query, "pageSize", 50, func(value int) { params.PageSize = &value }); err != nil {
+		return nil, err
+	}
+	if err := setPageToken(query, func(value string) { params.PageToken = &value }); err != nil {
+		return nil, err
+	}
+	return params, nil
 }
 func messagePageParams(request *backend.CallResourceRequest, identity requestcontext.Context) (*generated.ListSessionMessagesParams, error) {
 	query, err := resourceQuery(request)
