@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -148,6 +149,10 @@ func (f incidentWorkflowToolset) Observe(context.Context, requestcontext.Context
 		evidence = incidentEvidence()
 	}
 	return incidentport.Observation{Diagnosis: task.Diagnosis{PrimaryHypothesis: "worker_stopped", EvidenceRefs: []string{"queue", "worker", "policy", "outcomes"}, AlternativeHypotheses: []string{"slow_processing", "dependency_errors"}, Confidence: 0.99, CandidateAction: "restore_worker_concurrency"}, Evidence: evidence}, nil
+}
+
+func (incidentWorkflowToolset) Prepare(context.Context, requestcontext.Context, string, task.Diagnosis) (incidentport.PreparedRun, error) {
+	return incidentport.PreparedRun{Status: "needs_approval", Checkpoint: "prepared-checkpoint", Intent: &incidentport.PreparedIntent{CapabilityID: "order_service.restore_worker_concurrency", ServiceRef: "order-demo", InstanceEpoch: "epoch-1", ExpectedVersion: 2, ObservedAt: time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC), PolicyDigest: strings.Repeat("b", 64), PlaybookDigest: strings.Repeat("a", 64), BeforeConcurrency: 0, AfterConcurrency: 2, RiskSummary: "bounded restore"}}, nil
 }
 
 func incidentEvidence() []incidentport.ToolEvidence {

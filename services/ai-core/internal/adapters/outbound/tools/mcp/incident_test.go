@@ -8,6 +8,7 @@ import (
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/tools"
 )
 
@@ -77,6 +78,39 @@ func TestIncidentToolsetRejectsMalformedToolResult(t *testing.T) {
 	var domainErr *common.DomainError
 	if err == nil || !asDomainError(err, &domainErr) || domainErr.Code != common.SchemaValidationFailed {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestIncidentToolsetPreparesOnlyVersionBoundIntent(t *testing.T) {
+	observedAt := time.Date(2026, 7, 16, 8, 0, 0, 0, time.UTC)
+	gateway := &incidentGatewayStub{responses: map[string]string{
+		resumeRunTool: `{"status":"needs_approval","checkpoint":"prepared-checkpoint","intentDraft":{"capabilityId":"order_service.restore_worker_concurrency","serviceRef":"order-demo","instanceEpoch":"epoch-1","expectedVersion":2,"observedAt":"` + observedAt.Format(time.RFC3339Nano) + `","policyDigest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","playbookDigest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","beforeConcurrency":0,"afterConcurrency":2,"risk":"bounded restore"}}`,
+	}}
+	diagnosis := task.Diagnosis{PrimaryHypothesis: "worker_stopped", EvidenceRefs: []string{workerTool, policyTool}, AlternativeHypotheses: []string{"slow_processing"}, Confidence: 0.99, CandidateAction: "restore_worker_concurrency"}
+	result, err := NewIncidentToolset(gateway).Prepare(context.Background(), incidentIdentity(), "signed-checkpoint", diagnosis)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "needs_approval" || result.Checkpoint != "prepared-checkpoint" || result.Intent == nil || result.Intent.InstanceEpoch != "epoch-1" || result.Intent.ExpectedVersion != 2 || result.Intent.BeforeConcurrency != 0 || result.Intent.AfterConcurrency != 2 {
+		t.Fatalf("prepared=%#v", result)
+	}
+	if got := gateway.names(); !equalStrings(got, []string{resumeRunTool}) {
+		t.Fatalf("calls=%#v", got)
+	}
+	var input map[string]any
+	if err := json.Unmarshal(gateway.calls[0].call.Arguments, &input); err != nil {
+		t.Fatal(err)
+	}
+	if input["approvalEvidence"] != nil || input["operationId"] != nil || input["checkpoint"] != "signed-checkpoint" {
+		t.Fatalf("unsafe prepare input=%#v", input)
+	}
+}
+
+func TestIncidentToolsetAcceptsNoActionPrepareWithoutIntent(t *testing.T) {
+	gateway := &incidentGatewayStub{responses: map[string]string{resumeRunTool: `{"status":"completed","checkpoint":"completed-checkpoint"}`}}
+	result, err := NewIncidentToolset(gateway).Prepare(context.Background(), incidentIdentity(), "signed-checkpoint", task.Diagnosis{PrimaryHypothesis: "slow_processing", EvidenceRefs: []string{queueTool}, Confidence: 0.9, CandidateAction: "no_action"})
+	if err != nil || result.Status != "completed" || result.Intent != nil {
+		t.Fatalf("prepared=%#v err=%v", result, err)
 	}
 }
 

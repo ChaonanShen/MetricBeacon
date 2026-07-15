@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -194,6 +195,11 @@ func (f *serviceToolset) Observe(context.Context, requestcontext.Context, string
 		evidence = append(evidence, incidentport.ToolEvidence{Name: name, InputSummary: json.RawMessage(`{}`), OutputSummary: json.RawMessage(`{"bounded":true}`), DurationMS: 1})
 	}
 	return incidentport.Observation{Diagnosis: task.Diagnosis{PrimaryHypothesis: "worker_stopped", EvidenceRefs: names, AlternativeHypotheses: []string{"slow_processing", "dependency_errors"}, Confidence: 0.99, CandidateAction: "restore_worker_concurrency"}, Evidence: evidence}, nil
+}
+
+func (f *serviceToolset) Prepare(context.Context, requestcontext.Context, string, task.Diagnosis) (incidentport.PreparedRun, error) {
+	digest := strings.Repeat("a", 64)
+	return incidentport.PreparedRun{Status: "needs_approval", Checkpoint: "prepared-checkpoint", Intent: &incidentport.PreparedIntent{CapabilityID: "order_service.restore_worker_concurrency", ServiceRef: "order-demo", InstanceEpoch: "epoch-1", ExpectedVersion: 2, ObservedAt: time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC), PolicyDigest: digest, PlaybookDigest: digest, BeforeConcurrency: 0, AfterConcurrency: 2, RiskSummary: "bounded restore"}}, nil
 }
 
 func (f *serviceToolset) ResolveCalls() int64 { return f.resolveCalls.Load() }

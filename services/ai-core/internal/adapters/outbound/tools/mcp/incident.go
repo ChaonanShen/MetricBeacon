@@ -18,6 +18,7 @@ import (
 const (
 	resolveAlertTool = "playbook.resolve_alert"
 	startRunTool     = "playbook.start_run"
+	resumeRunTool    = "playbook.resume_run"
 	queueTool        = "order_service.get_queue_snapshot"
 	workerTool       = "order_service.get_worker_state"
 	policyTool       = "order_service.get_worker_policy"
@@ -97,6 +98,39 @@ func (t *IncidentToolset) Observe(ctx context.Context, identity requestcontext.C
 	}
 	diagnosis := classifyObservation(serviceRef, queue, worker, policy, recent)
 	return incidentport.Observation{Diagnosis: diagnosis, Evidence: []incidentport.ToolEvidence{queueEvidence, workerEvidence, policyEvidence, recentEvidence}}, nil
+}
+
+func (t *IncidentToolset) Prepare(ctx context.Context, identity requestcontext.Context, checkpoint string, diagnosis task.Diagnosis) (incidentport.PreparedRun, error) {
+	if t == nil || t.gateway == nil || checkpoint == "" {
+		return incidentport.PreparedRun{}, common.NewError(common.InvalidArgument, "incident prepare request is invalid", false)
+	}
+	input := generated.ResumeRunInput{Checkpoint: checkpoint}
+	input.Diagnosis.PrimaryHypothesis = diagnosis.PrimaryHypothesis
+	input.Diagnosis.EvidenceRefs = append([]string(nil), diagnosis.EvidenceRefs...)
+	input.Diagnosis.Alternatives = append([]string(nil), diagnosis.AlternativeHypotheses...)
+	input.Diagnosis.Confidence = float32(diagnosis.Confidence)
+	input.Diagnosis.CandidateAction = generated.ResumeRunInputDiagnosisCandidateAction(diagnosis.CandidateAction)
+	value, _, err := callTyped[generated.ResumeRunOutput](ctx, t.gateway, identity, resumeRunTool, input, func(value generated.ResumeRunOutput) any {
+		return map[string]any{"status": value.Status, "checkpointPresent": value.Checkpoint != "", "intentPresent": value.IntentDraft != nil}
+	})
+	if err != nil {
+		return incidentport.PreparedRun{}, err
+	}
+	result := incidentport.PreparedRun{Status: string(value.Status), Checkpoint: value.Checkpoint}
+	if result.Checkpoint == "" || (result.Status != "needs_approval" && result.Status != "completed") || (result.Status == "completed" && value.IntentDraft != nil) || (result.Status == "needs_approval" && value.IntentDraft == nil) {
+		return incidentport.PreparedRun{}, common.NewError(common.SchemaValidationFailed, "playbook prepare result is invalid", false)
+	}
+	if value.IntentDraft != nil {
+		capabilityID, capabilityOK := value.IntentDraft.CapabilityId.(string)
+		serviceRef, serviceOK := value.IntentDraft.ServiceRef.(string)
+		before, beforeOK := exactInt(value.IntentDraft.BeforeConcurrency)
+		after, afterOK := exactInt(value.IntentDraft.AfterConcurrency)
+		if !capabilityOK || !serviceOK || !beforeOK || !afterOK {
+			return incidentport.PreparedRun{}, common.NewError(common.SchemaValidationFailed, "playbook Intent draft is invalid", false)
+		}
+		result.Intent = &incidentport.PreparedIntent{CapabilityID: capabilityID, ServiceRef: serviceRef, InstanceEpoch: value.IntentDraft.InstanceEpoch, ExpectedVersion: int64(value.IntentDraft.ExpectedVersion), ObservedAt: value.IntentDraft.ObservedAt, PolicyDigest: value.IntentDraft.PolicyDigest, PlaybookDigest: value.IntentDraft.PlaybookDigest, BeforeConcurrency: before, AfterConcurrency: after, RiskSummary: value.IntentDraft.Risk}
+	}
+	return result, nil
 }
 
 func callTyped[T any](ctx context.Context, gateway tools.Gateway, identity requestcontext.Context, name string, input any, summarize func(T) any) (T, incidentport.ToolEvidence, error) {
