@@ -13,26 +13,23 @@
 |1|`make validate-contracts`|OpenAPI、JSON Schema 和 MCP Tool Schema 可生成且一致。|契约或生成物。|
 |2|`make test-diagnostics`|离线解析、指标语义、Task/Event/Chart 分析和探针错误分类均正确。|测试分析器或 wire shape 假设。|
 |3|`make test-assistant-mcp`|Mock/Real Prometheus Adapter 与 MCP 工具接线单测通过。|assistant-mcp Adapter、registry 或 Tool handler。|
-|4|`make diagnose-real-metrics`|原始 Prometheus 和 MCP 都返回 CPU/内存/load 的合理结果。|Prometheus scrape、PromQL、MCP transport/Adapter。|
-|5|`make diagnose-deepseek`|配置模型存在，并返回可解析的严格 `{"answer":"pong"}`。|模型凭证、endpoint、model 或供应商响应。|
-|6|`make e2e-mock`|确定性数据通过 Plugin/API/持久化/SSE/浏览器全链路。|与真实数据无关的应用链路回归。|
-|7|`make e2e-real-metrics`|六种自然语言 range/step/view 输入能把真实 Prometheus 数据变成 durable Chart，其中包括 30 分钟范围、每 5 分钟采样。|IntentPlanner→QueryPlan→MCP→Prometheus 的真实数据路径。|
-|8|`make e2e-real-agent`|真实模型同步规划概览三图和 CPU 追问一图，并在同一 Session 连续 8 次正确规划相同 CPU/内存请求；确定性执行结果可持久化/重放。|Planner 严格 JSON、结构化历史、冻结 views 或本地结果格式化。|
-|9|`make check`|仓库全部静态检查、单元/集成测试通过。|对应失败目标。|
+|4|`./scripts/mtb diagnose real-metrics`|原始 Prometheus 和 MCP 都返回 CPU/内存/load 的合理结果。|Prometheus scrape、PromQL、MCP transport/Adapter。|
+|5|`./scripts/mtb diagnose deepseek`|配置模型存在，并返回可解析的严格 `{"answer":"pong"}`。|模型凭证、endpoint、model 或供应商响应。|
+|6|`./scripts/mtb e2e --mode mock`|确定性数据通过 Plugin/API/持久化/SSE/浏览器全链路。|与真实数据无关的应用链路回归。|
+|7|`./scripts/mtb e2e --mode real-metrics`|六种自然语言 range/step/view 输入能把真实 Prometheus 数据变成 durable Chart，其中包括 30 分钟范围、每 5 分钟采样。|IntentPlanner→QueryPlan→MCP→Prometheus 的真实数据路径。|
+|8|`./scripts/mtb e2e --mode real-agent`|真实模型同步规划概览三图和 CPU 追问一图，并在同一 Session 连续 8 次正确规划相同 CPU/内存请求；确定性执行结果可持久化/重放。|Planner 严格 JSON、结构化历史、冻结 views 或本地结果格式化。|
+|9|`./scripts/mtb verify --full`|仓库全部静态检查、单元/集成测试及隔离 Mock E2E 通过。|对应失败目标。|
 
-需要模型的第 5、8 步不会自动读取 `.env`。执行前显式加载，且不要在日志中打印变量：
+统一入口自动读取当前 worktree 根目录的 `.env`，且不会输出 key。需要模型的第 5、8 步可直接执行：
 
 ```sh
-set -a
-. ./.env
-set +a
-make diagnose-deepseek
-make e2e-real-agent
+./scripts/mtb diagnose deepseek
+./scripts/mtb e2e --mode real-agent
 ```
 
-自动 E2E 默认把 Grafana、AI Core、assistant-mcp 映射到 `13000`、`18080`、`18081`，避免干扰使用
-`3000`、`8080`、`8081` 的手工栈。必要时可用 `GRAFANA_HOST_PORT`、`AI_CORE_HOST_PORT`、
-`ASSISTANT_MCP_HOST_PORT` 覆盖。诊断 MCP 端口则用 `MTB_DIAGNOSTIC_MCP_PORT` 覆盖。
+自动 E2E 与真实指标诊断使用唯一临时 Compose project，并让 Docker 动态分配宿主端口；脚本从
+Compose 查询实际端口后再运行探针。退出只删除本轮 project 的容器、network、volume 和本地镜像，
+不会干扰长期开发栈或其他 worktree。
 
 ## 2. 各层合理返回的大致形式
 

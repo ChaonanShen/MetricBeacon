@@ -24,42 +24,64 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 
 ## 开发入口
 
-```text
-make bootstrap-check
-make test
-make check
-make diagnose-real-metrics
-make diagnose-deepseek  # requires DEEPSEEK_API_KEY
-make e2e-real-agent  # requires DEEPSEEK_API_KEY
+```sh
+./scripts/mtb                         # 默认：构建并保留 Mock 开发栈
+./scripts/mtb verify                  # 快速门禁 + 隔离 Mock E2E
+./scripts/mtb verify --full           # make check + 隔离 Mock E2E
+./scripts/mtb e2e --mode real-metrics
+./scripts/mtb e2e --mode real-agent   # .env 需配置 DEEPSEEK_API_KEY
 ```
 
-安装前端锁定依赖后再执行该命令：
+主工作区在未配置时默认使用 `main`、slot 0 和 `http://localhost:3000`。新建 linked worktree 后，
+先选择未使用的 slot 初始化其根 `.env`：
 
-```text
-cd apps/grafana-plugin/frontend && npm ci
+```sh
+./scripts/mtb init --slot 1 --name feature-one
+./scripts/mtb config check
+./scripts/mtb
 ```
+
+slot 会同时决定该 worktree 的开发端口；非零 slot 默认使用 `<id>.localhost` 隔离 Grafana Cookie。
+脚本会在 `package-lock.json` 变化或 `node_modules` 缺失时自动执行 `npm ci`，并为 Compose project、
+network、AI Core volume 和自动测试分配 worktree/run 级命名空间。`.env` 不提交；不同 worktree 的
+`.env` 可分别用 `init` 生成，已有 DeepSeek 配置会在显式重新初始化时保留。
 
 当前诊断进度和每个 Gate 的验证证据保存在
 [`docs/implementation/layered_result_diagnostics_progress.md`](docs/implementation/layered_result_diagnostics_progress.md)。
 
 ## 本地演示
 
-分别启动 `assistant-mcp`（`:8081`）和 AI Core（`:8080`），或运行 `make e2e-mock` 构建 Mock Compose；浏览器只通过 Grafana Plugin Resource API 访问系统。运行 `make e2e-real-metrics` 会在相同栈上叠加 Prometheus 和 node_exporter，并轮询 `up=1` 及至少两个 CPU idle scrape 后才发起真实查询。node_exporter 观察的是 Docker Linux VM/容器宿主的视图，不是 macOS 内核。
+`./scripts/mtb up --mode mock|real-metrics|real-agent` 会编译前端、构建并启动当前 worktree 的长期
+开发栈；无参数等价于 Mock `up`。命令完成后容器和 AI Core 数据卷会保留，适合浏览器人工测试。
+真实指标模式会叠加 Prometheus 和 node_exporter；node_exporter 观察的是 Docker Linux VM/容器宿主
+的视图，不是 macOS 内核。
 
-若只想判断真实数据断在哪一层，运行 `make diagnose-real-metrics`。它不启动 Grafana 或 AI Core：先直接检查 CPU、内存、load 三条 Prometheus 查询，再通过 assistant-mcp 的真实 transport 重复检查；输出仅包含阶段和 series/sample 计数，并在退出时清理自己的容器。
+```sh
+./scripts/mtb                    # Mock
+./scripts/mtb up --mode real-metrics
+./scripts/mtb up --mode real-agent
+./scripts/mtb ps --mode mock
+./scripts/mtb logs --mode mock
+./scripts/mtb down --mode mock   # 保留 AI Core volume
+./scripts/mtb reset --mode mock --yes  # 删除当前 worktree/mode 的数据
+```
 
-若只检查模型凭证、endpoint 和 model，可显式加载本地环境后运行直连探针；它不会自动读取 `.env`，也不会输出 key：
+若只想判断真实数据断在哪一层，运行 `./scripts/mtb diagnose real-metrics`。它不启动 Grafana 或
+AI Core：先直接检查 CPU、内存、load 三条 Prometheus 查询，再通过 assistant-mcp 的真实 transport
+重复检查；输出仅包含阶段和 series/sample 计数，并在退出时清理自己的唯一临时 project。
 
-```text
-set -a
-. ./.env
-set +a
-make diagnose-deepseek
+若只检查模型凭证、endpoint 和 model，运行直连探针；统一入口会读取当前 worktree 的 `.env`，但不会
+输出 key：
+
+```sh
+./scripts/mtb diagnose deepseek
 ```
 
 该探针先检查配置 model 是否出现在 `/models`，再要求最小 Chat Completion 返回严格 JSON `pong`。它绕过 Grafana、AI Core、Agent 与 MCP，适合把模型连通性问题和编排/工具问题分开。
 
-三种手动 Compose 示例使用独立 project/AI Core volume。切换模式后若浏览器 URL 仍带上一模式的 Session/Task，Workbench 会在当前环境明确返回 `resource_not_found` 时清理旧 ID 并提示重新提交；网络、权限或其他依赖错误不会触发自动清理，而会显示在对话栏。
+自动 E2E/诊断使用 Docker 动态宿主端口和唯一 project，退出只清理本轮容器、network、volume 与本地
+镜像，不会碰当前 worktree 的长期开发栈或其他 worktree。现有 `make e2e-*`、`make diagnose-*` 和
+`scripts/run-*.sh` 保留为兼容入口，内部均转发到 `scripts/mtb`。
 
 ### Docker/Colima 前置检查
 
@@ -98,5 +120,5 @@ default         error
 ```text
 docker context use colima
 docker buildx inspect colima
-make e2e-mock
+./scripts/mtb verify
 ```

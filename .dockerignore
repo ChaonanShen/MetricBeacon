@@ -1,5 +1,6 @@
 .git
 .env
+.runtime
 **/node_modules
 build
 tests

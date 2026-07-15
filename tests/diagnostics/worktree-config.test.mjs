@@ -4,12 +4,15 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 import {
+  composeFiles,
+  composeProjectName,
   dependencyFingerprint,
   formatConfig,
   frontendDependenciesNeedInstall,
   initializeConfig,
   loadConfig,
   parseDotenv,
+  parsePublishedPort,
   slugifyWorktreeName,
 } from '../../scripts/mtb.mjs';
 
@@ -77,4 +80,21 @@ test('dependency fingerprint detects absent and current installs', (t) => {
 
 test('worktree names are normalized into Compose-safe identifiers', () => {
   assert.equal(slugifyWorktreeName('/tmp/mini-torchbearing-Feature_A'), 'feature-a');
+});
+
+test('Compose resources are named by worktree, purpose, mode, and run', (t) => {
+  const root = temporaryRoot(t, 'mini-torchbearing-feature-a');
+  writeFileSync(join(root, '.env'), 'MTB_WORKTREE_ID=feature-a\nMTB_WORKTREE_SLOT=1\n');
+  const config = loadConfig({ root, environment: {} });
+  assert.equal(composeProjectName(config, 'dev', 'mock'), 'mini-torchbearing-feature-a-dev-mock');
+  assert.equal(composeProjectName(config, 'e2e', 'real-metrics', 'run-1'), 'mini-torchbearing-feature-a-e2e-real-metrics-run-1');
+  assert.deepEqual(composeFiles('/repo', 'real-agent'), [
+    '/repo/compose.mock-e2e.yaml', '/repo/compose.real-metrics-e2e.yaml', '/repo/compose.real-agent-e2e.yaml',
+  ]);
+});
+
+test('published Docker port parsing rejects missing and zero ports', () => {
+  assert.equal(parsePublishedPort('127.0.0.1:49152\n'), 49152);
+  assert.throws(() => parsePublishedPort('127.0.0.1:0'), /could not parse/);
+  assert.throws(() => parsePublishedPort(''), /could not parse/);
 });

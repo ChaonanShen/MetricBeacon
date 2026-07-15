@@ -43,7 +43,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建/恢复/本地切换新 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|左栏可清空当前工作台并在下一次提交懒创建新 Session；旧 Session 保持持久化但暂不提供历史列表。桌面左栏以约 1:3 比例共享中心可用空间并限制为 320..420px，header/输入固定且消息独立滚动。中栏按 Task oldest-first 分组，宽画布最多两列、奇数尾图跨行，窄容器单列；右栏仍为 280px 只读详情。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
-|`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`scripts/mtb` 已提供根 `.env` 的 worktree ID/slot 初始化、校验、脱敏展示、工具链 doctor 和基于 lockfile 指纹的按需 `npm ci`；linked worktree 未初始化时安全失败，主工作区兼容 `main/slot 0`。Compose 生命周期与动态测试端口仍由本活动切片后续 Gate 接入。现有 `compose.mock-e2e.yaml` 启动 Mock 栈，real overlays 切换真实指标/Agent；原分层诊断和 E2E 行为暂保持不变。|
+|`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`scripts/mtb` 统一根 `.env` 的 worktree ID/slot、脱敏配置、工具链、按 lockfile 指纹执行的 `npm ci`、一次前端 build、三种 Compose mode、生命周期、诊断和快速/full verify。开发栈使用稳定 worktree project/slot 端口；E2E/诊断使用唯一 project 和 Docker 动态端口，并只清理本轮 volume/image/network。原 `make e2e-*` 和 `run-*.sh` 是兼容入口。|
 
 ## 关键数据与依赖边界
 
@@ -68,75 +68,60 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 
 ### 环境准备
 
-仓库锁定的版本是 Go `1.26.5`、Node.js `22.23.1` 和 npm `10.9.8`。体验完整 UI 还需要可用的 Docker Engine 与 Docker Compose。首次使用先安装前端依赖并执行启动检查：
+仓库锁定的版本是 Go `1.26.5`、Node.js `22.23.1` 和 npm `10.9.8`。体验完整 UI 还需要可用的
+Docker Engine、Compose 与 Buildx。统一入口会检查工具链，并在 `node_modules` 缺失或 lockfile 指纹变化
+时自动执行 `npm ci`：
 
 ```sh
-cd apps/grafana-plugin/frontend && npm ci
-cd ../../..
-make bootstrap-check
+./scripts/mtb doctor
+./scripts/mtb deps
 ```
 
-`make bootstrap-check` 会明确报告版本不一致、Go 依赖/编译问题、前端类型问题或 AI Core 分层违规。
+主工作区缺少新配置时兼容 `main`/slot 0；每个新 linked worktree 必须显式初始化自己的根 `.env`，
+slot 不得与其他已初始化 worktree 重复：
 
-这里的各命令并不启动业务服务：`npm ci` 严格按锁文件安装前端依赖，`bootstrap-check` 负责确认本机能编译和测试当前骨架。需要看到实际页面时，再执行下一节的 Compose 启动命令。
+```sh
+./scripts/mtb init --slot 1 --name feature-one
+./scripts/mtb config show
+./scripts/mtb config check
+```
+
+配置输出只显示 `DEEPSEEK_API_KEY=<configured|absent>`。`init` 原子写入权限为 `0600` 的 `.env`，
+显式重新初始化时会保留已有 DeepSeek 配置；`.env` 由 Git 与 Docker build context 忽略，不应提交。
 
 ### 选择 Compose 运行模式
 
 三种模式共用同一个 Grafana 工作台和持久化链路，通过 Compose overlay 逐层替换 Adapter：
 
-|模式|Compose 文件|Agent|指标数据|额外要求|
+|mode|Compose overlay|Agent|指标数据|额外要求|
 |-|-|-|-|-|
 |确定性 Mock|`compose.mock-e2e.yaml`|Mock Agent，固定生成 CPU、内存、负载三视图|fixture|无外部服务或模型凭证|
 |真实指标|Mock 基础文件 + `compose.real-metrics-e2e.yaml`|Mock Agent，仍固定生成三视图|本地 Prometheus 抓取 node_exporter|Docker 可运行 Prometheus/node_exporter|
 |真实 Agent|上述两个文件 + `compose.real-agent-e2e.yaml`|受限 Eino/DeepSeek Agent|本地 Prometheus 抓取 node_exporter|`.env` 中配置 `DEEPSEEK_API_KEY`|
 
-三种模式都先构建 Plugin 前端：
+长期开发栈都由统一入口准备依赖、编译一次 Plugin 前端并执行 Compose build/up/wait：
 
 ```sh
-(cd apps/grafana-plugin/frontend && npm run build)
+./scripts/mtb                         # 等价于 up --mode mock
+./scripts/mtb up --mode real-metrics
+./scripts/mtb up --mode real-agent
 ```
 
-#### 模式一：确定性 Mock
+Mock 模式启动 `grafana`、`ai-core`、`assistant-mcp` 三个容器并从 fixture 返回确定性结果。真实指标
+overlay 新增 Prometheus/node_exporter，将 MCP Adapter 切到 HTTP；Agent 仍固定生成三视图。真实 Agent
+模式再把 IntentPlanner 换为受限 Eino/DeepSeek Agent。模型只能选择 CPU、内存、负载 view；不接收
+完整时序、身份、内部 URL 或密钥，用户可见数值回复仍由本地 formatter 生成。
 
-```sh
-docker compose -p mini-torchbearing-mock-manual \
-  -f compose.mock-e2e.yaml \
-  up --build --wait
-```
-
-该模式启动 `grafana`、`ai-core`、`assistant-mcp` 三个容器。assistant-mcp 从 `node_exporter_overview` fixture 返回确定性结果，适合离线开发、页面调试和回归验证。
-
-#### 模式二：真实 Prometheus/node_exporter
-
-```sh
-docker compose -p mini-torchbearing-real-metrics-manual \
-  -f compose.mock-e2e.yaml \
-  -f compose.real-metrics-e2e.yaml \
-  up --build --wait
-```
-
-overlay 会新增 Prometheus 与 node_exporter，并把 assistant-mcp 的 Prometheus Adapter 切换为 HTTP。Agent 仍是确定性的 Mock，因此固定生成三视图，但每个视图都使用本轮 QueryPlan 的范围、step 和 CPU window；series 来自当前 Docker Linux VM/容器宿主，而不是 fixture 或 macOS 内核。Prometheus 每 5 秒抓取一次；首次分析前可等待至少两个 scrape。
-
-#### 模式三：真实 Eino/DeepSeek Agent
-
-先从 `.env.example` 创建本地 `.env` 并填写 `DEEPSEEK_API_KEY`；不要提交 `.env`。Docker Compose 会从仓库根目录的 `.env` 读取变量用于 overlay 插值：
-
-```sh
-docker compose -p mini-torchbearing-real-agent-manual \
-  -f compose.mock-e2e.yaml \
-  -f compose.real-metrics-e2e.yaml \
-  -f compose.real-agent-e2e.yaml \
-  up --build --wait
-```
-
-该模式同时使用真实 node_exporter series 与受限 Eino/DeepSeek Agent。可尝试“查看 node_exporter 概览”或“只看 CPU”；Agent 只能选择 CPU、内存、负载 view，不能提交 PromQL 或修改有效查询参数。模型只接收 Profile、受限会话上下文和本地统计摘要，不接收完整时序、身份、内部 URL 或密钥；用户可见数值回复由本地 formatter 生成。
-
-所有模式都会为 AI Core 挂载独立 named volume，所以容器运行期间 Session、Task、Event、Chart 和执行结果会保留；执行带 `-v` 的清理命令才会移除该模式的数据。示例命令使用不同 Compose project 名，因此从一种模式切换到另一种模式时，旧 URL 的 Session 不属于新 volume；Workbench 收到明确的 `resource_not_found` 后会移除旧 `sessionId`/`taskId` 并提示重新提交。前端没有单独的开发服务器，页面和 Plugin Backend 都由 Grafana 容器提供。
+每个 `<worktree, mode>` 使用稳定且唯一的 Compose project、network 和 AI Core named volume。
+slot 推导开发端口：Grafana=`3000 + slot*100`、AI Core=`8080 + slot*100`、MCP=`8081 + slot*100`。
+slot 0 的浏览器主机默认是 `localhost`，其他 slot 默认是 `<id>.localhost`，从而同时隔离端口和 Grafana
+Cookie。端口已占用时 `up` 在构建前失败，不会停止未知容器。前端没有单独开发服务器，页面与 Plugin
+Backend 都由 Grafana 容器提供。
 
 容器均就绪后：
 
-1. 打开 `http://127.0.0.1:3000`，用 `admin` / `admin` 登录。
-2. 访问 `http://127.0.0.1:3000/a/mini-torchbearing-app/workbench`。
+1. 打开 `up` 输出的 workbench URL，用当前 `.env` 的 Grafana 管理员账号登录（默认 `admin` / `admin`）。
+2. 进入 `/a/mini-torchbearing-app/workbench`。
 3. 输入任意非空分析请求，例如“帮我看看 node_exporter 最近 30 分钟的 CPU、内存和系统负载”，点击“开始分析”。
 4. Mock/真实指标模式应看到固定助手说明和三张图；真实 Agent 的“概览”应产生三张图，“只看 CPU”应只产生 CPU 图。刷新页面后，URL 中的 Session/Task 标识会使页面恢复结果。
 
@@ -158,58 +143,37 @@ Mock 和真实 Eino 模式都通过同一 IntentPlanner Port 生成受限计划�
 
 上述表格完整描述 Mock 模式。在真实指标模式中，第 4 步仍使用固定计划，第 6 步改为 assistant-mcp 通过 HTTP 查询本地 Prometheus；在真实 Agent 模式中，第 4 步改为 Eino/DeepSeek 根据受限 Profile 选择视图，并且每个完成视图都必须有成功的本地 `query_prometheus` 调用。三种模式的 Session/Task 持久化、Plugin Resource API、事件顺序、有限 replay 和 SSE 恢复链路保持一致。
 
-运行中可按启动时使用的 project 名查看日志。例如：
+长期栈的查看和清理也只作用于当前 worktree/mode：
 
 ```sh
-docker compose -p mini-torchbearing-mock-manual \
-  -f compose.mock-e2e.yaml \
-  logs -f
+./scripts/mtb ps --mode mock
+./scripts/mtb logs --mode mock
+./scripts/mtb down --mode mock
+./scripts/mtb reset --mode mock --yes
 ```
 
-结束体验时必须使用相同的 project 名和 Compose 文件组合。以下分别清理三种模式的容器及 AI Core 数据：
-
-```sh
-docker compose -p mini-torchbearing-mock-manual \
-  -f compose.mock-e2e.yaml \
-  down -v --remove-orphans
-
-docker compose -p mini-torchbearing-real-metrics-manual \
-  -f compose.mock-e2e.yaml \
-  -f compose.real-metrics-e2e.yaml \
-  down -v --remove-orphans
-
-docker compose -p mini-torchbearing-real-agent-manual \
-  -f compose.mock-e2e.yaml \
-  -f compose.real-metrics-e2e.yaml \
-  -f compose.real-agent-e2e.yaml \
-  down -v --remove-orphans
-```
+`down` 删除容器/network 但保留 AI Core volume；只有显式 `reset --yes` 删除该 project 的 volume。
+切换 mode 后，旧 URL 的 Session 不属于新 volume；Workbench 收到明确 `resource_not_found` 时会清理
+旧 ID 并提示重新提交。
 
 ### 单独调试后端服务
 
-不需要 Grafana UI 时，可以在两个终端分别运行 MCP 与 AI Core：
+不需要 Grafana UI 时，可以在两个终端分别运行 MCP 与 AI Core；入口会使用当前 slot 端口，并把
+SQLite 放在当前 worktree 的 `.runtime/ai-core.sqlite`：
 
 ```sh
 # 终端 1
-cd services/assistant-mcp && go run ./cmd/server
+./scripts/mtb run assistant-mcp
 ```
 
 ```sh
 # 终端 2
-cd services/ai-core
-AI_CORE_SQLITE_PATH=/tmp/mini-torchbearing-ai-core.sqlite \
-ASSISTANT_MCP_ENDPOINT=http://127.0.0.1:8081/mcp \
-go run ./cmd/server
+./scripts/mtb run ai-core
 ```
 
-随后可检查健康状态：
-
-```sh
-curl -i http://127.0.0.1:8081/readyz
-curl -i http://127.0.0.1:8080/readyz
-```
-
-assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/mcp` 暴露 Streamable HTTP；AI Core 启动时会迁移 `/tmp/mini-torchbearing-ai-core.sqlite`，且 `/readyz` 会通过 MCP 实际列出工具，所以它同时验证 SQLite 与服务间通信。若 MCP 尚未启动或三个工具未注册，AI Core 的就绪检查会失败。这条路径方便观察服务启动与依赖故障；若要通过浏览器发起任务，仍应使用前一节的 Compose 方式，因为 Plugin Backend 由 Grafana 承载。
+assistant-mcp 会在 slot 对应 MCP 端口暴露 `/mcp`；AI Core 的 `/readyz` 会通过 MCP 实际列出工具，
+所以它同时验证 SQLite 与服务间通信。若要通过浏览器发起任务，仍应使用 Compose 开发栈，因为 Plugin
+Backend 由 Grafana 承载。
 
 ## 测试与检查入口
 
@@ -227,7 +191,7 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、同一 Session 连续 8 次相同 CPU/内存请求、durable tool 配对、有限 replay 与 API/日志/SQLite 泄漏检查。|通过：概览 21 events/3 query tool calls/3 charts，CPU 追问 13 events/1 query tool call/1 chart；8 次重复请求均得到 `600s/120s` 双视图计划，各为 17 events/2 query tool calls/2 charts；调用进程从 `.env` 临时加载 key，未输出或持久化 key。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
 |`make test-frontend`|Vitest 工作台状态、SSE、路由、Resource 错误、查询控件、时间范围和 DataFrame mapper；随后 TypeScript typecheck。|通过：9 个测试文件、26 个用例。|
-|`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果和 DeepSeek 探针的成功/失败分类，并检查真实指标诊断与 E2E Shell 语法。|通过：35 个 Node 测试。|
+|`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果、DeepSeek 探针、worktree 配置和 Compose 命名/端口解析，并检查诊断与 E2E Shell 语法。|通过：44 个 Node 测试。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
 |`make validate-contracts`|3 份 OpenAPI、24 份 JSON Schema 与 node_exporter fixture。|通过。|
 |`make generated-client-diff`|重新生成 Client/类型后确认 Git 无差异。|通过。|
@@ -239,20 +203,20 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make diagnose-real-metrics`|绕过 Grafana 与 AI Core，分阶段检查原始 Prometheus 与 assistant-mcp 的真实返回及指标语义。|通过：三条 vector/matrix 各 1 series/1 sample；CPU 约 98.2..98.7，内存约 64.64，load 3.25，均通过语义校验。|
 |`make diagnose-deepseek`|绕过 Agent/MCP，验证配置 model 出现在 `/models` 并返回固定严格 JSON。|通过：`deepseek-v4-flash` 在 539 ms 返回 `{"status":"ok","answer":"pong"}`；未输出 key。|
 
-日常开发先运行 `make check`。三种完整链路的自动验收入口分别是：
+日常提交前运行快速入口；发布前或大切片收口运行 full。三个 E2E mode 和模型诊断都会自动读取当前
+worktree 的 `.env`：
 
 ```sh
-make e2e-mock
-make e2e-real-metrics
-
-set -a
-. ./.env
-set +a
-make diagnose-deepseek
-make e2e-real-agent
+./scripts/mtb verify
+./scripts/mtb verify --full
+./scripts/mtb e2e --mode real-metrics
+./scripts/mtb diagnose deepseek
+./scripts/mtb e2e --mode real-agent
 ```
 
-`make diagnose-deepseek` 和 `make e2e-real-agent` 都不会自动读取 `.env`，所以上例只把 `.env` 导出到当前 shell 后再执行；脚本不会输出 key。三个 E2E 入口都会自行构建前端、启动对应 Compose 组合、运行该模式的 API/浏览器或真实 Agent 验收，并在结束时删除它创建的容器与 volume，因此适合验收，不适合在命令结束后继续手动浏览。
+自动 E2E/诊断使用唯一 run project 和 Docker 动态宿主端口，完成后删除本轮容器、network、volume
+和本地镜像，因此适合验收而非持续浏览；不会清理长期开发栈或其他 worktree。旧 `make e2e-*`、
+`make diagnose-*` 与 `scripts/run-*.sh` 仍作为兼容转发入口。
 
 若已按“选择 Compose 运行模式”手动启动 Mock 容器，可分阶段执行相同的 Mock E2E 用例：
 

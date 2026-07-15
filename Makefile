@@ -2,8 +2,8 @@ SHELL := /bin/sh
 
 .PHONY: bootstrap-check generate generated-client-diff validate-contracts lint test \
 	test-adapters test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp \
-	test-ai-agent test-plugin-backend test-frontend test-diagnostics smoke e2e-mock e2e-real-metrics \
-	diagnose-real-metrics diagnose-deepseek check boundary-check secret-scan
+	test-ai-agent test-plugin-backend test-frontend-unit test-frontend test-diagnostics smoke e2e-mock e2e-real-metrics \
+	diagnose-real-metrics diagnose-deepseek dev dev-verify dev-verify-full check boundary-check secret-scan
 
 bootstrap-check:
 	@./scripts/bootstrap-check.sh
@@ -43,8 +43,11 @@ test-ai-agent:
 test-plugin-backend:
 	@cd apps/grafana-plugin/backend && GOPROXY=off go test ./...
 
-test-frontend:
-	@cd apps/grafana-plugin/frontend && npm run test && npm run typecheck
+test-frontend-unit:
+	@cd apps/grafana-plugin/frontend && npm run test
+
+test-frontend: test-frontend-unit
+	@cd apps/grafana-plugin/frontend && npm run typecheck
 
 test-diagnostics:
 	@node --test tests/diagnostics/*.test.mjs
@@ -65,7 +68,16 @@ diagnose-real-metrics:
 	@./scripts/run-real-metrics-diagnostic.sh
 
 diagnose-deepseek:
-	@node tests/diagnostics/deepseek-smoke.mjs
+	@./scripts/mtb diagnose deepseek
+
+dev:
+	@./scripts/mtb
+
+dev-verify:
+	@./scripts/mtb verify
+
+dev-verify-full:
+	@./scripts/mtb verify --full
 
 boundary-check:
 	@./scripts/check-boundaries.sh
