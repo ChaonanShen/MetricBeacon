@@ -63,6 +63,12 @@ func (h *ResourceHandler) CallResource(ctx context.Context, request *backend.Cal
 		return h.listTasks(ctx, client, request, strings.TrimSuffix(strings.TrimPrefix(path, "sessions/"), "/tasks"), requestContext, sender)
 	case request.Method == http.MethodPost && path == "tasks":
 		return h.createTask(ctx, client, request, requestContext, sender)
+	case request.Method == http.MethodGet && path == "incidents":
+		return h.listIncidents(ctx, client, request, requestContext, sender)
+	case request.Method == http.MethodGet && strings.HasPrefix(path, "tasks/") && strings.HasSuffix(path, "/approval"):
+		return h.getApproval(ctx, client, strings.TrimSuffix(strings.TrimPrefix(path, "tasks/"), "/approval"), requestContext, sender)
+	case request.Method == http.MethodPost && strings.HasPrefix(path, "tasks/") && strings.HasSuffix(path, "/approval"):
+		return h.decideApproval(ctx, client, request, strings.TrimSuffix(strings.TrimPrefix(path, "tasks/"), "/approval"), requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "tasks/") && strings.HasSuffix(path, "/events/replay"):
 		return h.replayEvents(ctx, client, request, strings.TrimSuffix(strings.TrimPrefix(path, "tasks/"), "/events/replay"), requestContext, sender)
 	case request.Method == http.MethodGet && strings.HasPrefix(path, "tasks/") && strings.HasSuffix(path, "/events"):
@@ -151,6 +157,39 @@ func (h *ResourceHandler) createTask(ctx context.Context, client generated.Clien
 }
 func (h *ResourceHandler) getTask(ctx context.Context, client generated.ClientInterface, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
 	response, err := client.GetTask(ctx, taskID, getTaskParams(identity))
+	return h.forward(sender, response, err, identity.RequestID, false)
+}
+
+func (h *ResourceHandler) listIncidents(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	params, err := incidentPageParams(request, identity)
+	if err != nil {
+		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid Incident page parameters", identity.RequestID, false)
+	}
+	response, err := client.ListIncidents(ctx, params)
+	return h.forward(sender, response, err, identity.RequestID, false)
+}
+
+func (h *ResourceHandler) getApproval(ctx context.Context, client generated.ClientInterface, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	if taskID == "" {
+		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Incident Task ID is required", identity.RequestID, false)
+	}
+	response, err := client.GetTaskApproval(ctx, taskID, getApprovalParams(identity))
+	return h.forward(sender, response, err, identity.RequestID, false)
+}
+
+func (h *ResourceHandler) decideApproval(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
+	if !contains(identity.Roles, "Admin") {
+		return h.sendError(sender, http.StatusForbidden, "permission_denied", "Grafana Admin role is required for Incident approval", identity.RequestID, false)
+	}
+	key := request.GetHTTPHeader("Idempotency-Key")
+	if taskID == "" || key == "" {
+		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Task ID and Idempotency-Key are required", identity.RequestID, false)
+	}
+	var body generated.DecideTaskApprovalJSONRequestBody
+	if err := decode(request.Body, &body); err != nil {
+		return h.sendError(sender, http.StatusBadRequest, "invalid_argument", "Invalid approval decision", identity.RequestID, false)
+	}
+	response, err := client.DecideTaskApproval(ctx, taskID, decideApprovalParams(identity, key), body)
 	return h.forward(sender, response, err, identity.RequestID, false)
 }
 func (h *ResourceHandler) replayEvents(ctx context.Context, client generated.ClientInterface, request *backend.CallResourceRequest, taskID string, identity requestcontext.Context, sender backend.CallResourceResponseSender) error {
@@ -272,6 +311,38 @@ func taskParams(identity requestcontext.Context, key string) *generated.CreateTa
 }
 func getTaskParams(identity requestcontext.Context) *generated.GetTaskParams {
 	return &generated.GetTaskParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+}
+
+func incidentPageParams(request *backend.CallResourceRequest, identity requestcontext.Context) (*generated.ListIncidentsParams, error) {
+	query, err := resourceQuery(request)
+	if err != nil {
+		return nil, err
+	}
+	params := &generated.ListIncidentsParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+	if err := setPageSize(query, "pageSize", 50, func(value int) { params.PageSize = &value }); err != nil {
+		return nil, err
+	}
+	if err := setPageToken(query, func(value string) { params.PageToken = &value }); err != nil {
+		return nil, err
+	}
+	return params, nil
+}
+
+func getApprovalParams(identity requestcontext.Context) *generated.GetTaskApprovalParams {
+	return &generated.GetTaskApprovalParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+}
+
+func decideApprovalParams(identity requestcontext.Context, key string) *generated.DecideTaskApprovalParams {
+	return &generated.DecideTaskApprovalParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), IdempotencyKey: key, XRequestID: identity.RequestID, XTraceID: identity.TraceID}
+}
+
+func contains(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
 }
 func eventParams(request *backend.CallResourceRequest, identity requestcontext.Context) (*generated.StreamTaskEventsParams, error) {
 	params := &generated.StreamTaskEventsParams{XMTBTenantID: identity.TenantID, XMTBOrgID: identity.OrgID, XMTBUserID: identity.UserID, XMTBRoles: strings.Join(identity.Roles, ","), XMTBPermissions: strings.Join(identity.Permissions, ","), XRequestID: identity.RequestID, XTraceID: identity.TraceID}

@@ -27,7 +27,11 @@ func FromResourceRequest(request *backend.CallResourceRequest) (requestcontext.C
 	if traceID == "" {
 		traceID = opaqueID()
 	}
-	return requestcontext.Context{TenantID: "org:" + strconv.FormatInt(request.PluginContext.OrgID, 10), OrgID: strconv.FormatInt(request.PluginContext.OrgID, 10), UserID: user.Login, Roles: []string{role}, Permissions: []string{"datasources:query"}, RequestID: requestID, TraceID: traceID}, true
+	permissions := []string{"datasources:query", "incidents:read"}
+	if role == "Admin" {
+		permissions = append(permissions, "incidents:approve")
+	}
+	return requestcontext.Context{TenantID: "org:" + strconv.FormatInt(request.PluginContext.OrgID, 10), OrgID: strconv.FormatInt(request.PluginContext.OrgID, 10), UserID: user.Login, Roles: []string{role}, Permissions: permissions, RequestID: requestID, TraceID: traceID}, true
 }
 
 func opaqueID() string {

@@ -39,9 +39,9 @@ mini-torchbearing/
 │       │   ├── backend/                   # Grafana Plugin SDK 后端（Go）
 │       │   │   ├── cmd/plugin/            # 后端进程入口
 │       │   │   └── internal/
-│       │   │       ├── handlers/          # Resource API、历史/有限重放与 SSE 代理
+│       │   │       ├── handlers/          # Session/Task/Incident/Approval Resource API、有限重放与 SSE 代理
 │       │   │       ├── aicore/            # AI Core HTTP Client
-│       │   │       ├── context/           # Grafana 身份上下文
+│       │   │       ├── context/           # Grafana org/user/role 到 query/read/Admin-approve 权限
 │       │   │       ├── config/            # 插件实例配置
 │       │   │       └── bootstrap/         # 依赖组装
 │       │   ├── provisioning/              # Grafana App 配置

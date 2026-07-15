@@ -108,8 +108,74 @@ func TestResourceHandlerUsesGrafanaIdentityAndGeneratedClient(t *testing.T) {
 	if len(sender.responses) != 1 || sender.responses[0].Status != http.StatusAccepted {
 		t.Fatalf("responses: %#v", sender.responses)
 	}
-	if received.Get("X-MTB-Tenant-ID") != "org:42" || received.Get("X-MTB-User-ID") != "grafana-user" || received.Get("X-MTB-Permissions") != "datasources:query" {
+	if received.Get("X-MTB-Tenant-ID") != "org:42" || received.Get("X-MTB-User-ID") != "grafana-user" || received.Get("X-MTB-Permissions") != "datasources:query,incidents:read" {
 		t.Fatalf("untrusted headers leaked or identity missing: %#v", received)
+	}
+}
+
+func TestResourceHandlerProxiesOrgIncidentsAndAdminApprovalWithTrustedIdentity(t *testing.T) {
+	requests := make(map[string]*http.Request)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests[r.Method+" "+r.URL.Path] = r.Clone(r.Context())
+		w.Header().Set("Content-Type", "application/json")
+		switch r.Method + " " + r.URL.Path {
+		case "GET /v1/incidents":
+			_, _ = w.Write([]byte(`{"items":[],"nextPageToken":null}`))
+		case "GET /v1/tasks/task_1/approval":
+			_, _ = w.Write([]byte(`{"id":"approval_1"}`))
+		case "POST /v1/tasks/task_1/approval":
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"id":"approval_1","status":"approved"}`))
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+	client, _ := generated.NewClient(upstream.URL)
+	handler := &ResourceHandler{Client: client}
+	digest := "sha256:" + strings.Repeat("a", 64)
+
+	requestsToSend := []*backend.CallResourceRequest{
+		{Method: http.MethodGet, Path: "incidents", URL: "?pageSize=20&pageToken=incident-token", Headers: map[string][]string{"X-MTB-Org-ID": {"forged"}}, PluginContext: backend.PluginContext{OrgID: 7, User: &backend.User{Login: "viewer", Role: "Viewer"}}},
+		{Method: http.MethodGet, Path: "tasks/task_1/approval", Headers: map[string][]string{"X-MTB-Roles": {"Admin"}}, PluginContext: backend.PluginContext{OrgID: 7, User: &backend.User{Login: "viewer", Role: "Viewer"}}},
+		{Method: http.MethodPost, Path: "tasks/task_1/approval", Headers: map[string][]string{"Idempotency-Key": {"approve-key"}, "X-MTB-Org-ID": {"forged"}, "X-MTB-Roles": {"Viewer"}}, Body: []byte(`{"decision":"approve","reason":"reviewed","expectedTaskVersion":5,"expectedApprovalVersion":1,"intentDigest":"` + digest + `"}`), PluginContext: backend.PluginContext{OrgID: 7, User: &backend.User{Login: "admin", Role: "Admin"}}},
+	}
+	for _, request := range requestsToSend {
+		sender := &captureSender{}
+		if err := handler.CallResource(context.Background(), request, sender); err != nil {
+			t.Fatal(err)
+		}
+		if len(sender.responses) != 1 || sender.responses[0].Status < 200 || sender.responses[0].Status >= 300 {
+			t.Fatalf("request=%s responses=%#v", request.Path, sender.responses)
+		}
+	}
+	incidentRequest := requests["GET /v1/incidents"]
+	if incidentRequest == nil || incidentRequest.URL.RawQuery != "pageSize=20&pageToken=incident-token" || incidentRequest.Header.Get("X-MTB-Tenant-ID") != "org:7" || incidentRequest.Header.Get("X-MTB-Permissions") != "datasources:query,incidents:read" {
+		t.Fatalf("incident request=%#v", incidentRequest)
+	}
+	getRequest := requests["GET /v1/tasks/task_1/approval"]
+	if getRequest == nil || getRequest.Header.Get("X-MTB-Roles") != "Viewer" || getRequest.Header.Get("X-MTB-Permissions") != "datasources:query,incidents:read" {
+		t.Fatalf("approval GET=%#v", getRequest)
+	}
+	postRequest := requests["POST /v1/tasks/task_1/approval"]
+	if postRequest == nil || postRequest.Header.Get("X-MTB-Roles") != "Admin" || postRequest.Header.Get("X-MTB-Permissions") != "datasources:query,incidents:read,incidents:approve" || postRequest.Header.Get("Idempotency-Key") != "approve-key" {
+		t.Fatalf("approval POST=%#v", postRequest)
+	}
+}
+
+func TestResourceHandlerRejectsNonAdminApprovalBeforeUpstream(t *testing.T) {
+	upstreamCalls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { upstreamCalls++ }))
+	defer upstream.Close()
+	client, _ := generated.NewClient(upstream.URL)
+	handler := &ResourceHandler{Client: client}
+	request := &backend.CallResourceRequest{Method: http.MethodPost, Path: "tasks/task_1/approval", Headers: map[string][]string{"Idempotency-Key": {"key"}, "X-MTB-Roles": {"Admin"}}, Body: []byte(`{}`), PluginContext: backend.PluginContext{OrgID: 1, User: &backend.User{Login: "viewer", Role: "Viewer"}}}
+	sender := &captureSender{}
+	if err := handler.CallResource(context.Background(), request, sender); err != nil {
+		t.Fatal(err)
+	}
+	if upstreamCalls != 0 || len(sender.responses) != 1 || sender.responses[0].Status != http.StatusForbidden || !strings.Contains(string(sender.responses[0].Body), "Admin") {
+		t.Fatalf("calls=%d responses=%#v", upstreamCalls, sender.responses)
 	}
 }
 
