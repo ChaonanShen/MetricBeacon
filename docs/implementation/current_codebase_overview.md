@@ -180,8 +180,9 @@ Backend 由 Grafana 承载。
 按后端层级执行、判读安全摘要和定位失败时，使用
 [`real_backend_test_matrix.md`](real_backend_test_matrix.md)；其中的真实数值示例仅是一次运行证据，不是固定断言。
 
-|命令|覆盖内容|本次结果（2026-07-14）|
+|命令|覆盖内容|本次结果（2026-07-15）|
 |-|-|-|
+|`./scripts/mtb verify --full`|工具链/依赖准备、单次前端 build、完整 `make check` 与唯一 project/动态端口 Mock E2E。|通过；生成物、契约、全部 Go/前端/diagnostics、边界/密钥门禁、六组 API 和 Playwright 1/1 均成功，临时资源已清理。|
 |`make bootstrap-check`|固定 Go/Node/npm 版本；三个运行时 Go 模块全量编译测试；前端 typecheck；依赖边界。|通过。|
 |`make test-ai-core-domain`|AI Core 领域、应用和 Port 的单元测试。|由 `make check` 通过。|
 |`make test-sqlite`|SQLite Store 与内存事件通知器：CRUD、租户隔离、事务/幂等、sequence 与重放。|由 `make check` 通过。|

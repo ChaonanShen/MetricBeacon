@@ -1,7 +1,8 @@
 # 多 Worktree 隔离与一键开发入口执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
+> completedAt: 2026-07-15
 > implementationAuthorized: true
 > decision: developer-runtime isolation and orchestration only; no ADR or cross-process contract change required
 > dependsOn: `current_codebase_overview.md`、`real_backend_test_matrix.md`

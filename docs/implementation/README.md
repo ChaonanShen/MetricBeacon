@@ -56,7 +56,7 @@ The completed fresh-conversation Workbench refinement is
 with gate evidence in
 [`fresh_conversation_workbench_progress.md`](fresh_conversation_workbench_progress.md).
 
-The active developer-infrastructure slice is
+The completed developer-infrastructure slice is
 [`worktree_isolated_development_execution_plan.md`](worktree_isolated_development_execution_plan.md),
 with gate evidence in
 [`worktree_isolated_development_progress.md`](worktree_isolated_development_progress.md).
