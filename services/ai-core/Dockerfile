@@ -3,15 +3,17 @@ WORKDIR /src
 COPY go.work go.work.sum ./
 COPY packages/generated-clients/go/go.mod packages/generated-clients/go/go.sum ./packages/generated-clients/go/
 COPY packages/generated-contracts/go/go.mod packages/generated-contracts/go/go.sum ./packages/generated-contracts/go/
+COPY packages/approval-evidence-go/go.mod ./packages/approval-evidence-go/
 COPY packages/request-context-go/go.mod ./packages/request-context-go/
 COPY services/ai-core/go.mod services/ai-core/go.sum ./services/ai-core/
-RUN mv go.work go.work.full && go work init ./packages/generated-clients/go ./packages/generated-contracts/go ./packages/request-context-go ./services/ai-core
+RUN mv go.work go.work.full && go work init ./packages/generated-clients/go ./packages/generated-contracts/go ./packages/approval-evidence-go ./packages/request-context-go ./services/ai-core
 RUN --mount=type=cache,target=/go/pkg/mod \
     cd packages/generated-clients/go && go mod download \
     && cd /src/packages/generated-contracts/go && go mod download \
     && cd /src/services/ai-core && go mod download
 COPY packages/generated-clients/go ./packages/generated-clients/go
 COPY packages/generated-contracts/go ./packages/generated-contracts/go
+COPY packages/approval-evidence-go ./packages/approval-evidence-go
 COPY packages/request-context-go ./packages/request-context-go
 COPY services/ai-core ./services/ai-core
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \

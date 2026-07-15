@@ -66,7 +66,7 @@ mini-torchbearing/
 │   │   │   │       ├── agent/eino/         # JSON mode、结构化历史和一次重试的 IntentPlanner Adapter
 │   │   │   │       ├── agent/mock/         # 确定性意图解析与 persisted-view 执行器
 │   │   │   │       └── agent/localresult/  # Mock/Eino 共用的可信事实 formatter
-│   │   │   └── bootstrap/                 # 服务依赖组装
+│   │   │   └── bootstrap/                 # 分析 + Incident 诊断/Approval/执行恢复的原子依赖组装
 │   │   ├── migrations/sqlite/             # SQLite 迁移（0007 Incident union；0008 Intent/Approval/Execution/Audit）
 │   │   └── Dockerfile
 │   │

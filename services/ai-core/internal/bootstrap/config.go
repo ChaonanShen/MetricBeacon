@@ -24,6 +24,7 @@ type Config struct {
 	IncidentOrgID         int
 	IncidentActorID       string
 	IncidentWebhookSecret string
+	ApprovalEvidenceKey   string
 	IncidentAlertMaxSkew  time.Duration
 	DeepSeekAPIKey        string
 	DeepSeekBaseURL       string
@@ -47,6 +48,7 @@ func LoadConfigFromEnvironment() (Config, error) {
 		IncidentOrgID:         envInt("AI_CORE_INCIDENT_ORG_ID", 1),
 		IncidentActorID:       env("AI_CORE_INCIDENT_ACTOR_ID", "system:grafana"),
 		IncidentWebhookSecret: strings.TrimSpace(os.Getenv("ORDER_INCIDENT_WEBHOOK_SECRET")),
+		ApprovalEvidenceKey:   strings.TrimSpace(os.Getenv("ORDER_INCIDENT_APPROVAL_EVIDENCE_KEY")),
 		IncidentAlertMaxSkew:  envDuration("AI_CORE_INCIDENT_ALERT_MAX_SKEW", 5*time.Minute),
 		DeepSeekAPIKey:        strings.TrimSpace(os.Getenv("DEEPSEEK_API_KEY")),
 		DeepSeekBaseURL:       env("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
@@ -62,8 +64,8 @@ func (c Config) Validate() error {
 	if c.AgentMaxIterations <= 0 || c.AgentMaxToolCalls <= 0 || c.AgentTimeout <= 0 || c.ModelTimeout <= 0 || c.MCPToolTimeout <= 0 {
 		return fmt.Errorf("AI Core Agent and MCP timeouts and limits must be positive")
 	}
-	if c.IncidentWebhookSecret != "" && (len(c.IncidentWebhookSecret) < 16 || c.IncidentAlertSource == "" || c.IncidentTenantID == "" || c.IncidentOrgID < 1 || c.IncidentActorID == "" || c.IncidentAlertMaxSkew <= 0) {
-		return fmt.Errorf("Incident alert source, identity, HMAC secret and replay window are invalid")
+	if c.IncidentWebhookSecret != "" && (len(c.IncidentWebhookSecret) < 16 || len(c.ApprovalEvidenceKey) < 32 || c.IncidentAlertSource == "" || c.IncidentTenantID == "" || c.IncidentOrgID < 1 || c.IncidentActorID == "" || c.IncidentAlertMaxSkew <= 0) {
+		return fmt.Errorf("Incident alert source, identity, HMAC/ApprovalEvidence secrets and replay window are invalid")
 	}
 	if c.AgentDriver == "eino" {
 		if c.DeepSeekAPIKey == "" {

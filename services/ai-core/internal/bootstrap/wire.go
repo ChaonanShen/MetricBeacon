@@ -7,6 +7,7 @@ import (
 	deepseekmodel "github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cohesion-org/deepseek-go"
 
+	approvalevidence "mini-torchbearing.local/packages/approval-evidence-go"
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	httpapi "mini-torchbearing.local/services/ai-core/internal/adapters/inbound/http"
 	einoagent "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/agent/eino"
@@ -17,10 +18,12 @@ import (
 	idadapter "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/ids"
 	storage "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/storage/sqlite"
 	mcpadapter "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/tools/mcp"
+	"mini-torchbearing.local/services/ai-core/internal/application/approvals"
 	"mini-torchbearing.local/services/ai-core/internal/application/commands"
 	"mini-torchbearing.local/services/ai-core/internal/application/incidents"
 	"mini-torchbearing.local/services/ai-core/internal/application/workflows"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
 	"mini-torchbearing.local/services/ai-core/internal/ports/tools"
 )
@@ -87,13 +90,28 @@ func New(ctx context.Context, config Config) (*Application, error) {
 	commandService := commands.New(store, notifier, workflow, generator, clock, planner)
 	api := httpapi.API{Commands: commandService, Store: store, Notifier: notifier}
 	if config.IncidentWebhookSecret != "" {
+		evidence, err := approvalevidence.New([]byte(config.ApprovalEvidenceKey))
+		if err != nil {
+			_ = store.Close()
+			return nil, common.NewError(common.AdapterNotConfigured, "Incident ApprovalEvidence configuration is invalid", false)
+		}
 		incidentTools := mcpadapter.NewIncidentToolset(gateway)
 		incidentWorkflow := workflows.RunIncidentWorkflow{Store: store, Notifier: notifier, Toolset: incidentTools, IDs: generator, Clock: clock}
+		remediationTools := mcpadapter.NewIncidentRemediationToolset(gateway)
+		remediationWorkflow := workflows.RunRemediationWorkflow{Store: store, Notifier: notifier, Toolset: remediationTools, Evidence: evidence, IDs: generator, Clock: clock}
 		incidentService := incidents.New(incidents.Config{TenantID: config.IncidentTenantID, OrgID: fmt.Sprint(config.IncidentOrgID), ActorID: config.IncidentActorID}, store, notifier, incidentTools, incidentWorkflow, generator, clock)
 		if err := incidentService.Recover(ctx); err != nil {
 			_ = store.Close()
 			return nil, err
 		}
+		recoveryIdentity := func(item task.AnalysisTask) requestcontext.Context {
+			return requestcontext.Context{TenantID: item.TenantID, OrgID: fmt.Sprint(config.IncidentOrgID), UserID: "system:incident-recovery", Roles: []string{"IncidentAgent"}, Permissions: []string{"incidents:remediate"}, RequestID: "incident-recovery", TraceID: "incident-recovery"}
+		}
+		if err := remediationWorkflow.Recover(ctx, recoveryIdentity); err != nil {
+			_ = store.Close()
+			return nil, err
+		}
+		api.Approvals = approvals.New(store, notifier, remediationWorkflow, generator, clock)
 		api.Incidents = incidentService
 		api.AlertIngress = httpapi.AlertIngressConfig{SourceID: config.IncidentAlertSource, OrgID: config.IncidentOrgID, HMACSecret: config.IncidentWebhookSecret, MaxClockSkew: config.IncidentAlertMaxSkew, CurrentTime: clock.Now}
 	}
@@ -108,7 +126,7 @@ func New(ctx context.Context, config Config) (*Application, error) {
 		}
 		if config.IncidentWebhookSecret != "" {
 			identity.TenantID, identity.OrgID, identity.UserID = config.IncidentTenantID, fmt.Sprint(config.IncidentOrgID), config.IncidentActorID
-			identity.Permissions = []string{"incidents:diagnose"}
+			identity.Permissions = []string{"incidents:diagnose", "incidents:remediate"}
 			for namespace, expected := range map[string]int{"knowledge": 1, "skill": 1, "playbook": 3, "order_service": 9} {
 				profile, err := gateway.ListTools(checkCtx, identity, tools.Filter{Namespace: namespace})
 				if err != nil || len(profile) != expected {

@@ -63,7 +63,7 @@ func TestLoadConfigFromEnvironmentUsesMockWithoutKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.AgentDriver != "mock" || config.DeepSeekAPIKey != "" || config.MCPToolTimeout != 12*time.Second || config.IncidentWebhookSecret != "" || config.IncidentAlertSource != "demo-grafana" || config.IncidentOrgID != 1 || config.IncidentAlertMaxSkew != 5*time.Minute {
+	if config.AgentDriver != "mock" || config.DeepSeekAPIKey != "" || config.MCPToolTimeout != 12*time.Second || config.IncidentWebhookSecret != "" || config.ApprovalEvidenceKey != "" || config.IncidentAlertSource != "demo-grafana" || config.IncidentOrgID != 1 || config.IncidentAlertMaxSkew != 5*time.Minute {
 		t.Fatalf("unexpected default config: %#v", config)
 	}
 }
@@ -77,17 +77,43 @@ func TestIncidentIngressConfigurationIsOptionalButClosedWhenEnabled(t *testing.T
 		t.Fatal("short Incident HMAC secret was accepted")
 	}
 	config.IncidentWebhookSecret = "0123456789abcdef"
+	config.ApprovalEvidenceKey = "too-short"
 	config.IncidentAlertSource = "demo-grafana"
 	config.IncidentTenantID = "org:1"
 	config.IncidentOrgID = 1
 	config.IncidentActorID = "system:grafana"
 	config.IncidentAlertMaxSkew = 5 * time.Minute
+	if err := config.Validate(); err == nil {
+		t.Fatal("short ApprovalEvidence key was accepted")
+	}
+	config.ApprovalEvidenceKey = "0123456789abcdef0123456789abcdef"
 	if err := config.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	config.IncidentAlertMaxSkew = 0
 	if err := config.Validate(); err == nil {
 		t.Fatal("zero Incident replay window was accepted")
+	}
+}
+
+func TestIncidentBootstrapAtomicallyEnablesApprovalExecutionService(t *testing.T) {
+	config := validEinoConfig(t)
+	config.AgentDriver = "mock"
+	config.DeepSeekAPIKey = ""
+	config.IncidentWebhookSecret = "0123456789abcdef"
+	config.ApprovalEvidenceKey = "0123456789abcdef0123456789abcdef"
+	config.IncidentAlertSource = "demo-grafana"
+	config.IncidentTenantID = "org:1"
+	config.IncidentOrgID = 1
+	config.IncidentActorID = "system:grafana"
+	config.IncidentAlertMaxSkew = 5 * time.Minute
+	application, err := New(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer application.Close()
+	if application.Handler.Approvals == nil || application.Handler.Incidents == nil || application.Handler.AlertIngress.HMACSecret == "" {
+		t.Fatalf("Incident runtime was only partially wired: %#v", application.Handler)
 	}
 }
 
