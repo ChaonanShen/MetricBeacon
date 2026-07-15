@@ -2325,6 +2325,9 @@ chart_executions
 panel_drafts
 dashboard_save_intents
 approvals
+remediation_intents
+remediation_executions
+audit_records
 dashboard_save_results
 rollback_points
 

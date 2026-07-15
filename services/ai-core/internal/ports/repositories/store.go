@@ -6,6 +6,7 @@ import (
 
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/incident"
+	"mini-torchbearing.local/services/ai-core/internal/domain/remediation"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/events"
@@ -52,6 +53,25 @@ type TaskCheckpointRepository interface {
 type AlertEventRepository interface {
 	Create(context.Context, incident.AlertEvent) error
 	GetByKey(context.Context, incident.AlertKey) (incident.AlertEvent, error)
+}
+type RemediationIntentRepository interface {
+	Create(context.Context, remediation.IntentRecord) error
+	GetByTask(context.Context, string, string) (remediation.IntentRecord, error)
+}
+type ApprovalRepository interface {
+	Create(context.Context, remediation.Approval) error
+	GetByTask(context.Context, string, string) (remediation.Approval, error)
+	Update(context.Context, remediation.Approval, int64) error
+}
+type RemediationExecutionRepository interface {
+	Create(context.Context, remediation.Execution) error
+	GetByTask(context.Context, string, string) (remediation.Execution, error)
+	GetByOperation(context.Context, string, string) (remediation.Execution, error)
+	Update(context.Context, remediation.Execution, int64) error
+}
+type AuditRecordRepository interface {
+	Create(context.Context, remediation.AuditRecord) error
+	ListByTask(context.Context, string, string) ([]remediation.AuditRecord, error)
 }
 type PageRequest struct {
 	Limit     int
@@ -100,6 +120,10 @@ type ApplicationStore interface {
 	Tasks() TaskRepository
 	TaskCheckpoints() TaskCheckpointRepository
 	AlertEvents() AlertEventRepository
+	RemediationIntents() RemediationIntentRepository
+	Approvals() ApprovalRepository
+	RemediationExecutions() RemediationExecutionRepository
+	AuditRecords() AuditRecordRepository
 	ToolCalls() ToolCallRepository
 	Charts() ChartRepository
 	ChartExecutions() ChartExecutionRepository

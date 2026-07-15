@@ -12,6 +12,7 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	"mini-torchbearing.local/services/ai-core/internal/domain/incident"
+	"mini-torchbearing.local/services/ai-core/internal/domain/remediation"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/events"
@@ -51,6 +52,18 @@ func (s *Store) TaskCheckpoints() repositories.TaskCheckpointRepository {
 }
 func (s *Store) AlertEvents() repositories.AlertEventRepository {
 	return alertEventRepository{store: s}
+}
+func (s *Store) RemediationIntents() repositories.RemediationIntentRepository {
+	return remediationIntentRepository{store: s}
+}
+func (s *Store) Approvals() repositories.ApprovalRepository {
+	return approvalRepository{store: s}
+}
+func (s *Store) RemediationExecutions() repositories.RemediationExecutionRepository {
+	return remediationExecutionRepository{store: s}
+}
+func (s *Store) AuditRecords() repositories.AuditRecordRepository {
+	return auditRecordRepository{store: s}
 }
 func (s *Store) ToolCalls() repositories.ToolCallRepository { return toolCallRepository{store: s} }
 func (s *Store) Charts() repositories.ChartRepository       { return chartRepository{store: s} }
@@ -123,6 +136,51 @@ func (r alertEventRepository) Create(ctx context.Context, value incident.AlertEv
 }
 func (r alertEventRepository) GetByKey(ctx context.Context, key incident.AlertKey) (incident.AlertEvent, error) {
 	return r.store.getAlertEventByKey(ctx, key)
+}
+
+type remediationIntentRepository struct{ store *Store }
+
+func (r remediationIntentRepository) Create(ctx context.Context, value remediation.IntentRecord) error {
+	return r.store.createRemediationIntent(ctx, value)
+}
+func (r remediationIntentRepository) GetByTask(ctx context.Context, tenantID, taskID string) (remediation.IntentRecord, error) {
+	return r.store.getRemediationIntentByTask(ctx, tenantID, taskID)
+}
+
+type approvalRepository struct{ store *Store }
+
+func (r approvalRepository) Create(ctx context.Context, value remediation.Approval) error {
+	return r.store.createApproval(ctx, value)
+}
+func (r approvalRepository) GetByTask(ctx context.Context, tenantID, taskID string) (remediation.Approval, error) {
+	return r.store.getApprovalByTask(ctx, tenantID, taskID)
+}
+func (r approvalRepository) Update(ctx context.Context, value remediation.Approval, expectedVersion int64) error {
+	return r.store.updateApproval(ctx, value, expectedVersion)
+}
+
+type remediationExecutionRepository struct{ store *Store }
+
+func (r remediationExecutionRepository) Create(ctx context.Context, value remediation.Execution) error {
+	return r.store.createRemediationExecution(ctx, value)
+}
+func (r remediationExecutionRepository) GetByTask(ctx context.Context, tenantID, taskID string) (remediation.Execution, error) {
+	return r.store.getRemediationExecutionByTask(ctx, tenantID, taskID)
+}
+func (r remediationExecutionRepository) GetByOperation(ctx context.Context, tenantID, operationID string) (remediation.Execution, error) {
+	return r.store.getRemediationExecutionByOperation(ctx, tenantID, operationID)
+}
+func (r remediationExecutionRepository) Update(ctx context.Context, value remediation.Execution, expectedVersion int64) error {
+	return r.store.updateRemediationExecution(ctx, value, expectedVersion)
+}
+
+type auditRecordRepository struct{ store *Store }
+
+func (r auditRecordRepository) Create(ctx context.Context, value remediation.AuditRecord) error {
+	return r.store.createAuditRecord(ctx, value)
+}
+func (r auditRecordRepository) ListByTask(ctx context.Context, tenantID, taskID string) ([]remediation.AuditRecord, error) {
+	return r.store.listAuditRecordsByTask(ctx, tenantID, taskID)
 }
 func (r taskCheckpointRepository) Get(ctx context.Context, tenantID, taskID string) (task.Checkpoint, error) {
 	return r.store.getTaskCheckpoint(ctx, tenantID, taskID)
@@ -606,6 +664,130 @@ func (s *Store) getAlertEventByKey(ctx context.Context, key incident.AlertKey) (
 	return value, nil
 }
 
+func (s *Store) createRemediationIntent(ctx context.Context, value remediation.IntentRecord) error {
+	if value.TenantID == "" || value.OrgID == "" || value.TaskID == "" || !value.Intent.Valid(value.Intent.ServiceRef) {
+		return common.NewError(common.InvalidArgument, "remediation intent record is invalid", false)
+	}
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO remediation_intents (id, tenant_id, org_id, task_id, digest, capability_id, service_ref, instance_epoch, expected_version, before_concurrency, after_concurrency, risk, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.Intent.ID, value.TenantID, value.OrgID, value.TaskID, value.Intent.Digest, value.Intent.CapabilityID, value.Intent.ServiceRef, value.Intent.InstanceEpoch, value.Intent.ExpectedVersion, value.Intent.BeforeConcurrency, value.Intent.AfterConcurrency, value.Intent.Risk, storageTimestamp(value.Intent.CreatedAt))
+	return mapError(err)
+}
+
+func (s *Store) getRemediationIntentByTask(ctx context.Context, tenantID, taskID string) (remediation.IntentRecord, error) {
+	if tenantID == "" || taskID == "" {
+		return remediation.IntentRecord{}, common.NewError(common.InvalidArgument, "tenant and task are required", false)
+	}
+	var value remediation.IntentRecord
+	var createdAt string
+	err := s.executor().QueryRowContext(ctx, `SELECT tenant_id, org_id, task_id, id, digest, capability_id, service_ref, instance_epoch, expected_version, before_concurrency, after_concurrency, risk, created_at FROM remediation_intents WHERE tenant_id = ? AND task_id = ?`, tenantID, taskID).Scan(&value.TenantID, &value.OrgID, &value.TaskID, &value.Intent.ID, &value.Intent.Digest, &value.Intent.CapabilityID, &value.Intent.ServiceRef, &value.Intent.InstanceEpoch, &value.Intent.ExpectedVersion, &value.Intent.BeforeConcurrency, &value.Intent.AfterConcurrency, &value.Intent.Risk, &createdAt)
+	if err != nil {
+		return remediation.IntentRecord{}, mapError(err)
+	}
+	if value.Intent.CreatedAt, err = parseTimestamp(createdAt); err != nil {
+		return remediation.IntentRecord{}, err
+	}
+	return value, nil
+}
+
+func (s *Store) createApproval(ctx context.Context, value remediation.Approval) error {
+	if !value.Valid() {
+		return common.NewError(common.InvalidArgument, "approval is invalid", false)
+	}
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO approvals (id, tenant_id, org_id, task_id, intent_id, intent_digest, status, requested_at, expires_at, decided_at, decided_by, decision_reason, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.OrgID, value.TaskID, value.IntentID, value.IntentDigest, value.Status, storageTimestamp(value.RequestedAt), storageTimestamp(value.ExpiresAt), nullableTimestamp(value.DecidedAt), nullableString(value.DecidedBy), nullableString(value.DecisionReason), value.Version)
+	return mapError(err)
+}
+
+func (s *Store) getApprovalByTask(ctx context.Context, tenantID, taskID string) (remediation.Approval, error) {
+	if tenantID == "" || taskID == "" {
+		return remediation.Approval{}, common.NewError(common.InvalidArgument, "tenant and task are required", false)
+	}
+	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, org_id, task_id, intent_id, intent_digest, status, requested_at, expires_at, decided_at, decided_by, decision_reason, version FROM approvals WHERE tenant_id = ? AND task_id = ?`, tenantID, taskID)
+	return scanApproval(row)
+}
+
+func (s *Store) updateApproval(ctx context.Context, value remediation.Approval, expectedVersion int64) error {
+	if !value.Valid() || expectedVersion < 1 || value.Version != expectedVersion+1 || value.Status == remediation.ApprovalPending {
+		return common.NewError(common.InvalidArgument, "approval update is invalid", false)
+	}
+	result, err := s.executor().ExecContext(ctx, `UPDATE approvals SET status = ?, decided_at = ?, decided_by = ?, decision_reason = ?, version = ? WHERE tenant_id = ? AND id = ? AND version = ?`, value.Status, nullableTimestamp(value.DecidedAt), nullableString(value.DecidedBy), nullableString(value.DecisionReason), value.Version, value.TenantID, value.ID, expectedVersion)
+	if err != nil {
+		return mapError(err)
+	}
+	return requireUpdated(result, "approval")
+}
+
+func (s *Store) createRemediationExecution(ctx context.Context, value remediation.Execution) error {
+	if !value.Valid() || value.State != remediation.ExecutionStarted {
+		return common.NewError(common.InvalidArgument, "remediation execution is invalid", false)
+	}
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO remediation_executions (operation_id, tenant_id, org_id, task_id, approval_id, intent_digest, instance_epoch, expected_version, state, before_version, after_version, error_code, started_at, completed_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.OperationID, value.TenantID, value.OrgID, value.TaskID, value.ApprovalID, value.IntentDigest, value.InstanceEpoch, value.ExpectedVersion, value.State, nullableInt64(value.BeforeVersion), nullableInt64(value.AfterVersion), nullableDomainErrorCode(value.ErrorCode), storageTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), value.Version)
+	return mapError(err)
+}
+
+func (s *Store) getRemediationExecutionByTask(ctx context.Context, tenantID, taskID string) (remediation.Execution, error) {
+	if tenantID == "" || taskID == "" {
+		return remediation.Execution{}, common.NewError(common.InvalidArgument, "tenant and task are required", false)
+	}
+	row := s.executor().QueryRowContext(ctx, `SELECT operation_id, tenant_id, org_id, task_id, approval_id, intent_digest, instance_epoch, expected_version, state, before_version, after_version, error_code, started_at, completed_at, version FROM remediation_executions WHERE tenant_id = ? AND task_id = ?`, tenantID, taskID)
+	return scanRemediationExecution(row)
+}
+
+func (s *Store) getRemediationExecutionByOperation(ctx context.Context, tenantID, operationID string) (remediation.Execution, error) {
+	if tenantID == "" || operationID == "" {
+		return remediation.Execution{}, common.NewError(common.InvalidArgument, "tenant and operation are required", false)
+	}
+	row := s.executor().QueryRowContext(ctx, `SELECT operation_id, tenant_id, org_id, task_id, approval_id, intent_digest, instance_epoch, expected_version, state, before_version, after_version, error_code, started_at, completed_at, version FROM remediation_executions WHERE tenant_id = ? AND operation_id = ?`, tenantID, operationID)
+	return scanRemediationExecution(row)
+}
+
+func (s *Store) updateRemediationExecution(ctx context.Context, value remediation.Execution, expectedVersion int64) error {
+	if !value.Valid() || expectedVersion < 1 || value.Version != expectedVersion+1 || value.State == remediation.ExecutionStarted {
+		return common.NewError(common.InvalidArgument, "remediation execution update is invalid", false)
+	}
+	result, err := s.executor().ExecContext(ctx, `UPDATE remediation_executions SET state = ?, before_version = ?, after_version = ?, error_code = ?, completed_at = ?, version = ? WHERE tenant_id = ? AND operation_id = ? AND version = ?`, value.State, nullableInt64(value.BeforeVersion), nullableInt64(value.AfterVersion), nullableDomainErrorCode(value.ErrorCode), nullableTimestamp(value.CompletedAt), value.Version, value.TenantID, value.OperationID, expectedVersion)
+	if err != nil {
+		return mapError(err)
+	}
+	return requireUpdated(result, "remediation execution")
+}
+
+func (s *Store) createAuditRecord(ctx context.Context, value remediation.AuditRecord) error {
+	if !value.Valid() {
+		return common.NewError(common.InvalidArgument, "audit record is invalid", false)
+	}
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO audit_records (id, tenant_id, org_id, task_id, actor_id, action, outcome, summary, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.OrgID, value.TaskID, value.ActorID, value.Action, value.Outcome, value.Summary, storageTimestamp(value.OccurredAt))
+	return mapError(err)
+}
+
+func (s *Store) listAuditRecordsByTask(ctx context.Context, tenantID, taskID string) ([]remediation.AuditRecord, error) {
+	if tenantID == "" || taskID == "" {
+		return nil, common.NewError(common.InvalidArgument, "tenant and task are required", false)
+	}
+	if err := s.ensureTask(ctx, tenantID, taskID); err != nil {
+		return nil, err
+	}
+	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, org_id, task_id, actor_id, action, outcome, summary, occurred_at FROM audit_records WHERE tenant_id = ? AND task_id = ? ORDER BY occurred_at, id`, tenantID, taskID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer rows.Close()
+	values := make([]remediation.AuditRecord, 0)
+	for rows.Next() {
+		var value remediation.AuditRecord
+		var occurredAt string
+		if err := rows.Scan(&value.ID, &value.TenantID, &value.OrgID, &value.TaskID, &value.ActorID, &value.Action, &value.Outcome, &value.Summary, &occurredAt); err != nil {
+			return nil, mapError(err)
+		}
+		if value.OccurredAt, err = parseTimestamp(occurredAt); err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, mapError(err)
+	}
+	return values, nil
+}
+
 func (s *Store) createToolCall(ctx context.Context, value task.ToolCallRecord) error {
 	if err := validateToolCall(value); err != nil {
 		return err
@@ -1040,6 +1222,74 @@ func scanSession(scanner interface{ Scan(...any) error }) (session.AnalysisSessi
 	return value, nil
 }
 
+func scanApproval(scanner interface{ Scan(...any) error }) (remediation.Approval, error) {
+	var value remediation.Approval
+	var requestedAt, expiresAt string
+	var decidedAt, decidedBy, reason sql.NullString
+	if err := scanner.Scan(&value.ID, &value.TenantID, &value.OrgID, &value.TaskID, &value.IntentID, &value.IntentDigest, &value.Status, &requestedAt, &expiresAt, &decidedAt, &decidedBy, &reason, &value.Version); err != nil {
+		return remediation.Approval{}, mapError(err)
+	}
+	var err error
+	if value.RequestedAt, err = parseTimestamp(requestedAt); err != nil {
+		return remediation.Approval{}, err
+	}
+	if value.ExpiresAt, err = parseTimestamp(expiresAt); err != nil {
+		return remediation.Approval{}, err
+	}
+	if decidedAt.Valid {
+		parsed, err := parseTimestamp(decidedAt.String)
+		if err != nil {
+			return remediation.Approval{}, err
+		}
+		value.DecidedAt = &parsed
+	}
+	if decidedBy.Valid {
+		value.DecidedBy = &decidedBy.String
+	}
+	if reason.Valid {
+		value.DecisionReason = &reason.String
+	}
+	if !value.Valid() {
+		return remediation.Approval{}, common.NewError(common.InternalError, "stored approval is invalid", false)
+	}
+	return value, nil
+}
+
+func scanRemediationExecution(scanner interface{ Scan(...any) error }) (remediation.Execution, error) {
+	var value remediation.Execution
+	var beforeVersion, afterVersion sql.NullInt64
+	var errorCode, completedAt sql.NullString
+	var startedAt string
+	if err := scanner.Scan(&value.OperationID, &value.TenantID, &value.OrgID, &value.TaskID, &value.ApprovalID, &value.IntentDigest, &value.InstanceEpoch, &value.ExpectedVersion, &value.State, &beforeVersion, &afterVersion, &errorCode, &startedAt, &completedAt, &value.Version); err != nil {
+		return remediation.Execution{}, mapError(err)
+	}
+	var err error
+	if value.StartedAt, err = parseTimestamp(startedAt); err != nil {
+		return remediation.Execution{}, err
+	}
+	if beforeVersion.Valid {
+		value.BeforeVersion = &beforeVersion.Int64
+	}
+	if afterVersion.Valid {
+		value.AfterVersion = &afterVersion.Int64
+	}
+	if errorCode.Valid {
+		code := common.ErrorCode(errorCode.String)
+		value.ErrorCode = &code
+	}
+	if completedAt.Valid {
+		parsed, err := parseTimestamp(completedAt.String)
+		if err != nil {
+			return remediation.Execution{}, err
+		}
+		value.CompletedAt = &parsed
+	}
+	if !value.Valid() {
+		return remediation.Execution{}, common.NewError(common.InternalError, "stored remediation execution is invalid", false)
+	}
+	return value, nil
+}
+
 func scanTask(scanner interface{ Scan(...any) error }) (task.AnalysisTask, error) {
 	var value task.AnalysisTask
 	var createdAt, updatedAt string
@@ -1398,6 +1648,13 @@ func nullableInt64(value *int64) any {
 		return nil
 	}
 	return *value
+}
+
+func nullableDomainErrorCode(value *common.ErrorCode) any {
+	if value == nil {
+		return nil
+	}
+	return string(*value)
 }
 
 func jsonString(value json.RawMessage) string { return string(value) }

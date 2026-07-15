@@ -25,3 +25,6 @@ var SessionHistoryIndex string
 
 //go:embed 0007_incident_task_union.sql
 var IncidentTaskUnion string
+
+//go:embed 0008_remediation_lifecycle.sql
+var RemediationLifecycle string

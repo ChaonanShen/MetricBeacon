@@ -34,10 +34,15 @@ type AuditRecord struct {
 }
 
 func NewAuditRecord(id, tenantID, orgID, taskID, actorID string, action AuditAction, outcome AuditOutcome, summary string, now time.Time) (AuditRecord, error) {
-	validAction := action == AuditApprovalDecision || action == AuditRemediationExecute || action == AuditRemediationVerify
-	validOutcome := outcome == AuditAccepted || outcome == AuditRejected || outcome == AuditSucceeded || outcome == AuditFailed
-	if id == "" || tenantID == "" || orgID == "" || taskID == "" || strings.TrimSpace(actorID) == "" || !validAction || !validOutcome || strings.TrimSpace(summary) == "" || len(summary) > 500 || now.IsZero() {
+	value := AuditRecord{ID: id, TenantID: tenantID, OrgID: orgID, TaskID: taskID, ActorID: strings.TrimSpace(actorID), Action: action, Outcome: outcome, Summary: strings.TrimSpace(summary), OccurredAt: now.UTC()}
+	if !value.Valid() {
 		return AuditRecord{}, common.NewError(common.InvalidArgument, "audit record is invalid", false)
 	}
-	return AuditRecord{ID: id, TenantID: tenantID, OrgID: orgID, TaskID: taskID, ActorID: strings.TrimSpace(actorID), Action: action, Outcome: outcome, Summary: strings.TrimSpace(summary), OccurredAt: now.UTC()}, nil
+	return value, nil
+}
+
+func (a AuditRecord) Valid() bool {
+	validAction := a.Action == AuditApprovalDecision || a.Action == AuditRemediationExecute || a.Action == AuditRemediationVerify
+	validOutcome := a.Outcome == AuditAccepted || a.Outcome == AuditRejected || a.Outcome == AuditSucceeded || a.Outcome == AuditFailed
+	return a.ID != "" && a.TenantID != "" && a.OrgID != "" && a.TaskID != "" && strings.TrimSpace(a.ActorID) != "" && validAction && validOutcome && strings.TrimSpace(a.Summary) != "" && len(a.Summary) <= 500 && !a.OccurredAt.IsZero()
 }

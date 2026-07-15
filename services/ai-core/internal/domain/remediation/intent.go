@@ -3,6 +3,8 @@ package remediation
 import (
 	"strings"
 	"time"
+
+	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 )
 
 type Intent struct {
@@ -16,6 +18,21 @@ type Intent struct {
 	AfterConcurrency  int       `json:"afterConcurrency"`
 	Risk              string    `json:"risk"`
 	CreatedAt         time.Time `json:"createdAt"`
+}
+
+type IntentRecord struct {
+	TenantID string
+	OrgID    string
+	TaskID   string
+	Intent   Intent
+}
+
+func NewIntentRecord(tenantID, orgID, taskID string, intent Intent) (IntentRecord, error) {
+	if tenantID == "" || orgID == "" || taskID == "" || !intent.Valid(intent.ServiceRef) {
+		return IntentRecord{}, common.NewError(common.InvalidArgument, "remediation intent record is invalid", false)
+	}
+	intent.CreatedAt = intent.CreatedAt.UTC()
+	return IntentRecord{TenantID: tenantID, OrgID: orgID, TaskID: taskID, Intent: intent}, nil
 }
 
 func (i Intent) Valid(serviceRef string) bool {

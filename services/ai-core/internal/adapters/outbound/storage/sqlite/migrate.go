@@ -24,6 +24,27 @@ var allMigrations = []migration{
 	{version: 5, sql: migrations.QueryPlanViews},
 	{version: 6, sql: migrations.SessionHistoryIndex},
 	{version: 7, sql: migrations.IncidentTaskUnion, after: validateIncidentTaskUnion},
+	{version: 8, sql: migrations.RemediationLifecycle, after: validateRemediationLifecycle},
+}
+
+func validateRemediationLifecycle(ctx context.Context, tx *sql.Tx) error {
+	checks := []string{
+		`SELECT 1 FROM pragma_foreign_key_check LIMIT 1`,
+		`SELECT 1 FROM remediation_intents i LEFT JOIN tasks t ON t.id = i.task_id AND t.tenant_id = i.tenant_id AND t.kind = 'incident_remediation' WHERE t.id IS NULL LIMIT 1`,
+		`SELECT 1 FROM approvals a LEFT JOIN remediation_intents i ON i.id = a.intent_id AND i.tenant_id = a.tenant_id AND i.task_id = a.task_id AND i.digest = a.intent_digest WHERE i.id IS NULL LIMIT 1`,
+	}
+	for _, query := range checks {
+		var found any
+		err := tx.QueryRowContext(ctx, query).Scan(&found)
+		if err == sql.ErrNoRows {
+			continue
+		}
+		if err != nil {
+			return mapError(err)
+		}
+		return common.NewError(common.InternalError, "remediation lifecycle migration validation failed", false)
+	}
+	return nil
 }
 
 func (s *Store) migrate(ctx context.Context) error {

@@ -74,5 +74,11 @@ func (a Approval) Valid() bool {
 	if a.Status == ApprovalPending {
 		return a.Version == 1 && a.DecidedAt == nil && a.DecidedBy == nil && a.DecisionReason == nil
 	}
-	return (a.Status == ApprovalApproved || a.Status == ApprovalRejected || a.Status == ApprovalExpired) && a.Version >= 2 && a.DecidedAt != nil && !a.DecidedAt.Before(a.RequestedAt) && a.DecidedBy != nil && strings.TrimSpace(*a.DecidedBy) != "" && (a.DecisionReason == nil || len(*a.DecisionReason) <= 500)
+	if (a.Status != ApprovalApproved && a.Status != ApprovalRejected && a.Status != ApprovalExpired) || a.Version != 2 || a.DecidedAt == nil || a.DecidedAt.Before(a.RequestedAt) || a.DecidedBy == nil || strings.TrimSpace(*a.DecidedBy) == "" || (a.DecisionReason != nil && len(*a.DecisionReason) > 500) {
+		return false
+	}
+	if a.Status == ApprovalExpired {
+		return !a.DecidedAt.Before(a.ExpiresAt)
+	}
+	return a.DecidedAt.Before(a.ExpiresAt)
 }

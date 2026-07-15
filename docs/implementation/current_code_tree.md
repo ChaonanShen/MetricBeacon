@@ -66,7 +66,7 @@ mini-torchbearing/
 │   │   │   │       ├── agent/mock/         # 确定性意图解析与 persisted-view 执行器
 │   │   │   │       └── agent/localresult/  # Mock/Eino 共用的可信事实 formatter
 │   │   │   └── bootstrap/                 # 服务依赖组装
-│   │   ├── migrations/sqlite/             # SQLite 迁移（含 0007 Task union、checkpoint、AlertEvent 与 FK 图重建）
+│   │   ├── migrations/sqlite/             # SQLite 迁移（0007 Incident union；0008 Intent/Approval/Execution/Audit）
 │   │   └── Dockerfile
 │   │
 │   ├── assistant-mcp/                     # MCP 工具服务（Go）

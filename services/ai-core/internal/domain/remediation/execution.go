@@ -86,11 +86,11 @@ func (e Execution) Valid() bool {
 	case ExecutionStarted:
 		return e.Version == 1 && e.BeforeVersion == nil && e.AfterVersion == nil && e.ErrorCode == nil && e.CompletedAt == nil
 	case ExecutionApplied, ExecutionAlreadyApplied:
-		return e.BeforeVersion != nil && e.AfterVersion != nil && *e.BeforeVersion == e.ExpectedVersion && *e.AfterVersion == *e.BeforeVersion+1 && e.ErrorCode == nil && e.CompletedAt != nil
+		return (e.Version == 2 || e.Version == 3) && e.BeforeVersion != nil && e.AfterVersion != nil && *e.BeforeVersion == e.ExpectedVersion && *e.AfterVersion == *e.BeforeVersion+1 && e.ErrorCode == nil && e.CompletedAt != nil
 	case ExecutionUnknown:
-		return e.BeforeVersion == nil && e.AfterVersion == nil && e.ErrorCode == nil && e.CompletedAt != nil
+		return e.Version == 2 && e.BeforeVersion == nil && e.AfterVersion == nil && e.ErrorCode == nil && e.CompletedAt != nil
 	case ExecutionFailed:
-		return e.BeforeVersion == nil && e.AfterVersion == nil && e.ErrorCode != nil && e.CompletedAt != nil
+		return e.Version == 2 && e.BeforeVersion == nil && e.AfterVersion == nil && e.ErrorCode != nil && e.CompletedAt != nil
 	default:
 		return false
 	}

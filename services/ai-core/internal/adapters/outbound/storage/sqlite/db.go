@@ -85,6 +85,8 @@ func mapError(err error) error {
 	switch {
 	case strings.Contains(message, "unique constraint"), strings.Contains(message, "primary key"):
 		return common.NewError(common.ResourceConflict, "resource already exists", false)
+	case strings.Contains(message, "scope is invalid"), strings.Contains(message, "immutable scope changed"):
+		return common.NewError(common.ResourceConflict, "resource scope or immutable fields conflict", false)
 	case strings.Contains(message, "foreign key constraint"):
 		return common.NewError(common.ResourceConflict, "referenced resource does not exist", false)
 	case strings.Contains(message, "check constraint"), strings.Contains(message, "not null constraint"), strings.Contains(message, "json_valid"):

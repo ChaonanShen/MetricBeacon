@@ -16,6 +16,7 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	"mini-torchbearing.local/services/ai-core/internal/domain/incident"
+	"mini-torchbearing.local/services/ai-core/internal/domain/remediation"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/repositories"
@@ -456,6 +457,139 @@ func TestIncidentTaskAndCheckpointSurviveReopen(t *testing.T) {
 	requireCode(t, err, common.ResourceNotFound)
 }
 
+func TestRemediationLifecyclePersistsCASAndTenantScopeAcrossRestart(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "remediation.sqlite")
+	store, err := storage.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := fixedNow()
+	incidentTask := createIncidentFixture(t, ctx, store, "lifecycle", now)
+	intent := remediation.Intent{ID: "intent_lifecycle", Digest: "sha256:" + strings.Repeat("e", 64), CapabilityID: "order_service.restore_worker_concurrency", ServiceRef: incidentTask.IncidentPlan.ServiceRef, InstanceEpoch: "epoch_lifecycle", ExpectedVersion: 2, BeforeConcurrency: 0, AfterConcurrency: 2, Risk: "low", CreatedAt: now}
+	wrongScope, _ := remediation.NewIntentRecord(tenantID, "other-org", incidentTask.ID, intent)
+	requireCode(t, store.RemediationIntents().Create(ctx, wrongScope), common.ResourceConflict)
+	intentRecord, err := remediation.NewIntentRecord(tenantID, "1", incidentTask.ID, intent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	approval, err := remediation.NewApproval("approval_lifecycle", tenantID, "1", incidentTask.ID, intent.ID, intent.Digest, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.RemediationIntents().Create(ctx, intentRecord); err != nil {
+			return err
+		}
+		return tx.Approvals().Create(ctx, approval)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prematureExecution, _ := remediation.NewExecution("operation_premature", tenantID, "1", incidentTask.ID, approval.ID, intent.Digest, intent.InstanceEpoch, intent.ExpectedVersion, now.Add(30*time.Second))
+	requireCode(t, store.RemediationExecutions().Create(ctx, prematureExecution), common.ResourceConflict)
+
+	first, second := approval, approval
+	if err := first.Decide(remediation.DecisionApprove, "admin:1", "approved once", now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if err := second.Decide(remediation.DecisionApprove, "admin:2", "concurrent retry", now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wait sync.WaitGroup
+	for _, candidate := range []remediation.Approval{first, second} {
+		candidate := candidate
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			<-start
+			errs <- store.Approvals().Update(ctx, candidate, approval.Version)
+		}()
+	}
+	close(start)
+	wait.Wait()
+	close(errs)
+	succeeded, conflicts := 0, 0
+	for updateErr := range errs {
+		if updateErr == nil {
+			succeeded++
+			continue
+		}
+		var domainErr *common.DomainError
+		if errors.As(updateErr, &domainErr) && domainErr.Code == common.ResourceConflict {
+			conflicts++
+			continue
+		}
+		t.Fatalf("approval CAS error: %v", updateErr)
+	}
+	if succeeded != 1 || conflicts != 1 {
+		t.Fatalf("approval CAS succeeded=%d conflicts=%d", succeeded, conflicts)
+	}
+
+	execution, err := remediation.NewExecution("operation_lifecycle", tenantID, "1", incidentTask.ID, approval.ID, intent.Digest, intent.InstanceEpoch, intent.ExpectedVersion, now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RemediationExecutions().Create(ctx, execution); err != nil {
+		t.Fatal(err)
+	}
+	if err := execution.MarkUnknown(now.Add(2*time.Minute + time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RemediationExecutions().Update(ctx, execution, 1); err != nil {
+		t.Fatal(err)
+	}
+	audit, err := remediation.NewAuditRecord("audit_lifecycle", tenantID, "1", incidentTask.ID, "admin:1", remediation.AuditApprovalDecision, remediation.AuditAccepted, "approval accepted", now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AuditRecords().Create(ctx, audit); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := storage.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	loadedIntent, err := reopened.RemediationIntents().GetByTask(ctx, tenantID, incidentTask.ID)
+	if err != nil || loadedIntent.Intent.Digest != intent.Digest {
+		t.Fatalf("intent=%#v err=%v", loadedIntent, err)
+	}
+	loadedApproval, err := reopened.Approvals().GetByTask(ctx, tenantID, incidentTask.ID)
+	if err != nil || loadedApproval.Status != remediation.ApprovalApproved || loadedApproval.Version != 2 {
+		t.Fatalf("approval=%#v err=%v", loadedApproval, err)
+	}
+	loadedExecution, err := reopened.RemediationExecutions().GetByOperation(ctx, tenantID, execution.OperationID)
+	if err != nil || loadedExecution.State != remediation.ExecutionUnknown || loadedExecution.Version != 2 {
+		t.Fatalf("execution=%#v err=%v", loadedExecution, err)
+	}
+	if err := loadedExecution.RecordReceipt(2, 3, true, now.Add(3*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if err := reopened.RemediationExecutions().Update(ctx, loadedExecution, 2); err != nil {
+		t.Fatal(err)
+	}
+	loadedByTask, err := reopened.RemediationExecutions().GetByTask(ctx, tenantID, incidentTask.ID)
+	if err != nil || loadedByTask.State != remediation.ExecutionAlreadyApplied || loadedByTask.Version != 3 {
+		t.Fatalf("reconciled=%#v err=%v", loadedByTask, err)
+	}
+	audits, err := reopened.AuditRecords().ListByTask(ctx, tenantID, incidentTask.ID)
+	if err != nil || len(audits) != 1 || audits[0].Action != remediation.AuditApprovalDecision {
+		t.Fatalf("audits=%#v err=%v", audits, err)
+	}
+	if _, err := reopened.Approvals().GetByTask(ctx, "org:other", incidentTask.ID); err == nil {
+		t.Fatal("approval crossed tenant boundary")
+	}
+	if _, err := reopened.RemediationExecutions().GetByOperation(ctx, "org:other", execution.OperationID); err == nil {
+		t.Fatal("execution crossed tenant boundary")
+	}
+}
+
 func TestIncidentMigrationPreservesLegacyGraphAndForeignKeys(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "legacy-v1.sqlite")
 	seedV1Database(t, path, false)
@@ -515,7 +649,7 @@ func TestIncidentMigrationUpgradesVersionSixDatabase(t *testing.T) {
 	}
 	defer db.Close()
 	var version int
-	if err := db.QueryRow(`SELECT version FROM schema_migrations WHERE version = 7`).Scan(&version); err != nil || version != 7 {
+	if err := db.QueryRow(`SELECT version FROM schema_migrations WHERE version = 8`).Scan(&version); err != nil || version != 8 {
 		t.Fatalf("migration version = %d, %v", version, err)
 	}
 	var kindColumn int
@@ -737,6 +871,35 @@ func openStore(t *testing.T) *storage.Store {
 }
 
 func fixedNow() time.Time { return time.Date(2026, 7, 13, 10, 30, 0, 0, time.UTC) }
+
+func createIncidentFixture(t *testing.T, ctx context.Context, store repositories.ApplicationStore, suffix string, now time.Time) task.AnalysisTask {
+	t.Helper()
+	sessionID, taskID, messageID := "session_"+suffix, "task_"+suffix, "message_"+suffix
+	incidentSession, err := session.NewIncident(sessionID, tenantID, "1", "Order backlog", "system:grafana", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trigger, err := session.NewMessage(messageID, tenantID, sessionID, taskID, session.RoleTrigger, "OrderQueueBacklog firing", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	incidentTask, err := task.NewIncident(taskID, tenantID, sessionID, messageID, storedIncidentPlan(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Sessions().Create(ctx, incidentSession); err != nil {
+			return err
+		}
+		if err := tx.Messages().Append(ctx, trigger); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(ctx, incidentTask)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return incidentTask
+}
 
 func storedIncidentPlan() task.IncidentPlan {
 	digest := func(char string) string { return "sha256:" + strings.Repeat(char, 64) }
