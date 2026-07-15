@@ -16,6 +16,20 @@ func TestPlannerParsesExactChineseCadenceAndView(t *testing.T) {
 	}
 }
 
+func TestPlannerParsesEquivalentChineseCadenceForms(t *testing.T) {
+	for _, message := range []string{
+		"查看最近10min的cpu变化图，每隔2min采集一个数据点",
+		"查看最近10min的cpu变化图，间隔2min采集一个数据点",
+		"查看最近10min的cpu变化图，2min一个数据",
+		"查看最近10min的cpu变化图，2min一个数据点",
+	} {
+		plan, err := (Planner{}).Plan(context.Background(), requestcontext.Context{}, agent.IntentPlanRequest{Message: message})
+		if err != nil || plan.StepSeconds == nil || *plan.StepSeconds != 120 {
+			t.Fatalf("message %q produced plan %#v, err = %v", message, plan, err)
+		}
+	}
+}
+
 func TestPlannerUsesHistoryOnlyForOmittedView(t *testing.T) {
 	plan, err := (Planner{}).Plan(context.Background(), requestcontext.Context{}, agent.IntentPlanRequest{Message: "那改成每隔30s", PreviousIntents: []agent.IntentHistoryItem{{Message: "查看 CPU", Views: []string{"cpu"}, RangeSeconds: 1800, StepSeconds: 10}}})
 	if err != nil || len(plan.Views) != 1 || plan.Views[0] != "cpu" || plan.StepSeconds == nil || *plan.StepSeconds != 30 {

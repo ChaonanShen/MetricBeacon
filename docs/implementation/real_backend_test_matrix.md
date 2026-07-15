@@ -1,7 +1,7 @@
 # 真实后端分层测试矩阵
 
 > status: current runbook
-> updatedAt: 2026-07-14
+> updatedAt: 2026-07-15
 
 本文供开发者或 code agent 判断“第二、第三种模式为什么没有数据”。测试从最窄的解析与连接开始，逐层走到
 完整浏览器链路；不要只以 HTTP 200 或数组非空作为通过条件。
@@ -16,8 +16,8 @@
 |4|`make diagnose-real-metrics`|原始 Prometheus 和 MCP 都返回 CPU/内存/load 的合理结果。|Prometheus scrape、PromQL、MCP transport/Adapter。|
 |5|`make diagnose-deepseek`|配置模型存在，并返回可解析的严格 `{"answer":"pong"}`。|模型凭证、endpoint、model 或供应商响应。|
 |6|`make e2e-mock`|确定性数据通过 Plugin/API/持久化/SSE/浏览器全链路。|与真实数据无关的应用链路回归。|
-|7|`make e2e-real-metrics`|五种自然语言 range/step/view 输入能把真实 Prometheus 数据变成 durable Chart。|IntentPlanner→QueryPlan→MCP→Prometheus 的真实数据路径。|
-|8|`make e2e-real-agent`|真实模型同步规划概览三图和 CPU 追问一图，确定性执行结果可持久化/重放。|Planner 严格 JSON、冻结 views 或本地结果格式化。|
+|7|`make e2e-real-metrics`|六种自然语言 range/step/view 输入能把真实 Prometheus 数据变成 durable Chart，其中包括 30 分钟范围、每 5 分钟采样。|IntentPlanner→QueryPlan→MCP→Prometheus 的真实数据路径。|
+|8|`make e2e-real-agent`|真实模型同步规划概览三图和 CPU 追问一图，并在同一 Session 连续 8 次正确规划相同 CPU/内存请求；确定性执行结果可持久化/重放。|Planner 严格 JSON、结构化历史、冻结 views 或本地结果格式化。|
 |9|`make check`|仓库全部静态检查、单元/集成测试通过。|对应失败目标。|
 
 需要模型的第 5、8 步不会自动读取 `.env`。执行前显式加载，且不要在日志中打印变量：
@@ -83,6 +83,7 @@ Task API 的通过条件不是“收到了 assistant 文本”，而是同时满
 - Task 的 QueryPlan、Chart step、Execution 实际样本范围与返回 series 一致；
 - Chart view、规范 PromQL 和 CPU/内存/load 的指标语义一致；
 - 恰好一个由本地 formatter 生成的最终 `assistant.message.completed`，包含有效范围/step/window 和本地样本统计。
+- 重复请求验收中，每一轮都必须得到与当前显式输入一致的 QueryPlan；不能因历史增长退化为 prose、空 content 或沿用旧参数。
 
 Mock/真实指标概览为 3 次 query 工具调用和 3 张图；真实 Agent 概览也应规划 CPU、内存、load 三图，而
 “只看 CPU”的追问应只有 1 次查询工具调用和 1 张 CPU 图。安全输出近似如下：
@@ -114,3 +115,8 @@ Mock/真实指标概览为 3 次 query 工具调用和 3 张图；真实 Agent �
 2026-07-14 的验证中，离线诊断 35/35 通过；Mock、真实指标和真实 Agent E2E 均通过。Mock 与真实指标
 E2E 覆盖同一组五种有界输入。真实 Agent 概览为 21 events/3 query tool calls/3 charts，CPU 追问为
 13 events/1 query tool call/1 chart；这些计数和真实瞬时值仅是本次执行证据，不是未来运行的期望常量。
+
+2026-07-15 的 Planner 加固验证中，Mock E2E 扩展为六种输入并通过；真实 Agent 在同一 Session 连续 8 次
+提交“最近 10 分钟 CPU 和内存、每隔 2 分钟采样”，每轮均形成 `rangeSeconds=600`、`stepSeconds=120`
+的双视图计划，并各完成 2 次 query 工具调用和 2 张图。测试只记录计划和事件计数，不记录模型原文、凭证或
+完整时序。

@@ -61,7 +61,7 @@ async function terminalEvents(taskID) {
   }
 }
 
-async function submit(sessionID, message, expectedViews) {
+async function submit(sessionID, message, expectedViews, expectedPlan = { rangeSeconds: 1800, step: 10, window: 60 }) {
   const response = await requestJSON(`${resourceBase}/tasks`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'idempotency-key': `real-agent-${crypto.randomUUID()}` },
@@ -81,12 +81,13 @@ async function submit(sessionID, message, expectedViews) {
     }))));
   }
   assert.equal(events.at(-1)?.type, 'task.completed', `agent task did not complete: ${JSON.stringify(events.at(-1))}`);
-  assert.deepEqual(response.body.queryPlan, { views: expectedViews, stepSeconds: 10, cpuRateWindowSeconds: 60 });
+  assert.deepEqual(response.body.queryPlan, { views: expectedViews, stepSeconds: expectedPlan.step, cpuRateWindowSeconds: expectedPlan.window });
+  assert.equal(Math.round((Date.parse(response.body.timeRange.to) - Date.parse(response.body.timeRange.from)) / 1000), expectedPlan.rangeSeconds);
   const summary = analyzeTaskEvents(events, { expectedViews, expectedToolCalls: expectedViews.length });
   for (const line of formatTaskSummary('agent-task', summary)) console.log(line);
   assertNoSensitiveMarkers(events);
   const answer = events.find((event) => event.type === 'assistant.message.completed')?.payload.message.content;
-  assert.ok(answer.includes('step=10s') && answer.includes('CPU rate window=60s'), `local answer omitted effective parameters: ${answer}`);
+  assert.ok(answer.includes(`step=${expectedPlan.step}s`) && answer.includes(`CPU rate window=${expectedPlan.window}s`), `local answer omitted effective parameters: ${answer}`);
   return { task: response.body, events, summary };
 }
 
@@ -123,3 +124,17 @@ assert.equal(replay.response.status, 200);
 assert.equal(replay.body.targetSequence, cpu.events.at(-1).sequence, 'terminal replay must end at the terminal durable sequence');
 assert.deepEqual(replay.body.items.map((event) => event.sequence), cpu.events.map((event) => event.sequence));
 assert.equal(replay.body.nextPageToken, null, 'terminal replay must not leave a follow cursor');
+
+const repeatedSession = await requestJSON(`${resourceBase}/sessions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Repeated planner history' }) });
+assert.equal(repeatedSession.response.status, 201, `Create repeated session failed: ${JSON.stringify(repeatedSession.body)}`);
+const repeatedMessage = '查看最近10min的cpu和内存变化图，每隔2min采集一个数据点';
+for (let index = 0; index < 8; index += 1) {
+  await submit(repeatedSession.body.id, repeatedMessage, ['cpu', 'memory'], { rangeSeconds: 600, step: 120, window: 30 });
+}
+const repeatedMessages = await requestJSON(`${resourceBase}/sessions/${encodeURIComponent(repeatedSession.body.id)}/messages?pageSize=50`);
+const repeatedTasks = await requestJSON(`${resourceBase}/sessions/${encodeURIComponent(repeatedSession.body.id)}/tasks?pageSize=20`);
+assert.equal(repeatedMessages.response.status, 200);
+assert.equal(repeatedTasks.response.status, 200);
+assert.equal(repeatedMessages.body.items.length, 16, 'repeated session must persist eight user/assistant pairs');
+assert.equal(repeatedTasks.body.items.length, 8, 'repeated session must persist eight tasks');
+assertNoSensitiveMarkers({ messages: repeatedMessages.body, tasks: repeatedTasks.body });

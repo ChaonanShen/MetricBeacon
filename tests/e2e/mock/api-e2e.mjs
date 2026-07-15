@@ -12,6 +12,7 @@ const cases = [
   { message: '查看最近30秒 CPU 使用率', views: ['cpu'], rangeSeconds: 30, step: 5, window: 30 },
   { message: '查看最近1分钟cpu的使用率变化，每隔5s采集个数据', views: ['cpu'], rangeSeconds: 60, step: 5, window: 30 },
   { message: '最近30分钟 CPU，每隔30s采集一个点', views: ['cpu'], rangeSeconds: 1800, step: 30, window: 60 },
+  { message: '查看最近30min里cpu和负载变化图，间隔5分钟采集一个数据点', views: ['cpu', 'load'], rangeSeconds: 1800, step: 300, window: 60 },
   { message: '查看最近五分钟内 CPU 变化数据，每个5s画一个点', views: ['cpu'], rangeSeconds: 300, step: 5, window: 30 },
   { message: '画出三种 node_exporter 监测数据的变化图吧', views: ['cpu', 'memory', 'load'], rangeSeconds: 1800, step: 10, window: 60 },
 ];

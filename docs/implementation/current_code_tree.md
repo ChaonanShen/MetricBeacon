@@ -102,11 +102,11 @@ mini-torchbearing/
 │
 ├── tests/
 │   ├── diagnostics/                       # Prometheus/DeepSeek 探针、指标及 durable Task 语义分析与 fake 测试
-│   ├── e2e/mock/                          # 五种有界输入的 Mock API 与 Playwright E2E
+│   ├── e2e/mock/                          # 六种有界输入的 Mock API 与 Playwright E2E
 │   │   ├── api-e2e.mjs
 │   │   ├── api-e2e.sh
 │   │   └── browser-e2e.spec.ts
-│   └── e2e/real-agent/api-smoke.mjs        # view-only Eino、本地回复、replay 与泄漏检查
+│   └── e2e/real-agent/api-smoke.mjs        # view-only Eino、8 轮重复规划、本地回复、replay 与泄漏检查
 │
 ├── scripts/                               # 生成、契约、边界、分层诊断及三模式 E2E 门禁脚本
 ├── docs/                                  # 架构、设计、ADR、开发计划与当前说明

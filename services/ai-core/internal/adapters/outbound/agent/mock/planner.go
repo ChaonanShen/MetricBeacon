@@ -15,8 +15,9 @@ type Planner struct{}
 
 var _ agent.IntentPlanner = Planner{}
 
-var rangeIntentPattern = regexp.MustCompile(`(?:最近|过去|近)\s*([0-9零〇一二两三四五六七八九十百]+)\s*(秒|分钟|小时|s|m|h)`)
-var stepIntentPattern = regexp.MustCompile(`每(?:个|隔)?\s*([0-9零〇一二两三四五六七八九十百]+)\s*(秒|分钟|s|m)`)
+var rangeIntentPattern = regexp.MustCompile(`(?:最近|过去|近)\s*([0-9零〇一二两三四五六七八九十百]+)\s*(秒|分钟|小时|sec|min|s|m|h)`)
+var stepIntentPattern = regexp.MustCompile(`(?:每(?:个|隔)?|间隔)\s*([0-9零〇一二两三四五六七八九十百]+)\s*(秒|分钟|sec|min|s|m)`)
+var pointStepIntentPattern = regexp.MustCompile(`([0-9零〇一二两三四五六七八九十百]+)\s*(秒|分钟|sec|min|s|m)\s*(?:一个)?数据(?:点)?`)
 var englishRangePattern = regexp.MustCompile(`(?:last|past)\s+(\d+)\s*(seconds?|minutes?|hours?)`)
 var englishStepPattern = regexp.MustCompile(`(?:every|each)\s+(\d+)\s*(seconds?|minutes?)`)
 
@@ -38,7 +39,7 @@ func (Planner) Plan(_ context.Context, _ requestcontext.Context, request agent.I
 	if duration, ok := parseDuration(message, rangeIntentPattern, englishRangePattern); ok {
 		plan.RangeDuration = &duration
 	}
-	if duration, ok := parseDuration(message, stepIntentPattern, englishStepPattern); ok {
+	if duration, ok := parseDuration(message, stepIntentPattern, pointStepIntentPattern, englishStepPattern); ok {
 		seconds := int(duration / time.Second)
 		plan.StepSeconds = &seconds
 	}
@@ -74,7 +75,7 @@ func parseDuration(message string, patterns ...*regexp.Regexp) (time.Duration, b
 		}
 		unit := strings.ToLower(match[2])
 		multiplier := time.Second
-		if unit == "分钟" || unit == "m" || strings.HasPrefix(unit, "minute") {
+		if unit == "分钟" || unit == "m" || unit == "min" || strings.HasPrefix(unit, "minute") {
 			multiplier = time.Minute
 		} else if unit == "小时" || unit == "h" || strings.HasPrefix(unit, "hour") {
 			multiplier = time.Hour
