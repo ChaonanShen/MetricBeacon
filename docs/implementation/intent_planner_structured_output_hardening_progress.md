@@ -1,7 +1,8 @@
 # IntentPlanner 结构化输出加固进度记录
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
+> completedAt: 2026-07-15
 > plan: [`intent_planner_structured_output_hardening_execution_plan.md`](intent_planner_structured_output_hardening_execution_plan.md)
 
 ## 执行状态
@@ -11,7 +12,15 @@
 |G0：计划与基线|已完成|63 次模型直连矩阵已定位多轮 Assistant 历史污染和 JSON-only 空 content 边界；契约基线通过。|
 |G1：结构化 Planner 边界|已完成|JSON mode、专属 prompt、最多 6 个持久化结构化意图、严格四字段校验和一次契约重试已实现；Eino/Mock/commands/HTTP/bootstrap 定向测试通过。|
 |G2：一致性与多轮 E2E|已完成|Mock cadence 已覆盖“每隔/间隔/一个数据点”及 `min` 完整单位；Mock E2E 新增 30 分钟/5 分钟采样输入；真实 Agent 在同一 Session 连续 8 次提交相同 10 分钟 CPU/内存请求，8 次均得到严格 `600/120` 双视图计划并完成 2 次工具调用和 2 张图。|
-|G3：完整收口|待执行|待运行完整门禁并更新当前代码快照和 runbook。|
+|G3：完整收口|已完成|`make check`、`make e2e-mock`、`make e2e-real-metrics` 和有凭证的 `make e2e-real-agent` 全部通过；current overview/tree、测试矩阵和文档路由已同步。|
+
+## 完成证据
+
+- 定向 Go 测试覆盖 Planner envelope、严格字段/重复 key、空 content 和契约错误单次重试、transport 不重试、最多 6 个持久化意图以及 Mock cadence 同义表达。
+- `make e2e-mock` 的六种输入全部完成；新增 30 分钟 CPU/load、每 5 分钟采样用例形成 `1800/300/60` 计划、2 次工具调用和 2 张图。
+- 有凭证的 `make e2e-real-agent` 在独立 Session 连续 8 次提交相同请求；每轮均形成 `cpu+memory / 600/120/30` 计划，并完成 17 events、2 次工具调用和 2 张图。
+- `make e2e-real-metrics` 的六种输入全部完成；新增用例在真实 Prometheus/node_exporter 路径形成 CPU/load 两张非空图。
+- `make check` 通过生成物差异、24 个 JSON Schema、OpenAPI、lint、Go 测试、前端 9 文件 26 用例、诊断 35 用例、依赖边界和密钥扫描。
 
 ## 安全记录
 

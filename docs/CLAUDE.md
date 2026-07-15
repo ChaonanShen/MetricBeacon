@@ -1,6 +1,6 @@
 # Documentation guide and status
 
-> Last reviewed: 2026-07-14
+> Last reviewed: 2026-07-15
 > Scope: documentation ownership, reading routes, and lifecycle status.
 
 This file is the documentation counterpart to the repository-wide
@@ -64,7 +64,7 @@ bounded durable QueryPlan and local PromQL registry. Progress is tracked in
 [`adr/ADR-021-agent-planned-bounded-query-intent.md`](adr/ADR-021-agent-planned-bounded-query-intent.md),
 which supersedes ADR-020.
 
-The active IntentPlanner structured-output hardening slice is
+The completed IntentPlanner structured-output hardening slice is
 [`implementation/intent_planner_structured_output_hardening_execution_plan.md`](implementation/intent_planner_structured_output_hardening_execution_plan.md).
 It removes factual Assistant replies from model history, enables provider JSON output, adds a planner-specific prompt and bounded retry,
 and verifies repeated multi-turn requests without changing ADR-021's query boundary. Progress is tracked in
@@ -116,8 +116,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/bounded_node_exporter_query_parameters_progress.md` | Completed progress record | Gate status and verification evidence for the bounded-query slice. |
 | `implementation/natural_language_query_input_execution_plan.md` | Completed execution plan | Natural-language-only Workbench input with synchronously Agent-planned bounded query intent. |
 | `implementation/natural_language_query_input_progress.md` | Completed progress record | Gate status and verification evidence for the natural-language input refinement. |
-| `implementation/intent_planner_structured_output_hardening_execution_plan.md` | Active execution plan | Structured model output, normalized intent history, bounded retry and repeated-conversation verification. |
-| `implementation/intent_planner_structured_output_hardening_progress.md` | Active progress record | Gate status and verification evidence for IntentPlanner hardening. |
+| `implementation/intent_planner_structured_output_hardening_execution_plan.md` | Completed execution plan | Structured model output, normalized intent history, bounded retry and repeated-conversation verification. |
+| `implementation/intent_planner_structured_output_hardening_progress.md` | Completed progress record | Gate status and verification evidence for IntentPlanner hardening. |
 | `implementation/grouped_chart_canvas_execution_plan.md` | Completed execution plan | Chronological Task-grouped charts with a maximum two-column responsive canvas. |
 | `implementation/grouped_chart_canvas_progress.md` | Completed progress record | Gate status and verification evidence for the grouped chart canvas. |
 | `implementation/fresh_conversation_workbench_execution_plan.md` | Active execution plan | Local new-conversation reset and bounded conversation-pane layout refinement. |

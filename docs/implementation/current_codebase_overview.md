@@ -226,7 +226,7 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make test-ai-agent`|受限 Eino Runtime：fake model、view-only Tool JSON、source-call 配对、expression 查询前拒绝、成功 proposal 权威性、本地 formatter 与模型输入摘要隔离。|通过。|
 |`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、同一 Session 连续 8 次相同 CPU/内存请求、durable tool 配对、有限 replay 与 API/日志/SQLite 泄漏检查。|通过：概览 21 events/3 query tool calls/3 charts，CPU 追问 13 events/1 query tool call/1 chart；8 次重复请求均得到 `600s/120s` 双视图计划，各为 17 events/2 query tool calls/2 charts；调用进程从 `.env` 临时加载 key，未输出或持久化 key。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
-|`make test-frontend`|Vitest 工作台状态、SSE、路由、Resource 错误、查询控件、时间范围和 DataFrame mapper；随后 TypeScript typecheck。|通过：8 个测试文件、20 个用例。|
+|`make test-frontend`|Vitest 工作台状态、SSE、路由、Resource 错误、查询控件、时间范围和 DataFrame mapper；随后 TypeScript typecheck。|通过：9 个测试文件、26 个用例。|
 |`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果和 DeepSeek 探针的成功/失败分类，并检查真实指标诊断与 E2E Shell 语法。|通过：35 个 Node 测试。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
 |`make validate-contracts`|3 份 OpenAPI、24 份 JSON Schema 与 node_exporter fixture。|通过。|
@@ -235,7 +235,7 @@ assistant-mcp 会从当前目录向上寻找 fixture 和 Tool Schema，并在 `/
 |`make boundary-check`、`make secret-scan`|AI Core 依赖边界和常见私钥/AKIA 模式扫描。|通过。|
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
 |`make e2e-mock`|构建前端与三个容器；API E2E 覆盖 30 秒、1 分钟、30 分钟、显式 5 秒、30 分钟且每 5 分钟采样和默认三视图六种输入，校验 QueryPlan、精确点数/间隔/首尾、Chart/Execution、本地回复、有限 replay 与 SSE；Playwright 验证控件、连续提交、刷新及 stale-Session 恢复。|通过；六种输入分别生效为 `30s/5/30`、`1m/5/30`、`30m/10/60`、`5m/5/30`、`30m/300/60` 和默认 `30m/10/60`。|
-|`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后对相同六种输入执行 API/浏览器 E2E。|既有五种输入已通过；新增 `30m/300/60` 输入随本次完整收口门禁复验。每种输入都必须返回非空有限且按有效 step 对齐的真实 series，实际短历史由 Execution 如实记录；浮点秒边界仅在真实模式测试中允许 1 秒容差。|
+|`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后对相同六种输入执行 API/浏览器 E2E。|通过；新增 `30m/300/60` CPU/load 输入完成 2 次工具调用和 2 张非空真实图。六种输入均返回非空有限且按有效 step 对齐的真实 series，实际短历史由 Execution 如实记录；浮点秒边界仅在真实模式测试中允许 1 秒容差。|
 |`make diagnose-real-metrics`|绕过 Grafana 与 AI Core，分阶段检查原始 Prometheus 与 assistant-mcp 的真实返回及指标语义。|通过：三条 vector/matrix 各 1 series/1 sample；CPU 约 98.2..98.7，内存约 64.64，load 3.25，均通过语义校验。|
 |`make diagnose-deepseek`|绕过 Agent/MCP，验证配置 model 出现在 `/models` 并返回固定严格 JSON。|通过：`deepseek-v4-flash` 在 539 ms 返回 `{"status":"ok","answer":"pong"}`；未输出 key。|
 

@@ -1,7 +1,8 @@
 # IntentPlanner 结构化输出加固执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
+> completedAt: 2026-07-15
 > implementationAuthorized: true
 > decision: hardens ADR-021 without changing its boundary
 > dependsOn: `natural_language_query_input_execution_plan.md`、`current_codebase_overview.md`
