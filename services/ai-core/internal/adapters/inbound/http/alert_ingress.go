@@ -182,6 +182,9 @@ func validateAlertWebhook(config AlertIngressConfig, webhook generated.GrafanaAl
 		if alert.ValueString != nil && len(*alert.ValueString) > 2000 {
 			return invalid()
 		}
+		if !validOptionalString(alert.RuleUID, 200) || (alert.OrgId != nil && *alert.OrgId != config.OrgID) {
+			return invalid()
+		}
 	}
 	return nil
 }

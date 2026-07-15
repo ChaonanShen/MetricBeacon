@@ -758,7 +758,9 @@ type Alert struct {
 	GeneratorURL *string                                       `json:"generatorURL,omitempty"`
 	ImageURL     *string                                       `json:"imageURL,omitempty"`
 	Labels       Alert_Labels                                  `json:"labels"`
+	OrgId        *int                                          `json:"orgId,omitempty"`
 	PanelURL     *string                                       `json:"panelURL,omitempty"`
+	RuleUID      *string                                       `json:"ruleUID,omitempty"`
 	SilenceURL   *string                                       `json:"silenceURL,omitempty"`
 	StartsAt     time.Time                                     `json:"startsAt"`
 	Status       AlertStatus                                   `json:"status"`

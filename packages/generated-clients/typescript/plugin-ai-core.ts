@@ -271,7 +271,9 @@ export interface components {
             silenceURL?: string;
             dashboardURL?: string;
             panelURL?: string;
+            ruleUID?: string;
             imageURL?: string;
+            orgId?: number;
             values?: {
                 [key: string]: number | string;
             };
@@ -316,7 +318,9 @@ export interface components {
                     silenceURL?: string;
                     dashboardURL?: string;
                     panelURL?: string;
+                    ruleUID?: string;
                     imageURL?: string;
+                    orgId?: number;
                     values?: {
                         [key: string]: number | string;
                     };
