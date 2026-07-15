@@ -65,7 +65,7 @@ func (s *Service) CreateSession(ctx context.Context, identity requestcontext.Con
 			return err
 		}
 		if record.Status == "completed" {
-			result, err = tx.Sessions().Get(ctx, identity.TenantID, record.ResourceID)
+			result, err = tx.Sessions().GetOwned(ctx, identity.TenantID, identity.UserID, record.ResourceID)
 			return err
 		}
 		result, err = session.New(s.IDs.NewID("session"), identity.TenantID, input.Title, identity.UserID, s.Clock.Now())
@@ -85,7 +85,7 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 	if s == nil || s.Store == nil || s.IDs == nil || s.Clock == nil || s.Planner == nil {
 		return task.AnalysisTask{}, common.NewError(common.InternalError, "command service is not configured", true)
 	}
-	if identity.TenantID == "" || strings.TrimSpace(input.SessionID) == "" || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > 4_000 || strings.TrimSpace(input.DatasourceUID) == "" || input.IdempotencyKey == "" {
+	if identity.TenantID == "" || identity.UserID == "" || strings.TrimSpace(input.SessionID) == "" || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > 4_000 || strings.TrimSpace(input.DatasourceUID) == "" || input.IdempotencyKey == "" {
 		return task.AnalysisTask{}, common.NewError(common.InvalidArgument, "task fields and idempotency key are required", false)
 	}
 	var result task.AnalysisTask
@@ -104,12 +104,12 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 			return task.AnalysisTask{}, common.NewError(common.IdempotencyConflict, "idempotency key was already used with a different request", false)
 		}
 		if existing.Status == "completed" {
-			return s.Store.Tasks().Get(ctx, identity.TenantID, existing.ResourceID)
+			return s.getOwnedTask(ctx, identity, existing.ResourceID)
 		}
 	} else if !hasErrorCode(getErr, common.ResourceNotFound) {
 		return task.AnalysisTask{}, getErr
 	}
-	if _, err := s.Store.Sessions().Get(ctx, identity.TenantID, input.SessionID); err != nil {
+	if _, err := s.Store.Sessions().GetOwned(ctx, identity.TenantID, identity.UserID, input.SessionID); err != nil {
 		return task.AnalysisTask{}, err
 	}
 	history, err := s.planningHistory(ctx, identity.TenantID, input.SessionID)
@@ -134,11 +134,11 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 			return err
 		}
 		if record.Status == "completed" {
-			result, err = tx.Tasks().Get(ctx, identity.TenantID, record.ResourceID)
+			result, err = ownedTask(ctx, tx, identity, record.ResourceID)
 			return err
 		}
 		shouldRun = true
-		analysisSession, err := tx.Sessions().Get(ctx, identity.TenantID, input.SessionID)
+		analysisSession, err := tx.Sessions().GetOwned(ctx, identity.TenantID, identity.UserID, input.SessionID)
 		if err != nil {
 			return err
 		}
@@ -185,6 +185,21 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 	}
 	if shouldRun {
 		go s.run(identity, result.ID)
+	}
+	return result, nil
+}
+
+func (s *Service) getOwnedTask(ctx context.Context, identity requestcontext.Context, taskID string) (task.AnalysisTask, error) {
+	return ownedTask(ctx, s.Store, identity, taskID)
+}
+
+func ownedTask(ctx context.Context, store repositories.ApplicationStore, identity requestcontext.Context, taskID string) (task.AnalysisTask, error) {
+	result, err := store.Tasks().Get(ctx, identity.TenantID, taskID)
+	if err != nil {
+		return task.AnalysisTask{}, err
+	}
+	if _, err := store.Sessions().GetOwned(ctx, identity.TenantID, identity.UserID, result.SessionID); err != nil {
+		return task.AnalysisTask{}, err
 	}
 	return result, nil
 }

@@ -76,8 +76,31 @@ func (a *API) CreateSession(w http.ResponseWriter, r *http.Request, params gener
 	writeJSON(w, http.StatusCreated, sessionResponse(result))
 }
 
+func (a *API) ListSessions(w http.ResponseWriter, r *http.Request, params generated.ListSessionsParams) {
+	page, err := sessionPageRequest(params.PageSize, params.PageToken, params.XMTBTenantID, params.XMTBUserID)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	result, err := a.Store.Sessions().ListPageByOwner(r.Context(), params.XMTBTenantID, params.XMTBUserID, page)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	next, err := encodeSessionListToken(params.XMTBTenantID, params.XMTBUserID, result.NextAfter)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	items := make([]any, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, sessionResponse(item))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "nextPageToken": next})
+}
+
 func (a *API) GetSession(w http.ResponseWriter, r *http.Request, sessionID generated.SessionId, params generated.GetSessionParams) {
-	result, err := a.Store.Sessions().Get(r.Context(), params.XMTBTenantID, sessionID)
+	result, err := a.Store.Sessions().GetOwned(r.Context(), params.XMTBTenantID, params.XMTBUserID, sessionID)
 	if err != nil {
 		writeError(w, params.XRequestID, err)
 		return
@@ -86,6 +109,10 @@ func (a *API) GetSession(w http.ResponseWriter, r *http.Request, sessionID gener
 }
 
 func (a *API) ListSessionMessages(w http.ResponseWriter, r *http.Request, sessionID generated.SessionId, params generated.ListSessionMessagesParams) {
+	if _, err := a.Store.Sessions().GetOwned(r.Context(), params.XMTBTenantID, params.XMTBUserID, sessionID); err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
 	page, err := messagePageRequest(params.PageSize, params.PageToken, sessionID)
 	if err != nil {
 		writeError(w, params.XRequestID, err)
@@ -109,6 +136,10 @@ func (a *API) ListSessionMessages(w http.ResponseWriter, r *http.Request, sessio
 }
 
 func (a *API) ListSessionTasks(w http.ResponseWriter, r *http.Request, sessionID generated.SessionId, params generated.ListSessionTasksParams) {
+	if _, err := a.Store.Sessions().GetOwned(r.Context(), params.XMTBTenantID, params.XMTBUserID, sessionID); err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
 	page, err := taskPageRequest(params.PageSize, params.PageToken, sessionID)
 	if err != nil {
 		writeError(w, params.XRequestID, err)
@@ -170,7 +201,7 @@ func canonicalTaskRequestHash(tenantID string, body generated.CreateTaskJSONRequ
 }
 
 func (a *API) GetTask(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.GetTaskParams) {
-	result, err := a.Store.Tasks().Get(r.Context(), params.XMTBTenantID, taskID)
+	result, err := a.getOwnedTask(r.Context(), params.XMTBTenantID, params.XMTBUserID, taskID)
 	if err != nil {
 		writeError(w, params.XRequestID, err)
 		return
@@ -179,7 +210,7 @@ func (a *API) GetTask(w http.ResponseWriter, r *http.Request, taskID generated.T
 }
 
 func (a *API) StreamTaskEvents(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.StreamTaskEventsParams) {
-	if _, err := a.Store.Tasks().Get(r.Context(), params.XMTBTenantID, taskID); err != nil {
+	if _, err := a.getOwnedTask(r.Context(), params.XMTBTenantID, params.XMTBUserID, taskID); err != nil {
 		writeError(w, params.XRequestID, err)
 		return
 	}
@@ -248,6 +279,10 @@ func (a *API) StreamTaskEvents(w http.ResponseWriter, r *http.Request, taskID ge
 }
 
 func (a *API) ReplayTaskEvents(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.ReplayTaskEventsParams) {
+	if _, err := a.getOwnedTask(r.Context(), params.XMTBTenantID, params.XMTBUserID, taskID); err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
 	if params.AfterSequence != nil && params.PageToken != nil {
 		writeError(w, params.XRequestID, common.NewError(common.InvalidArgument, "afterSequence and pageToken are mutually exclusive", false))
 		return
@@ -345,6 +380,15 @@ type listPageToken struct {
 	ID        string `json:"id"`
 }
 
+type sessionListPageToken struct {
+	Version   int    `json:"version"`
+	Resource  string `json:"resource"`
+	TenantID  string `json:"tenantId"`
+	UserID    string `json:"userId"`
+	UpdatedAt string `json:"updatedAt"`
+	ID        string `json:"id"`
+}
+
 type taskReplayToken struct {
 	Version        int    `json:"version"`
 	Resource       string `json:"resource"`
@@ -359,6 +403,27 @@ func messagePageRequest(size *int, token *string, sessionID string) (repositorie
 
 func taskPageRequest(size *int, token *string, sessionID string) (repositories.PageRequest, error) {
 	return listPageRequest(size, token, sessionID, "tasks", 20, 50)
+}
+
+func sessionPageRequest(size *int, encoded *string, tenantID, userID string) (repositories.SessionListRequest, error) {
+	result := repositories.SessionListRequest{Limit: pageSize(size, 20, 50)}
+	if result.Limit == 0 || tenantID == "" || userID == "" {
+		return repositories.SessionListRequest{}, common.NewError(common.InvalidArgument, "session page request is invalid", false)
+	}
+	if encoded == nil {
+		return result, nil
+	}
+	var token sessionListPageToken
+	if err := decodePageToken(*encoded, &token); err != nil || token.Version != 1 || token.Resource != "sessions" || token.TenantID != tenantID || token.UserID != userID || token.ID == "" {
+		return repositories.SessionListRequest{}, common.NewError(common.InvalidArgument, "pageToken is invalid", false)
+	}
+	updatedAt, err := time.Parse(time.RFC3339Nano, token.UpdatedAt)
+	if err != nil {
+		return repositories.SessionListRequest{}, common.NewError(common.InvalidArgument, "pageToken is invalid", false)
+	}
+	updatedAt = updatedAt.UTC()
+	result.BeforeUpdatedAt, result.BeforeID = &updatedAt, token.ID
+	return result, nil
 }
 
 func listPageRequest(size *int, encoded *string, sessionID, resource string, defaultSize, maximum int) (repositories.PageRequest, error) {
@@ -401,6 +466,13 @@ func encodeListToken(resource, sessionID string, cursor *repositories.PageCursor
 		return nil, nil
 	}
 	return encodePageToken(listPageToken{Version: 1, Resource: resource, SessionID: sessionID, CreatedAt: cursor.CreatedAt.UTC().Format(time.RFC3339Nano), ID: cursor.ID})
+}
+
+func encodeSessionListToken(tenantID, userID string, cursor *repositories.SessionListCursor) (any, error) {
+	if cursor == nil {
+		return nil, nil
+	}
+	return encodePageToken(sessionListPageToken{Version: 1, Resource: "sessions", TenantID: tenantID, UserID: userID, UpdatedAt: cursor.UpdatedAt.UTC().Format(time.RFC3339Nano), ID: cursor.ID})
 }
 
 func encodeReplayToken(taskID string, target, after int64) (string, error) {
@@ -466,6 +538,17 @@ func messageResponse(value session.Message) any {
 }
 func taskEventResponse(event task.TaskEvent) any {
 	return map[string]any{"eventId": event.EventID, "taskId": event.TaskID, "sessionId": event.SessionID, "sequence": event.Sequence, "type": event.Type, "timestamp": event.Timestamp, "payload": json.RawMessage(event.Payload)}
+}
+
+func (a *API) getOwnedTask(ctx context.Context, tenantID, userID, taskID string) (task.AnalysisTask, error) {
+	result, err := a.Store.Tasks().Get(ctx, tenantID, taskID)
+	if err != nil {
+		return task.AnalysisTask{}, err
+	}
+	if _, err := a.Store.Sessions().GetOwned(ctx, tenantID, userID, result.SessionID); err != nil {
+		return task.AnalysisTask{}, err
+	}
+	return result, nil
 }
 
 func writeEvent(w http.ResponseWriter, event task.TaskEvent) error {
