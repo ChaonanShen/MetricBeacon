@@ -185,7 +185,7 @@ func validAlertBody(longLabel string) string {
 	if longLabel != "" {
 		extra = `,"long_transport_label":"` + longLabel + `"`
 	}
-	return `{"receiver":"ai-core","status":"firing","orgId":1,"alerts":[{"status":"firing","labels":{"alertname":"OrderQueueBacklog","service_ref":"order-demo","severity":"warning"` + extra + `},"annotations":{},"startsAt":"2026-07-16T11:59:00Z","endsAt":"0001-01-01T00:00:00Z","fingerprint":"fingerprint-1","values":{"queue_depth":9},"generatorURL":"http://grafana/internal"}]}`
+	return `{"receiver":"ai-core","status":"firing","orgId":1,"alerts":[{"status":"firing","labels":{"alertname":"OrderQueueBacklog","service_ref":"order-demo","severity":"warning"` + extra + `},"annotations":{},"startsAt":"2026-07-16T11:59:00Z","endsAt":"0001-01-01T00:00:00Z","fingerprint":"fingerprint-1","values":{"queue_depth":9},"generatorURL":"http://grafana/internal","imageURL":"http://grafana/rendered-alert.png"}]}`
 }
 
 type recordingAlertIngestor struct {

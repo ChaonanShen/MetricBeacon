@@ -38,6 +38,7 @@
         "silenceURL": {"type": "string", "maxLength": 1000},
         "dashboardURL": {"type": "string", "maxLength": 1000},
         "panelURL": {"type": "string", "maxLength": 1000},
+        "imageURL": {"type": "string", "maxLength": 1000},
         "values": {"type": "object", "maxProperties": 24, "additionalProperties": {"oneOf": [{"type": "number"}, {"type": "string", "maxLength": 100}]}},
         "valueString": {"type": "string", "maxLength": 2000}
       }

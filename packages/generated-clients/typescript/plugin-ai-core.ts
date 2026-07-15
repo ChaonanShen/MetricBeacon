@@ -271,6 +271,7 @@ export interface components {
             silenceURL?: string;
             dashboardURL?: string;
             panelURL?: string;
+            imageURL?: string;
             values?: {
                 [key: string]: number | string;
             };
@@ -314,6 +315,7 @@ export interface components {
                     silenceURL?: string;
                     dashboardURL?: string;
                     panelURL?: string;
+                    imageURL?: string;
                     values?: {
                         [key: string]: number | string;
                     };

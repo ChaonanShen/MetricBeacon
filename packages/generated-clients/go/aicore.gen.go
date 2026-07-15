@@ -757,6 +757,7 @@ type Alert struct {
 	EndsAt       time.Time                                     `json:"endsAt"`
 	Fingerprint  string                                        `json:"fingerprint"`
 	GeneratorURL *string                                       `json:"generatorURL,omitempty"`
+	ImageURL     *string                                       `json:"imageURL,omitempty"`
 	Labels       Alert_Labels                                  `json:"labels"`
 	PanelURL     *string                                       `json:"panelURL,omitempty"`
 	SilenceURL   *string                                       `json:"silenceURL,omitempty"`

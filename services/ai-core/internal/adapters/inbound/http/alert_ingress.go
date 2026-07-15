@@ -174,7 +174,7 @@ func validateAlertWebhook(config AlertIngressConfig, webhook generated.GrafanaAl
 				return invalid()
 			}
 		}
-		for _, value := range []*string{alert.GeneratorURL, alert.SilenceURL, alert.DashboardURL, alert.PanelURL} {
+		for _, value := range []*string{alert.GeneratorURL, alert.SilenceURL, alert.DashboardURL, alert.PanelURL, alert.ImageURL} {
 			if value != nil && len(*value) > 1000 {
 				return invalid()
 			}
