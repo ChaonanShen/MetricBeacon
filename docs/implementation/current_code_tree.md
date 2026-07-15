@@ -52,7 +52,7 @@ mini-torchbearing/
 │   ├── ai-core/                           # 核心业务服务（Go）
 │   │   ├── cmd/server/                    # HTTP 服务入口
 │   │   ├── internal/
-│   │   │   ├── domain/                    # 纯领域：Session/Message kind、Task/IncidentPlan、摘要 AlertEvent、QueryPlan、Chart
+│   │   │   ├── domain/                    # 纯领域：Session/Task、Incident、Approval/Execution/Audit、QueryPlan、Chart
 │   │   │   ├── application/
 │   │   │   │   ├── commands/              # Session/Task 命令、Planner 合并与 QueryPlan 冻结
 │   │   │   │   ├── incidents/             # 告警生命周期幂等建组织 Incident 与异步调度

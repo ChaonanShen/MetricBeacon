@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/remediation"
 )
 
 type Kind string
@@ -64,18 +65,7 @@ type Diagnosis struct {
 	CandidateAction       string   `json:"candidateAction"`
 }
 
-type RemediationIntent struct {
-	ID                string    `json:"id"`
-	Digest            string    `json:"digest"`
-	CapabilityID      string    `json:"capabilityId"`
-	ServiceRef        string    `json:"serviceRef"`
-	InstanceEpoch     string    `json:"instanceEpoch"`
-	ExpectedVersion   int64     `json:"expectedVersion"`
-	BeforeConcurrency int       `json:"beforeConcurrency"`
-	AfterConcurrency  int       `json:"afterConcurrency"`
-	Risk              string    `json:"risk"`
-	CreatedAt         time.Time `json:"createdAt"`
-}
+type RemediationIntent = remediation.Intent
 
 type IncidentPlan struct {
 	SourceID         string             `json:"sourceId"`
@@ -285,7 +275,7 @@ func validDiagnosis(value Diagnosis) bool {
 }
 
 func validIntent(value RemediationIntent, serviceRef string) bool {
-	return value.ID != "" && validDigest(value.Digest) && value.CapabilityID == "order_service.restore_worker_concurrency" && value.ServiceRef == serviceRef && value.InstanceEpoch != "" && value.ExpectedVersion >= 1 && value.BeforeConcurrency == 0 && value.AfterConcurrency == 2 && value.Risk == "low" && !value.CreatedAt.IsZero()
+	return value.Valid(serviceRef)
 }
 
 func validDigest(value string) bool {
