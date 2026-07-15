@@ -104,7 +104,7 @@ func (s *Service) ResumeRun(ctx context.Context, identity requestcontext.Context
 }
 
 func (s *Service) GetRuntime(ctx context.Context, identity requestcontext.Context) (generated.RuntimeOutput, error) {
-	if err := authorize(identity); err != nil {
+	if err := authorizeReadOrRemediate(identity); err != nil {
 		return generated.RuntimeOutput{}, err
 	}
 	value, err := s.orders.GetRuntime(ctx, identity)
@@ -126,7 +126,7 @@ func (s *Service) GetQueue(ctx context.Context, identity requestcontext.Context)
 }
 
 func (s *Service) GetWorker(ctx context.Context, identity requestcontext.Context) (generated.WorkerOutput, error) {
-	if err := authorize(identity); err != nil {
+	if err := authorizeReadOrRemediate(identity); err != nil {
 		return generated.WorkerOutput{}, err
 	}
 	value, err := s.orders.GetWorker(ctx, identity)

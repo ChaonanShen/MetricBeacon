@@ -454,7 +454,7 @@ func incidentHeaders(withPermission bool) map[string]string {
 
 func remediationHeaders() map[string]string {
 	result := headers(true)
-	result["X-MTB-Permissions"] = "incidents:diagnose,incidents:remediate"
+	result["X-MTB-Permissions"] = "incidents:remediate"
 	return result
 }
 
