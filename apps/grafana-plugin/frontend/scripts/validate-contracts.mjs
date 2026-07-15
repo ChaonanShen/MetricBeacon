@@ -66,6 +66,7 @@ for (const name of ['query_cpu.json', 'query_memory.json', 'query_load.json']) {
 validate(id('schemas/expected-task-events.schema.json'), await json(path.join(scenario, 'expected_task_events.json')), 'expected_task_events fixture');
 validate(id('schemas/mock-scenario-manifest.schema.json'), YAML.parse(await readFile(path.join(scenario, 'manifest.yaml'), 'utf8')), 'scenario manifest');
 validate(id('schemas/api/create-session-request.schema.json'), await json(path.join(examples, 'create-session.request.json')), 'create Session example');
+validate(id('schemas/api/session-page.schema.json'), await json(path.join(examples, 'session-page.response.json')), 'Session page example');
 validate(id('schemas/api/create-task-request.schema.json'), await json(path.join(examples, 'create-task.request.json')), 'create Task example');
 validate(id('events/task-events.schema.json'), await json(path.join(examples, 'task-event.json')), 'TaskEvent example');
 validate(id('tools/grafana/search-metrics.input.schema.json'), await json(path.join(examples, 'grafana.search_metrics.input.json')), 'search tool example');

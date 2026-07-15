@@ -553,6 +553,12 @@ type MetricCandidates struct {
 	Candidates []Candidate `json:"candidates"`
 }
 
+// SessionPageSchema defines model for session-page.schema.
+type SessionPageSchema struct {
+	Items         []SessionSchema `json:"items"`
+	NextPageToken *string         `json:"nextPageToken"`
+}
+
 // SessionSchema defines model for session.schema.
 type SessionSchema struct {
 	CreatedAt time.Time           `json:"createdAt"`
@@ -811,6 +817,9 @@ type PageSizeMessages = int
 // PageSizeReplay defines model for PageSizeReplay.
 type PageSizeReplay = int
 
+// PageSizeSessions defines model for PageSizeSessions.
+type PageSizeSessions = int
+
 // PageSizeTasks defines model for PageSizeTasks.
 type PageSizeTasks = int
 
@@ -849,6 +858,24 @@ type ErrorResponse = ErrorSchema
 
 // internalServiceIdentityContextKey is the context key for InternalServiceIdentity security scheme
 type internalServiceIdentityContextKey string
+
+// ListSessionsParams defines parameters for ListSessions.
+type ListSessionsParams struct {
+	PageSize     *PageSizeSessions `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken    *PageToken        `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID TenantId          `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId             `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId            `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
 
 // CreateSessionParams defines parameters for CreateSession.
 type CreateSessionParams struct {
@@ -2361,6 +2388,9 @@ type ServerInterface interface {
 	// Report storage and MCP dependency readiness
 	// (GET /readyz)
 	Readyz(w http.ResponseWriter, r *http.Request)
+	// List the current creator's non-empty Sessions by recent activity
+	// (GET /v1/sessions)
+	ListSessions(w http.ResponseWriter, r *http.Request, params ListSessionsParams)
 	// Create a Session with Plugin-derived RequestContext
 	// (POST /v1/sessions)
 	CreateSession(w http.ResponseWriter, r *http.Request, params CreateSessionParams)
@@ -2427,6 +2457,240 @@ func (siw *ServerInterfaceWrapper) Readyz(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Readyz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSessions operation middleware
+func (siw *ServerInterfaceWrapper) ListSessions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, InternalServiceIdentityScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSessionsParams
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pageSize", r.URL.Query(), &params.PageSize, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pageSize"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "pageToken" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pageToken", r.URL.Query(), &params.PageToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pageToken"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageToken", Err: err})
+		}
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-MTB-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Tenant-ID")]; found {
+		var XMTBTenantID TenantId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Tenant-ID", valueList[0], &XMTBTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XMTBTenantID = XMTBTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Tenant-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Org-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Org-ID")]; found {
+		var XMTBOrgID OrgId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Org-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Org-ID", valueList[0], &XMTBOrgID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Org-ID", Err: err})
+			return
+		}
+
+		params.XMTBOrgID = XMTBOrgID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Org-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Org-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-User-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-User-ID")]; found {
+		var XMTBUserID UserId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-User-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-User-ID", valueList[0], &XMTBUserID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-User-ID", Err: err})
+			return
+		}
+
+		params.XMTBUserID = XMTBUserID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-User-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-User-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Roles" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Roles")]; found {
+		var XMTBRoles Roles
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Roles", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Roles", valueList[0], &XMTBRoles, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Roles", Err: err})
+			return
+		}
+
+		params.XMTBRoles = XMTBRoles
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Roles is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Roles", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-MTB-Permissions" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-MTB-Permissions")]; found {
+		var XMTBPermissions Permissions
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-MTB-Permissions", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-MTB-Permissions", valueList[0], &XMTBPermissions, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-MTB-Permissions", Err: err})
+			return
+		}
+
+		params.XMTBPermissions = XMTBPermissions
+
+	} else {
+		err := fmt.Errorf("Header parameter X-MTB-Permissions is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-MTB-Permissions", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Request-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-ID")]; found {
+		var XRequestID RequestId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Request-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-ID", valueList[0], &XRequestID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Request-ID", Err: err})
+			return
+		}
+
+		params.XRequestID = XRequestID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Request-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Request-ID", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "X-Trace-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Trace-ID")]; found {
+		var XTraceID TraceId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Trace-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Trace-ID", valueList[0], &XTraceID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Trace-ID", Err: err})
+			return
+		}
+
+		params.XTraceID = XTraceID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Trace-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Trace-ID", Err: err})
+		return
+	}
+
+	// ------------- Optional header parameter "traceparent" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("traceparent")]; found {
+		var Traceparent TraceParent
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "traceparent", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "traceparent", valueList[0], &Traceparent, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "traceparent", Err: err})
+			return
+		}
+
+		params.Traceparent = &Traceparent
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSessions(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4422,6 +4686,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/sessions", wrapper.CreateSession)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/sessions/{sessionId}", wrapper.GetSession)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/sessions/{sessionId}/messages", wrapper.ListSessionMessages)

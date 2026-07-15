@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "id": "session_01",
+      "tenantId": "org:1",
+      "title": "查看最近 30 分钟 CPU 和内存",
+      "status": "active",
+      "createdBy": "user:1",
+      "createdAt": "2026-07-15T08:00:00Z",
+      "updatedAt": "2026-07-15T09:00:00Z",
+      "version": 2
+    }
+  ],
+  "nextPageToken": null
+}

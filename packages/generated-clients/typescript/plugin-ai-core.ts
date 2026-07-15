@@ -45,7 +45,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List the current creator's non-empty Sessions by recent activity */
+        get: operations["listSessions"];
         put?: never;
         /** Create a Session with Plugin-derived RequestContext */
         post: operations["createSession"];
@@ -181,6 +182,7 @@ export interface components {
         CreateSessionRequest: components["schemas"]["create-session-request.schema"];
         CreateTaskRequest: components["schemas"]["create-task-request.schema"];
         Session: components["schemas"]["session.schema"];
+        SessionPage: components["schemas"]["session-page.schema"];
         Message: components["schemas"]["message.schema"];
         Task: components["schemas"]["task.schema"];
         MessagePage: components["schemas"]["message-page.schema"];
@@ -216,10 +218,6 @@ export interface components {
                 };
             };
         };
-        /** CreateSessionRequest */
-        "create-session-request.schema": {
-            title?: string;
-        };
         /** AnalysisSession */
         "session.schema": {
             id: string;
@@ -233,6 +231,15 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             version: number;
+        };
+        /** SessionPage */
+        "session-page.schema": {
+            items: components["schemas"]["session.schema"][];
+            nextPageToken: string | null;
+        };
+        /** CreateSessionRequest */
+        "create-session-request.schema": {
+            title?: string;
         };
         /** Message */
         "message.schema": {
@@ -732,6 +739,7 @@ export interface components {
         AfterSequence: number;
         PageSizeMessages: number;
         PageSizeTasks: number;
+        PageSizeSessions: number;
         PageSizeReplay: number;
         PageToken: string;
         LastEventId: number;
@@ -784,6 +792,41 @@ export interface operations {
                 content?: never;
             };
             503: components["responses"]["ErrorResponse"];
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: {
+                pageSize?: components["parameters"]["PageSizeSessions"];
+                pageToken?: components["parameters"]["PageToken"];
+            };
+            header: {
+                "X-MTB-Tenant-ID": components["parameters"]["TenantId"];
+                "X-MTB-Org-ID": components["parameters"]["OrgId"];
+                "X-MTB-User-ID": components["parameters"]["UserId"];
+                /** @description Comma-separated, trimmed and de-duplicated roles. */
+                "X-MTB-Roles": components["parameters"]["Roles"];
+                /** @description Comma-separated permissions; must include datasources:query for this profile. */
+                "X-MTB-Permissions": components["parameters"]["Permissions"];
+                "X-Request-ID": components["parameters"]["RequestId"];
+                "X-Trace-ID": components["parameters"]["TraceId"];
+                traceparent?: components["parameters"]["TraceParent"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped Session page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["session-page.schema"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
         };
     };
     createSession: {

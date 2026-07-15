@@ -11,7 +11,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List the current Grafana user's non-empty Sessions */
+        get: operations["listSessions"];
         put?: never;
         /** Create a Session through the Plugin Resource API */
         post: operations["createSession"];
@@ -147,6 +148,7 @@ export interface components {
         CreateSessionRequest: components["schemas"]["create-session-request.schema"];
         CreateTaskRequest: components["schemas"]["create-task-request.schema"];
         Session: components["schemas"]["session.schema"];
+        SessionPage: components["schemas"]["session-page.schema"];
         Message: components["schemas"]["message.schema"];
         Task: components["schemas"]["task.schema"];
         MessagePage: components["schemas"]["message-page.schema"];
@@ -156,10 +158,6 @@ export interface components {
         ChartExecution: components["schemas"]["execution.schema"];
         TaskEvent: components["schemas"]["task-events.schema"];
         ErrorEnvelope: components["schemas"]["error.schema"];
-        /** CreateSessionRequest */
-        "create-session-request.schema": {
-            title?: string;
-        };
         error: {
             /** @enum {string} */
             code: "invalid_argument" | "unauthenticated" | "permission_denied" | "resource_not_found" | "resource_conflict" | "invalid_state_transition" | "adapter_not_configured" | "dependency_unavailable" | "tool_not_supported" | "tool_timeout" | "schema_validation_failed" | "idempotency_conflict" | "execution_interrupted" | "internal_error" | "not_implemented";
@@ -199,6 +197,15 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             version: number;
+        };
+        /** SessionPage */
+        "session-page.schema": {
+            items: components["schemas"]["session.schema"][];
+            nextPageToken: string | null;
+        };
+        /** CreateSessionRequest */
+        "create-session-request.schema": {
+            title?: string;
         };
         /** Message */
         "message.schema": {
@@ -696,6 +703,7 @@ export interface components {
         AfterSequence: number;
         PageSizeMessages: number;
         PageSizeTasks: number;
+        PageSizeSessions: number;
         PageSizeReplay: number;
         PageToken: string;
         LastEventId: number;
@@ -706,6 +714,32 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listSessions: {
+        parameters: {
+            query?: {
+                pageSize?: components["parameters"]["PageSizeSessions"];
+                pageToken?: components["parameters"]["PageToken"];
+            };
+            header?: {
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owner-scoped Session page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["session-page.schema"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
     createSession: {
         parameters: {
             query?: never;

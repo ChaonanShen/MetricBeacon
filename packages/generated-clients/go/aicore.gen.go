@@ -554,6 +554,12 @@ type MetricCandidates struct {
 	Candidates []Candidate `json:"candidates"`
 }
 
+// SessionPageSchema defines model for session-page.schema.
+type SessionPageSchema struct {
+	Items         []SessionSchema `json:"items"`
+	NextPageToken *string         `json:"nextPageToken"`
+}
+
 // SessionSchema defines model for session.schema.
 type SessionSchema struct {
 	CreatedAt time.Time           `json:"createdAt"`
@@ -812,6 +818,9 @@ type PageSizeMessages = int
 // PageSizeReplay defines model for PageSizeReplay.
 type PageSizeReplay = int
 
+// PageSizeSessions defines model for PageSizeSessions.
+type PageSizeSessions = int
+
 // PageSizeTasks defines model for PageSizeTasks.
 type PageSizeTasks = int
 
@@ -850,6 +859,24 @@ type ErrorResponse = ErrorSchema
 
 // internalServiceIdentityContextKey is the context key for InternalServiceIdentity security scheme
 type internalServiceIdentityContextKey string
+
+// ListSessionsParams defines parameters for ListSessions.
+type ListSessionsParams struct {
+	PageSize     *PageSizeSessions `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken    *PageToken        `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID TenantId          `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId             `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId            `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
 
 // CreateSessionParams defines parameters for CreateSession.
 type CreateSessionParams struct {
@@ -2433,6 +2460,9 @@ type ClientInterface interface {
 	// Readyz request
 	Readyz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListSessions request
+	ListSessions(ctx context.Context, params *ListSessionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateSessionWithBody request with any body
 	CreateSessionWithBody(ctx context.Context, params *CreateSessionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2476,6 +2506,18 @@ func (c *Client) Healthz(ctx context.Context, reqEditors ...RequestEditorFn) (*h
 
 func (c *Client) Readyz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadyzRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListSessions(ctx context.Context, params *ListSessionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSessionsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2655,6 +2697,150 @@ func NewReadyzRequest(server string) (*http.Request, error) {
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListSessionsRequest generates requests for ListSessions
+func NewListSessionsRequest(server string, params *ListSessionsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/sessions")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageSize", *params.PageSize, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageToken", *params.PageToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Tenant-ID", params.XMTBTenantID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Tenant-ID", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Org-ID", params.XMTBOrgID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Org-ID", headerParam1)
+
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-User-ID", params.XMTBUserID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-User-ID", headerParam2)
+
+		var headerParam3 string
+
+		headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Roles", params.XMTBRoles, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Roles", headerParam3)
+
+		var headerParam4 string
+
+		headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Permissions", params.XMTBPermissions, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Permissions", headerParam4)
+
+		var headerParam5 string
+
+		headerParam5, err = runtime.StyleParamWithOptions("simple", false, "X-Request-ID", params.XRequestID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Request-ID", headerParam5)
+
+		var headerParam6 string
+
+		headerParam6, err = runtime.StyleParamWithOptions("simple", false, "X-Trace-ID", params.XTraceID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Trace-ID", headerParam6)
+
+		if params.Traceparent != nil {
+			var headerParam7 string
+
+			headerParam7, err = runtime.StyleParamWithOptions("simple", false, "traceparent", *params.Traceparent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("traceparent", headerParam7)
+		}
+
 	}
 
 	return req, nil
@@ -3793,6 +3979,9 @@ type ClientWithResponsesInterface interface {
 	// ReadyzWithResponse request
 	ReadyzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadyzResponse, error)
 
+	// ListSessionsWithResponse request
+	ListSessionsWithResponse(ctx context.Context, params *ListSessionsParams, reqEditors ...RequestEditorFn) (*ListSessionsResponse, error)
+
 	// CreateSessionWithBodyWithResponse request with any body
 	CreateSessionWithBodyWithResponse(ctx context.Context, params *CreateSessionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error)
 
@@ -3875,6 +4064,37 @@ func (r ReadyzResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadyzResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListSessionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *SessionPageSchema
+	JSONDefault  *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSessionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSessionsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSessionsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -4146,6 +4366,15 @@ func (c *ClientWithResponses) ReadyzWithResponse(ctx context.Context, reqEditors
 	return ParseReadyzResponse(rsp)
 }
 
+// ListSessionsWithResponse request returning *ListSessionsResponse
+func (c *ClientWithResponses) ListSessionsWithResponse(ctx context.Context, params *ListSessionsParams, reqEditors ...RequestEditorFn) (*ListSessionsResponse, error) {
+	rsp, err := c.ListSessions(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSessionsResponse(rsp)
+}
+
 // CreateSessionWithBodyWithResponse request with arbitrary body returning *CreateSessionResponse
 func (c *ClientWithResponses) CreateSessionWithBodyWithResponse(ctx context.Context, params *CreateSessionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSessionResponse, error) {
 	rsp, err := c.CreateSessionWithBody(ctx, params, contentType, body, reqEditors...)
@@ -4270,6 +4499,39 @@ func ParseReadyzResponse(rsp *http.Response) (*ReadyzResponse, error) {
 			return nil, err
 		}
 		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSessionsResponse parses an HTTP response from a ListSessionsWithResponse call
+func ParseListSessionsResponse(rsp *http.Response) (*ListSessionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSessionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SessionPageSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
 
 	}
 

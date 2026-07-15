@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/api/session-page.schema.json",
+  "title": "SessionPage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items", "nextPageToken"],
+  "properties": {
+    "items": {"type": "array", "items": {"$ref": "../session/session.schema.json"}},
+    "nextPageToken": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]}
+  }
+}

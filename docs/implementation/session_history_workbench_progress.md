@@ -9,7 +9,7 @@
 |阶段|状态|证据|
 |-|-|-|
 |G0：决策与执行记录|已完成|ADR-022、active plan、progress、文档路由与 ADR 索引已建立；`git diff --check` 和 `make validate-contracts` 通过。|
-|G1：契约与生成物|待开始|待增加 SessionPage 与 GET Session list。|
+|G1：契约与生成物|已完成|SessionPage、两层 GET Session list、20/50 分页参数与响应示例已定义；Go/TypeScript Client、AI Core Server 和 Plugin types 已重新生成，`make validate-contracts`、`make generated-client-diff` 与 `git diff --check` 通过。|
 |G2：AI Core|待开始|待实现 owner list、activity touch、迁移与访问校验。|
 |G3：Plugin Backend|待开始|待实现 Session list 代理。|
 |G4：Frontend|待开始|待实现会话栏、切换和三栏重排。|
