@@ -4,7 +4,7 @@ import type { FormEvent, RefObject } from 'react';
 import type { Message, Task } from '../api/resource';
 import type { WorkbenchState } from './types';
 import { examplePrompts } from './workbench-view';
-import { SessionMenu, type SessionControls } from './SessionMenu';
+import { SessionMenu, type IncidentControls, type SessionControls } from './SessionMenu';
 
 export type ChatControls = {
   sessionTitle?: string;
@@ -21,18 +21,22 @@ export type ChatControls = {
   onMessageChange: (message: string) => void;
   onSubmit: () => void;
   onLoadMore: () => void;
+  incident: boolean;
 };
 
 type Props = {
   chat: ChatControls;
   sessions: SessionControls;
+  incidents: IncidentControls;
+  selectorMode: 'sessions' | 'incidents';
+  onSelectorModeChange: (mode: 'sessions' | 'incidents') => void;
   sessionMenuOpen: boolean;
   onSessionMenuOpenChange: (open: boolean) => void;
   sessionMenuToggleRef: RefObject<HTMLButtonElement>;
 };
 
-export function ChatPane({ chat, sessions, sessionMenuOpen, onSessionMenuOpenChange, sessionMenuToggleRef }: Props) {
-  const { sessionTitle, messages, tasks, runtimeByTaskId, activeTask, message, busy, canLoadMore, loadingMore, notice, requestError, onMessageChange, onSubmit, onLoadMore } = chat;
+export function ChatPane({ chat, sessions, incidents, selectorMode, onSelectorModeChange, sessionMenuOpen, onSessionMenuOpenChange, sessionMenuToggleRef }: Props) {
+  const { sessionTitle, messages, tasks, runtimeByTaskId, activeTask, message, busy, canLoadMore, loadingMore, notice, requestError, onMessageChange, onSubmit, onLoadMore, incident } = chat;
   const hasConversation = messages.length > 0 || tasks.length > 0;
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -43,14 +47,14 @@ export function ChatPane({ chat, sessions, sessionMenuOpen, onSessionMenuOpenCha
     <div className="mtb-chat-header">
       <div>
         <span className="mtb-pane-kicker">Chat</span>
-        <h2>指标分析</h2>
+        <h2>{incident ? '事件处置' : '指标分析'}</h2>
         <p>{sessionTitle ?? '新对话'}</p>
       </div>
     </div>
-    <SessionMenu {...sessions} open={sessionMenuOpen} onOpenChange={onSessionMenuOpenChange} toggleRef={sessionMenuToggleRef} />
+    <SessionMenu {...sessions} incidents={incidents} mode={selectorMode} onModeChange={onSelectorModeChange} open={sessionMenuOpen} onOpenChange={onSessionMenuOpenChange} toggleRef={sessionMenuToggleRef} />
     <div className="mtb-chat-timeline" data-testid="conversation-scroll-container" aria-live="polite">
       {canLoadMore && <Button variant="secondary" size="sm" onClick={onLoadMore} disabled={loadingMore}>{loadingMore ? '加载中…' : '加载更早记录'}</Button>}
-      {!hasConversation && <div className="mtb-chat-empty">
+      {!hasConversation && !incident && <div className="mtb-chat-empty">
         <strong>开始一次指标分析</strong>
         <p>描述你关心的 CPU、内存或系统负载。你也可以选择一个示例填入输入框。</p>
         <div className="mtb-example-prompts">
@@ -58,7 +62,7 @@ export function ChatPane({ chat, sessions, sessionMenuOpen, onSessionMenuOpenCha
         </div>
       </div>}
       {messages.map((item) => <article key={item.id} className={`mtb-message is-${item.role}`} data-testid="chat-message">
-        <strong>{item.role === 'user' ? '你' : '助手'}：</strong>{item.content}
+        <strong>{item.role === 'user' ? '你' : item.role === 'trigger' ? '告警' : '助手'}：</strong>{item.content}
       </article>)}
       {tasks.map((task) => {
         const runtime = runtimeByTaskId[task.id];
@@ -70,7 +74,7 @@ export function ChatPane({ chat, sessions, sessionMenuOpen, onSessionMenuOpenCha
         ? <p role="alert" key={`${task.id}-error`} className="mtb-inline-error">{runtimeByTaskId[task.id].error!.code}: {runtimeByTaskId[task.id].error!.message}</p>
         : null)}
     </div>
-    <form className="mtb-chat-composer" onSubmit={submit}>
+    {incident ? <div className="mtb-chat-composer"><p className="mtb-muted">事件由 Prometheus 告警触发；诊断与修复只通过版本化 Playbook 和受控工具推进。</p>{requestError && <p role="alert" className="mtb-inline-error">{requestError}</p>}{activeTask && <p role="status" className="mtb-task-status">Task 状态：{runtimeByTaskId[activeTask.id]?.taskStatus ?? activeTask.status}</p>}</div> : <form className="mtb-chat-composer" onSubmit={submit}>
       {notice && <p role="status" className="mtb-inline-notice">{notice}</p>}
       {requestError && <p role="alert" className="mtb-inline-error">{requestError}</p>}
       {activeTask && <p role="status" className="mtb-task-status">Task 状态：{runtimeByTaskId[activeTask.id]?.taskStatus ?? activeTask.status}</p>}
@@ -81,6 +85,6 @@ export function ChatPane({ chat, sessions, sessionMenuOpen, onSessionMenuOpenCha
         <Button type="submit" disabled={!message.trim() || busy || Boolean(activeTask)}>开始分析</Button>
         {busy && <Spinner inline size="sm" />}
       </div>
-    </form>
+    </form>}
   </section>;
 }

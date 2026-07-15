@@ -84,7 +84,7 @@ export function sessionReducer(state: SessionWorkbenchState, action: SessionActi
 }
 
 export function isTerminal(status: Task['status']): boolean {
-  return status === 'completed' || status === 'failed';
+  return status === 'completed' || status === 'failed' || status === 'cancelled';
 }
 
 function terminalStatus(type: string, current: Task['status']): Task['status'] {

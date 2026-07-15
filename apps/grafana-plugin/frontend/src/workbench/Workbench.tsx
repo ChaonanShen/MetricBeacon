@@ -1,16 +1,19 @@
 import { AppRootProps } from '@grafana/data';
+import { config } from '@grafana/runtime';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { resourceClient, type CreateTask, type GeneratedTaskEvent, type Task } from '../api/resource';
 import { formatResourceError, isResourceNotFound } from '../api/resource-error';
 import { ChartCanvas, type ChartCanvasHandle } from './ChartCanvas';
+import { IncidentCanvas } from './IncidentCanvas';
 import { autoFocusTask, deriveChartGroups } from './chart-groups';
 import { createTaskInput } from './query-input';
 import { clearWorkbenchRoute, readWorkbenchRoute, replaceWorkbenchRoute, replaceWorkbenchSessionRoute } from './route';
 import { createInitialSessionWorkbenchState, isTerminal, sessionReducer } from './session-reducer';
 import { deriveSessionTitle, flattenSessionPages } from './session-list';
 import { subscribeTaskEvents } from './sse';
+import { deriveIncidentView } from './incident-view';
 import { deriveWorkbenchContext } from './workbench-view';
 import { WorkbenchShell } from './WorkbenchShell';
 
@@ -48,6 +51,12 @@ export function Workbench(_props: AppRootProps) {
   const sessionPages = useInfiniteQuery({
     queryKey: ['mini-torchbearing-sessions'],
     queryFn: ({ pageParam }) => resourceClient.listSessions(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextPageToken ?? undefined,
+  });
+  const incidentPages = useInfiniteQuery({
+    queryKey: ['mini-torchbearing-incidents'],
+    queryFn: ({ pageParam }) => resourceClient.listIncidents(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextPageToken ?? undefined,
   });
@@ -100,6 +109,21 @@ export function Workbench(_props: AppRootProps) {
   }, [taskOrderKey]);
 
   const activeTask = state.activeTaskId ? state.tasksById[state.activeTaskId] : undefined;
+  const incidentTask = activeTask?.kind === 'incident_remediation' ? activeTask : state.taskOrder.map((id) => state.tasksById[id]).find((task) => task.kind === 'incident_remediation');
+  const approval = useQuery({
+    queryKey: ['mini-torchbearing-approval', incidentTask?.id],
+    queryFn: () => resourceClient.getApproval(incidentTask!.id),
+    enabled: Boolean(incidentTask?.incidentPlan?.intent),
+    refetchInterval: incidentTask?.status === 'waiting_approval' ? 5000 : false,
+  });
+  const decideApproval = useMutation({
+    mutationFn: (decision: 'approve' | 'reject') => resourceClient.decideApproval(incidentTask!.id, { decision, reason: decision === 'approve' ? 'Approved in Grafana Incident Workbench' : 'Rejected in Grafana Incident Workbench', expectedTaskVersion: incidentTask!.version, expectedApprovalVersion: approval.data!.version, intentDigest: approval.data!.intentDigest }, crypto.randomUUID()),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['mini-torchbearing-approval', incidentTask?.id] });
+      void client.invalidateQueries({ queryKey: ['mini-torchbearing-session-history', sessionId] });
+      void client.invalidateQueries({ queryKey: ['mini-torchbearing-incidents'] });
+    },
+  });
   const activeTaskReplayed = activeTask ? Boolean(state.replayedTaskIds[activeTask.id]) : false;
   useEffect(() => {
     if (!activeTask || !activeTaskReplayed || isTerminal(activeTask.status)) return;
@@ -112,7 +136,7 @@ export function Workbench(_props: AppRootProps) {
         client.invalidateQueries({ queryKey: ['mini-torchbearing-session-history', sessionId] });
       },
       () => undefined,
-      (event) => event.type === 'task.completed' || event.type === 'task.failed',
+      (event) => event.type === 'task.completed' || event.type === 'task.failed' || (event.type === 'task.status_changed' && event.payload.status === 'cancelled'),
     ).close;
   }, [activeTask?.id, activeTask?.status, activeTaskReplayed, client, sessionId]);
 
@@ -181,7 +205,7 @@ export function Workbench(_props: AppRootProps) {
   };
   const submit = () => { if (message.trim() && !activeTask) create.mutate(); };
   const staleSession = session.isError && isResourceNotFound(session.error);
-  const requestError = [create.error, loadMore.error, staleSession ? undefined : session.error, staleSession ? undefined : history.error].find(Boolean);
+  const requestError = [create.error, loadMore.error, decideApproval.error, staleSession ? undefined : session.error, staleSession ? undefined : history.error].find(Boolean);
   const messages = useMemo(() => state.messageOrder.map((id) => state.messagesById[id]), [state.messageOrder, state.messagesById]);
   const tasks = useMemo(() => state.taskOrder.map((id) => state.tasksById[id]), [state.taskOrder, state.tasksById]);
   const groups = deriveChartGroups(tasks, messages, state.runtimeByTaskId);
@@ -196,13 +220,20 @@ export function Workbench(_props: AppRootProps) {
     }
   }, [allHistoryReplayed, chartGroupKey, sessionId, state.activeTaskId]);
   const listedSessions = flattenSessionPages(sessionPages.data?.pages ?? []);
+  const listedIncidents = (incidentPages.data?.pages ?? []).flatMap((page) => page.items).filter((task, index, values) => values.findIndex((candidate) => candidate.id === task.id) === index);
   const switchingDisabled = create.isPending || loadMore.isPending;
   const context = useMemo(() => deriveWorkbenchContext(session.data?.title, tasks, activeTask), [activeTask, session.data?.title, tasks]);
+  const incidentView = useMemo(() => incidentTask ? deriveIncidentView(incidentTask, state.runtimeByTaskId[incidentTask.id], approval.data, config.bootData.user.orgRole === 'Admin') : undefined, [approval.data, incidentTask, state.runtimeByTaskId]);
+  const decide = (decision: 'approve' | 'reject') => {
+    const message = decision === 'approve' ? '确认按当前不可变 Intent/Diff 执行 worker concurrency 0 → 2？' : '确认拒绝当前修复 Intent？';
+    if (window.confirm(message)) decideApproval.mutate(decision);
+  };
 
   return <WorkbenchShell
     context={context}
     sessions={{ sessions: listedSessions, selectedSessionId: sessionId, loading: sessionPages.isLoading, loadingMore: sessionPages.isFetchingNextPage, hasMore: Boolean(sessionPages.hasNextPage), error: sessionPages.error ? formatResourceError(sessionPages.error) : undefined, switchingDisabled, onNewConversation: () => selectConversation(), onSelectSession: selectConversation, onLoadMore: () => { void sessionPages.fetchNextPage(); } }}
-    chat={{ sessionTitle: session.data?.title, messages, tasks, runtimeByTaskId: state.runtimeByTaskId, activeTask, message, busy: create.isPending || session.isFetching || history.isFetching, canLoadMore: Boolean(state.messageNextPageToken || state.taskNextPageToken), loadingMore: loadMore.isPending, notice: recoveryNotice, requestError: requestError ? formatResourceError(requestError) : undefined, onMessageChange: setMessage, onSubmit: submit, onLoadMore: () => loadMore.mutate() }}
-    canvas={<ChartCanvas ref={chartCanvas} groups={groups} />}
+    incidents={{ incidents: listedIncidents, selectedTaskId: incidentTask?.id, loading: incidentPages.isLoading, loadingMore: incidentPages.isFetchingNextPage, hasMore: Boolean(incidentPages.hasNextPage), error: incidentPages.error ? formatResourceError(incidentPages.error) : undefined, switchingDisabled, onSelectIncident: (task) => selectConversation(task.sessionId), onLoadMore: () => { void incidentPages.fetchNextPage(); } }}
+    chat={{ sessionTitle: session.data?.title, messages, tasks, runtimeByTaskId: state.runtimeByTaskId, activeTask, message, busy: create.isPending || session.isFetching || history.isFetching, canLoadMore: Boolean(state.messageNextPageToken || state.taskNextPageToken), loadingMore: loadMore.isPending, notice: recoveryNotice, requestError: requestError ? formatResourceError(requestError) : undefined, onMessageChange: setMessage, onSubmit: submit, onLoadMore: () => loadMore.mutate(), incident: Boolean(incidentTask) }}
+    canvas={incidentTask ? <IncidentCanvas incident={incidentView} loading={approval.isLoading} deciding={decideApproval.isPending} error={approval.error && !isResourceNotFound(approval.error) ? formatResourceError(approval.error) : undefined} onApprove={() => decide('approve')} onReject={() => decide('reject')} /> : <ChartCanvas ref={chartCanvas} groups={groups} />}
   />;
 }

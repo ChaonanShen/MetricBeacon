@@ -24,4 +24,17 @@ describe('taskEventReducer', () => {
 
     expect(second).toMatchObject({ latestSequence: 2, taskStatus: 'completed' });
   });
+
+  it('builds a bounded Incident timeline from public event summaries', () => {
+    const diagnosed = taskEventReducer(initialWorkbenchState, event(1, 'diagnosis.completed', { primaryHypothesis: 'worker_stopped', confidence: 0.99 }));
+    const intent = taskEventReducer(diagnosed, event(2, 'intent.prepared', { beforeConcurrency: 0, afterConcurrency: 2, intentDigest: 'not-rendered-here' }));
+    const verified = taskEventReducer(intent, event(3, 'verification.business', { durationMs: 203 }));
+
+    expect(verified.incidentTimeline).toEqual([
+      { sequence: 1, type: 'diagnosis.completed', title: '只读诊断完成', detail: 'worker_stopped · 置信度 99%' },
+      { sequence: 2, type: 'intent.prepared', title: '受控修复 Intent/Diff 已生成', detail: 'concurrency 0 → 2' },
+      { sequence: 3, type: 'verification.business', title: '真实订单业务探针通过', detail: '203 ms' },
+    ]);
+    expect(JSON.stringify(verified.incidentTimeline)).not.toContain('not-rendered-here');
+  });
 });

@@ -335,14 +335,8 @@ func (a *API) StreamTaskEvents(w http.ResponseWriter, r *http.Request, taskID ge
 		if err != nil {
 			return
 		}
-		if (current.Status == task.StatusCompleted || current.Status == task.StatusFailed) && after >= current.LatestSequence {
-			latest, replayErr := a.Store.TaskEvents().Replay(r.Context(), params.XMTBTenantID, taskID, current.LatestSequence-1, 1)
-			if replayErr != nil {
-				return
-			}
-			if len(latest) == 1 && (latest[0].Type == task.EventTaskCompleted || latest[0].Type == task.EventTaskFailed) {
-				return
-			}
+		if (current.Status == task.StatusCompleted || current.Status == task.StatusFailed || current.Status == task.StatusCancelled) && after >= current.LatestSequence {
+			return
 		}
 		select {
 		case <-r.Context().Done():

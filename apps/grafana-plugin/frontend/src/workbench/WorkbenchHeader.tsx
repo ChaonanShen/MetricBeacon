@@ -4,9 +4,10 @@ import { productNavigation } from './workbench-view';
 type Props = {
   context: WorkbenchContextView;
   onOpenSessions: () => void;
+  onOpenIncidents: () => void;
 };
 
-export function WorkbenchHeader({ context, onOpenSessions }: Props) {
+export function WorkbenchHeader({ context, onOpenSessions, onOpenIncidents }: Props) {
   return <header className="mtb-workbench-header">
     <div className="mtb-workbench-heading">
       <p className="mtb-workbench-eyebrow">AI Metrics Workbench</p>
@@ -19,6 +20,9 @@ export function WorkbenchHeader({ context, onOpenSessions }: Props) {
         }
         if (item.id === 'sessions') {
           return <button key={item.id} type="button" className="mtb-product-nav-item" onClick={onOpenSessions}>{item.label}</button>;
+        }
+        if (item.id === 'incidents') {
+          return <button key={item.id} type="button" className="mtb-product-nav-item" onClick={onOpenIncidents}>{item.label}</button>;
         }
         return <button key={item.id} type="button" className="mtb-product-nav-item" disabled title="尚未开放">{item.label}</button>;
       })}

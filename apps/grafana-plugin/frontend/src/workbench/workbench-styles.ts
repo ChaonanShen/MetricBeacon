@@ -83,6 +83,9 @@ export function workbenchThemeCSS(theme: GrafanaTheme2): string {
 .mtb-session-menu-toggle:focus-visible, .mtb-session-item:focus-visible, .mtb-example-prompts button:focus-visible { outline: 2px solid var(--mtb-accent); outline-offset: 2px; }
 .mtb-session-menu-current { min-width: 0; overflow: hidden; color: var(--mtb-text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .mtb-session-list { display: grid; gap: 6px; max-height: 210px; overflow-y: auto; overflow-x: hidden; padding: 0 16px 12px; scrollbar-gutter: stable; }
+.mtb-selector-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.mtb-selector-tabs button { padding: 6px 8px; border: 1px solid var(--mtb-border); border-radius: 5px; background: transparent; color: var(--mtb-text-secondary); cursor: pointer; }
+.mtb-selector-tabs button.is-current { border-color: var(--mtb-accent); background: color-mix(in srgb, var(--mtb-accent) 10%, transparent); color: var(--mtb-text); }
 .mtb-session-item { display: flex; flex-direction: column; gap: 3px; width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .mtb-session-item:hover:not(:disabled) { background: var(--mtb-surface-raised); }
 .mtb-session-item.is-selected { border-color: var(--mtb-border-medium); background: color-mix(in srgb, var(--mtb-accent) 8%, var(--mtb-surface)); }
@@ -126,6 +129,26 @@ export function workbenchThemeCSS(theme: GrafanaTheme2): string {
 .mtb-context-note { padding: 12px; border: 1px solid var(--mtb-border); border-radius: 6px; background: var(--mtb-surface-raised); color: var(--mtb-text-secondary); }
 .mtb-context-note strong { color: var(--mtb-text); }
 .mtb-context-note p { margin: 4px 0 0; }
+.mtb-incident-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px; scrollbar-gutter: stable; }
+.mtb-incident-scroll > * + * { margin-top: 16px; }
+.mtb-incident-summary { padding: 16px; border: 1px solid var(--mtb-border); border-radius: 8px; background: var(--mtb-surface-raised); }
+.mtb-incident-summary h3 { margin: 0 0 12px; font-size: 15px; }
+.mtb-incident-summary ul { margin: 8px 0; padding-left: 20px; }
+.mtb-incident-summary li + li { margin-top: 5px; }
+.mtb-incident-summary details summary { cursor: pointer; color: var(--mtb-text-secondary); }
+.mtb-incident-summary code { overflow-wrap: anywhere; font-family: ${theme.typography.fontFamilyMonospace}; font-size: 11px; }
+.mtb-incident-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; background: var(--mtb-border); }
+.mtb-incident-grid > div { min-width: 0; padding: 10px; background: var(--mtb-surface); }
+.mtb-incident-grid dt { color: var(--mtb-text-secondary); font-size: 11px; }
+.mtb-incident-grid dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.mtb-intent-diff { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 14px; margin-bottom: 12px; padding: 14px; border: 1px solid color-mix(in srgb, var(--mtb-accent) 45%, var(--mtb-border)); border-radius: 7px; background: color-mix(in srgb, var(--mtb-accent) 8%, var(--mtb-surface)); }
+.mtb-intent-diff strong { font-size: 22px; }
+.mtb-digest { margin: 12px 0 0; color: var(--mtb-text-secondary); font-size: 11px; overflow-wrap: anywhere; }
+.mtb-approval-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.mtb-incident-timeline { margin: 0; padding: 0; list-style: none; }
+.mtb-incident-timeline li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; padding: 10px 0; border-top: 1px solid var(--mtb-border); }
+.mtb-incident-timeline li > span { display: grid; place-items: center; align-self: start; width: 26px; height: 26px; border-radius: 50%; background: var(--mtb-surface); color: var(--mtb-text-secondary); font-size: 10px; }
+.mtb-incident-timeline p { margin: 3px 0 0; color: var(--mtb-text-secondary); font-size: 12px; }
 .mtb-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 @container mtb-workbench (min-width: 1024px) {
   .mtb-workbench-layout { grid-template-areas: 'canvas context chat'; grid-template-columns: minmax(0, 1fr) 40px minmax(320px, 360px); height: calc(100dvh - 128px); min-height: 480px; }

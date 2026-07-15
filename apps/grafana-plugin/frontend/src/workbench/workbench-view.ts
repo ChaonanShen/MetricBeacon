@@ -22,6 +22,7 @@ export const examplePrompts = [
 export const productNavigation = [
   { id: 'workbench', label: '工作台', enabled: true },
   { id: 'sessions', label: '会话', enabled: true },
+  { id: 'incidents', label: '事件', enabled: true },
   { id: 'knowledge', label: '知识库', enabled: false },
   { id: 'playbook', label: 'Playbook', enabled: false },
   { id: 'skill', label: 'Skill', enabled: false },

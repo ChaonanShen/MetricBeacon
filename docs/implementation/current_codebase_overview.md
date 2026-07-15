@@ -49,8 +49,8 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |`services/assistant-mcp/internal/playbook`|确定性的有界 Playbook start/resume engine。|Start 固定三类资产摘要并采集同 epoch 的 runtime/queue/worker/policy；checkpoint 使用部署密钥 HMAC-SHA256，限制 4096 字节。Resume 复验签名、phase、资产摘要和 60 秒观测时效；只有 stopped-worker 三个字段全为 0、policy=2、诊断证据/置信度符合策略时才产生绑定 epoch、version、policy/playbook digest 的 `0 -> 2` IntentDraft，其他症状完成为 no-action。|
 |`services/order-demo`|可控订单业务系统的新 Go 模块。|已实现订单状态机、100 容量队列、动态 worker、版本化配置、幂等提交、三种真实处理故障、受限 `0 -> 2` CAS、operation reconcile 和固定业务 probe；Business/Operational 使用独立 HTTP 监听和读写 token，Fault 只经 Unix Socket，Prometheus 指标来自真实状态。同一镜像提供 order-service、无网络 fault-controller 和只访问 Business API 的 loadgen。|
 |`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`、`agent/localresult`|只读 node_exporter Profile、受限 Eino IntentPlanner 与本地结果 formatter。|Profile 继续在启动时校验并保留给执行侧代码，但 Planner 不再拼接其事实回复/工具说明；模型只接收注册 view 说明、当前消息和最近最多 6 个持久化结构化意图。DeepSeek 使用 JSON mode、non-thinking、可实际传输的 0.01 temperature 和 512 token 上限；四字段输出在本地严格校验，空/契约错误最多重试一次。完整时序留在本地，持久化事实回复由 formatter 根据 QueryPlan 与本地结果生成。|
-|`apps/grafana-plugin/frontend`|React/Grafana 产品化工作台：创建/分页列出/恢复/切换私有 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|常驻 controller 下由 scoped Grafana theme Shell 编排；宽屏为 `Canvas / Context / Chat`，中宽折叠 Context，窄屏按 `Chat / Context / Canvas` 纵排。Context 只派生真实 Session/Task/QueryPlan，不伪造 Folder/权限。Session 无限分页由服务端 token 驱动，reducer 以 Session ID 拒绝迟到 history/replay/event。图表按 Task oldest-first 分组、最多两列。|
-|`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 owner-scoped Session page、单 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
+|`apps/grafana-plugin/frontend`|React/Grafana 产品化工作台：私有指标会话与组织 Incident 的选择、恢复、有限 SSE 和受控审批界面。|指标任务继续使用 Grafana DataFrame/TimeSeries；Incident 画布只展示持久化诊断、备选原因、证据、固定资产、不可变 Intent/Diff、Approval 和事件时间线。事件对话不能提交任意消息；只有 Grafana Admin 可在二次确认后提交绑定 Task/Approval version 与 intent digest 的 approve/reject。Session-aware reducer 拒绝迟到结果，并把 cancelled 作为终态关流。|
+|`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 owner-scoped 私有会话及 org-scoped Incident/Approval；所有角色只读 Incident，只有可信 Grafana Admin 获得 `incidents:approve` 并可转发审批写。它不持久化业务数据、不调用 MCP，也不接受浏览器自报身份或权限。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
 |`data/operational-assets`|order-demo 的版本化 Knowledge、Skill、Playbook 与精确 Alert Mapping。|只由 assistant-mcp 文件 Adapter 读取；原始字节摘要在 Playbook checkpoint 和后续 Intent 中固定。|
 |`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`scripts/mtb` 统一根 `.env` 的 worktree ID/slot、脱敏配置、工具链、按 lockfile 指纹执行的 `npm ci`、一次前端 build、四种 Compose mode、生命周期、诊断和快速/full verify。开发栈使用稳定 worktree project/slot 端口；E2E/诊断使用唯一 project 和 Docker 动态端口，并只清理本轮 volume/image/network。原 `make e2e-*` 和 `run-*.sh` 是兼容入口。|
@@ -65,7 +65,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 - 用户新建或选择对话时清除当前 Workbench route/reducer、请求错误和 replay/幂等 refs，但不删除 AI Core 中的旧 Session；Session-aware reducer 拒绝旧 history/replay/SSE 的迟到结果。会话栏无限分页选择 creator 私有历史，下一次 Task 接受事务同步更新 Session `updatedAt/version` 并使它回到列表顶部；外用户访问统一返回不存在。
 - ChatPane 将 Session 选择、持久化消息、assistant draft、Task 状态/错误与自然语言 composer 收敛到同一右栏；Session 菜单展开高度有界。示例问题只填入输入框，单一 form submit 路径保证 Enter 与按钮不会形成双提交；fresh 页首次分析前仍不创建后端 Session。
 - Canvas 以真实 Task oldest-first 分组显示 durable Chart/Execution；其 container 达到约 736px 时最多两列，奇数尾图跨整行。卡片状态由 execution 纯映射，TimeSeries 仍消费 DataFrame 与真实范围/series，PromQL 只读且可复制；没有引入假 SVG、编辑、删除、排序或保存命令。
-- 同步 IntentPlanner 只接收当前 User Message 和最近最多 6 个 views 非空的持久化 User Message + QueryPlan 意图，按完整消息边界限制在 12,000 个 Unicode 字符内并保持时间正序；历史读取失败不静默降级。Assistant 事实回复、实际数值和时间戳不会进入模型输入。当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
+- 同步 IntentPlanner 只接收当前 User Message 和最近最多 6 个 views 非空的持久化 User Message + QueryPlan 意图，按完整消息边界限制在 12,000 个 Unicode 字符内并保持时间正序；历史读取失败不静默降级。Assistant 事实回复、实际数值和时间戳不会进入模型输入。当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在 completed、failed 或 cancelled Task 的 durable events 排空后主动关闭，不要求最后一个事件使用特定类型。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
 - Mock 与真实 Adapter 共用逻辑数据源 UID `prometheus-main`。Task、Chart 和 MCP Tool 契约均限制为该 UID；SQLite `0003` 会前移迁移历史 Task 及 Chart query JSON 中的旧 UID。Agent 只提交 view，查询验证结果返回 assistant-mcp 生成的规范 PromQL，AI Core 只将该返回值持久化到 Chart。
 - Prometheus Adapter 层的 node_exporter 注册表是 CPU、内存和负载规范 PromQL 的唯一来源。跨服务输入不再携带 expression：CPU view 必须携带 `30|60|300` 秒 window，memory/load 必须为 `null`；注册表渲染表达式并用 Prometheus AST 检查节点/selector 上限。Mock 和 opt-in HTTP Adapter 共享 view/window、注册 step、6 小时范围和 1,000 理论点上限，越界参数在访问数据前返回 `schema_validation_failed`。HTTP Adapter 只从服务环境取得 endpoint，禁用 redirect，限制请求为 10 秒、最多 20 series/5,000 samples/2 MiB 解压响应；`/healthz` 不访问依赖，HTTP 模式 `/readyz` 短探测 `/-/ready`。
@@ -111,7 +111,7 @@ slot 不得与其他已初始化 worktree 重复：
 |确定性 Mock|`compose.mock-e2e.yaml`|Mock Agent，固定生成 CPU、内存、负载三视图|fixture|无外部服务或模型凭证|
 |真实指标|Mock 基础文件 + `compose.real-metrics-e2e.yaml`|Mock Agent，仍固定生成三视图|本地 Prometheus 抓取 node_exporter|Docker 可运行 Prometheus/node_exporter|
 |真实 Agent|上述两个文件 + `compose.real-agent-e2e.yaml`|受限 Eino/DeepSeek Agent|本地 Prometheus 抓取 node_exporter|`.env` 中配置 `DEEPSEEK_API_KEY`|
-|订单 Incident|Mock 基础 + real-metrics + `compose.incident-e2e.yaml`|既有指标 Agent + 确定性 Incident 诊断/prepare；独立 Remediation Toolset 已接入 durable write-once Execute/Reconcile/三重 Verify|Prometheus 抓取 node_exporter 与真实 order-demo；Grafana Alert firing/resolved|Docker；AI Core 已接通组织游标列表/可见性、Approval、Execution/Audit；Plugin 安全代理已完成，Workbench 与真实批准 E2E 尚未完成|
+|订单 Incident|Mock 基础 + real-metrics + `compose.incident-e2e.yaml`|既有指标 Agent + 确定性 Incident 诊断/prepare；独立 Remediation Toolset 已接入 durable write-once Execute/Reconcile/三重 Verify|Prometheus 抓取 node_exporter 与真实 order-demo；Grafana Alert firing/resolved|Docker；AI Core 已接通组织游标列表/可见性、Approval、Execution/Audit，Plugin 和 Workbench 已完成；真实批准 E2E 尚待 G8|
 
 长期开发栈都由统一入口准备依赖、编译一次 Plugin 前端并执行 Compose build/up/wait：
 
@@ -206,7 +206,7 @@ Backend 由 Grafana 承载。
 |`make test-ai-agent`|受限 Eino Runtime：fake model、view-only Tool JSON、source-call 配对、expression 查询前拒绝、成功 proposal 权威性、本地 formatter 与模型输入摘要隔离。|通过。|
 |`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、同一 Session 连续 8 次相同 CPU/内存请求、durable tool 配对、有限 replay 与 API/日志/SQLite 泄漏检查。|通过：概览 21 events/3 query tool calls/3 charts，CPU 追问 13 events/1 query tool call/1 chart；8 次重复请求均得到 `600s/120s` 双视图计划，各为 17 events/2 query tool calls/2 charts；调用进程从 `.env` 临时加载 key，未输出或持久化 key。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
-|`make test-frontend`|Vitest 工作台 Session 状态、历史分页/标题、SSE、路由、Resource 错误、产品 View/Shell、图表分组/聚焦和 DataFrame mapper；随后 TypeScript typecheck。|通过：12 个测试文件、42 个用例。|
+|`make test-frontend`|Vitest 工作台 Session/Incident 状态、历史分页/标题、审批展示、durable 时间线、取消态、SSE、路由、Resource 错误、产品 View/Shell、图表分组/聚焦和 DataFrame mapper；随后 TypeScript typecheck。|通过：13 个测试文件、46 个用例；独立前端 build 通过。|
 |`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果、DeepSeek 探针、worktree 配置和 Compose 命名/端口解析，并检查诊断与 E2E Shell 语法。|通过：44 个 Node 测试。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
 |`make validate-contracts`|Plugin/AI Core/order-demo OpenAPI、36 份 JSON Schema、资产与 node_exporter fixture。|通过；包含有效 Incident/Approval/Webhook 以及 QueryPlan 混入、ground truth 和缺失 fingerprint 的反例。|

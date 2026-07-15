@@ -66,7 +66,7 @@ describe('examplePrompts', () => {
 
 describe('productNavigation', () => {
   it('only enables capabilities backed by the current workbench', () => {
-    expect(productNavigation.filter((item) => item.enabled).map((item) => item.id)).toEqual(['workbench', 'sessions']);
+    expect(productNavigation.filter((item) => item.enabled).map((item) => item.id)).toEqual(['workbench', 'sessions', 'incidents']);
     expect(productNavigation.filter((item) => !item.enabled).map((item) => item.id)).toEqual(['knowledge', 'playbook', 'skill', 'promotion']);
   });
 });

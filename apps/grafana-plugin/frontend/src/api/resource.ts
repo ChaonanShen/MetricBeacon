@@ -11,6 +11,8 @@ export type GeneratedTaskEvent = components['schemas']['task-events.schema'];
 export type MessagePage = components['schemas']['message-page.schema'];
 export type TaskPage = components['schemas']['task-page.schema'];
 export type TaskEventReplayPage = components['schemas']['task-event-replay-page.schema'];
+export type Approval = components['schemas']['approval.schema'];
+export type DecideApproval = components['schemas']['decide-approval-request.schema'];
 
 const resourceBase = '/api/plugins/mini-torchbearing-app/resources';
 
@@ -38,11 +40,20 @@ export const resourceClient = {
   listTasks(sessionId: string, pageToken?: string): Promise<TaskPage> {
     return getBackendSrv().get<TaskPage>(`${resourceBase}/sessions/${encodeURIComponent(sessionId)}/tasks${queryString({ pageSize: 20, pageToken })}`);
   },
+  listIncidents(pageToken?: string): Promise<TaskPage> {
+    return getBackendSrv().get<TaskPage>(`${resourceBase}/incidents${queryString({ pageSize: 20, pageToken })}`);
+  },
   createTask(input: CreateTask, idempotencyKey: string): Promise<Task> {
     return getBackendSrv().post<Task>(`${resourceBase}/tasks`, input, { headers: { 'Idempotency-Key': idempotencyKey } });
   },
   getTask(taskId: string): Promise<Task> {
     return getBackendSrv().get<Task>(`${resourceBase}/tasks/${encodeURIComponent(taskId)}`);
+  },
+  getApproval(taskId: string): Promise<Approval> {
+    return getBackendSrv().get<Approval>(`${resourceBase}/tasks/${encodeURIComponent(taskId)}/approval`);
+  },
+  decideApproval(taskId: string, input: DecideApproval, idempotencyKey: string): Promise<Approval> {
+    return getBackendSrv().post<Approval>(`${resourceBase}/tasks/${encodeURIComponent(taskId)}/approval`, input, { headers: { 'Idempotency-Key': idempotencyKey } });
   },
   replayEvents(taskId: string, pageToken?: string): Promise<TaskEventReplayPage> {
     return getBackendSrv().get<TaskEventReplayPage>(`${resourceBase}/tasks/${encodeURIComponent(taskId)}/events/replay${queryString({ pageSize: 200, pageToken, afterSequence: pageToken ? undefined : 0 })}`);

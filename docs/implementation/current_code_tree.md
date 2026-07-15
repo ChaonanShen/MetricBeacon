@@ -15,15 +15,17 @@ mini-torchbearing/
 │       │   │   │   ├── resource-error.ts  # Resource 404 恢复判定与安全错误展示
 │       │   │   │   └── generated/         # 由 OpenAPI 生成的前端类型
 │       │   │   └── workbench/             # 分析工作台
-│       │   │       ├── Workbench.tsx      # 常驻 controller：Session list/切换、任务创建、恢复与 SSE 编排
+│       │   │       ├── Workbench.tsx      # 常驻 controller：Session/Incident 列表、审批、恢复与 SSE 编排
 │       │   │       ├── WorkbenchShell.tsx # 产品页面壳与展示 slot，不复制请求或服务端状态
 │       │   │       ├── WorkbenchHeader.tsx # 页内产品标题与当前会话状态
 │       │   │       ├── ContextPane.tsx    # 真实 Session/Task/QueryPlan 只读上下文
 │       │   │       ├── workbench-view.ts  # Context、状态与示例问题的纯展示派生
 │       │   │       ├── workbench-styles.ts # Grafana theme 到 scoped 产品 CSS variables 的映射
 │       │   │       ├── ChatPane.tsx       # 消息、assistant draft、状态、示例与单 form composer
-│       │   │       ├── SessionMenu.tsx    # owner Session 有界分页菜单、新建与选择
+│       │   │       ├── SessionMenu.tsx    # private Session / org Incident 有界分页选择
 │       │   │       ├── ChartCanvas.tsx    # Task 分组、最多两列画布与滚动控制
+│       │   │       ├── IncidentCanvas.tsx # 诊断、证据、不可变 Diff、审批和事件时间线
+│       │   │       ├── incident-view.ts   # Incident/Approval/TaskEvent 的纯展示派生
 │       │   │       ├── chart-groups.ts    # oldest-first 分组与 Task 滚动纯逻辑
 │       │   │       ├── ChartCard.tsx      # 时序卡片、图表状态与只读 PromQL
 │       │   │       ├── chart-view.ts      # Execution 到卡片状态的纯展示映射

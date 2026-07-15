@@ -27,6 +27,26 @@ describe('sessionReducer', () => {
     expect(completed.runtimeByTaskId['task-1'].latestSequence).toBe(1);
   });
 
+  it('stops tracking a rejected incident after its cancelled status event', () => {
+    const loaded = sessionReducer(selected(), historyLoaded);
+    const cancelled = sessionReducer(loaded, {
+      type: 'task.event',
+      event: {
+        eventId: 'event-cancelled',
+        taskId: 'task-1',
+        sessionId: 'session-1',
+        sequence: 1,
+        type: 'task.status_changed',
+        timestamp: '2026-07-14T00:00:01Z',
+        payload: { previousStatus: 'waiting_approval', status: 'cancelled' },
+      } as never,
+    });
+
+    expect(cancelled.activeTaskId).toBeUndefined();
+    expect(cancelled.tasksById['task-1'].status).toBe('cancelled');
+    expect(cancelled.runtimeByTaskId['task-1'].latestSequence).toBe(1);
+  });
+
   it('keeps a locally active task subscribed until its terminal event is reduced', () => {
     const created = sessionReducer(selected(), { type: 'task.created', sessionId: 'session-1', task });
     const completedFromHistory = Object.assign({}, task, { status: 'completed', latestSequence: 12 }) as never;

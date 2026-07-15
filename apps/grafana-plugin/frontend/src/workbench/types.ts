@@ -16,12 +16,19 @@ export type ExecutionWire = components['schemas']['execution'] & {
   actualSampleRange?: { from: string; to: string } | null;
 };
 export type WorkbenchChart = { chart: ChartWire; execution?: ExecutionWire };
+export type IncidentTimelineItem = {
+  sequence: number;
+  type: string;
+  title: string;
+  detail?: string;
+};
 export type WorkbenchState = {
   latestSequence: number;
   assistantText: string;
   taskStatus?: TaskStatus;
   error?: { code: string; message: string };
   charts: Record<string, WorkbenchChart>;
+  incidentTimeline: IncidentTimelineItem[];
 };
 
-export const initialWorkbenchState: WorkbenchState = { latestSequence: 0, assistantText: '', charts: {} };
+export const initialWorkbenchState: WorkbenchState = { latestSequence: 0, assistantText: '', charts: {}, incidentTimeline: [] };
