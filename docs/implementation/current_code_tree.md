@@ -15,8 +15,8 @@ mini-torchbearing/
 │       │   │   │   ├── resource-error.ts  # Resource 404 恢复判定与安全错误展示
 │       │   │   │   └── generated/         # 由 OpenAPI 生成的前端类型
 │       │   │   └── workbench/             # 分析工作台
-│       │   │       ├── Workbench.tsx      # 页面编排、任务创建、SSE 订阅与本地选择
-│       │   │       ├── ConversationPane.tsx # 对话、历史、Task 状态与输入
+│       │   │       ├── Workbench.tsx      # 页面编排、任务创建、新对话清理、SSE 订阅与本地选择
+│       │   │       ├── ConversationPane.tsx # 对话、新建入口、历史、Task 状态与输入
 │       │   │       ├── ChartCanvas.tsx    # Task 分组、最多两列画布与滚动控制
 │       │   │       ├── chart-groups.ts    # oldest-first 分组、默认选择与滚动纯逻辑
 │       │   │       ├── ContextPane.tsx    # 只读 Session/Task/图表详情

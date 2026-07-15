@@ -22,6 +22,8 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await page.getByRole('button', { name: '开始分析' }).click();
 
   await expect(page).toHaveURL(/sessionId=[^&]+&taskId=[^&]+/);
+  const originalSessionId = new URL(page.url()).searchParams.get('sessionId');
+  expect(originalSessionId).toBeTruthy();
   expect(submittedTask?.analysisContext).toEqual({ datasourceUid: 'prometheus-main' });
   await expect(page.getByText(/已查询 node_exporter/)).toBeVisible();
   const chartCanvas = page.getByTestId('chart-canvas');
@@ -95,6 +97,29 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expectNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1800, height: 900 });
+  await page.getByRole('button', { name: '新建对话' }).click();
+  await expect(page).toHaveURL((url) => !url.searchParams.has('sessionId') && !url.searchParams.has('taskId'));
+  await expect(page.getByLabel('分析请求')).toHaveValue('');
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(0);
+  await expect(page.getByTestId('chart-group')).toHaveCount(0);
+  await expect(page.getByText('你：只看 CPU')).toHaveCount(0);
+  await expect(page.getByText('0 轮分析 · 0 张图表')).toBeVisible();
+  await expect(contextPane.getByText('尚未开始', { exact: true })).toBeVisible();
+  await expect(contextPane.getByText('选择一张图表以查看只读详情。')).toBeVisible();
+  const oldSession = await page.context().request.get(`/api/plugins/mini-torchbearing-app/resources/sessions/${encodeURIComponent(originalSessionId!)}`);
+  expect(oldSession.ok()).toBeTruthy();
+
+  await page.getByLabel('分析请求').fill('新对话只看内存');
+  await page.getByRole('button', { name: '开始分析' }).click();
+  await expect(page).toHaveURL(/sessionId=[^&]+&taskId=[^&]+/);
+  const freshSessionId = new URL(page.url()).searchParams.get('sessionId');
+  expect(freshSessionId).toBeTruthy();
+  expect(freshSessionId).not.toBe(originalSessionId);
+  await expect(page.getByTestId('chart-group')).toHaveCount(1);
+  await expect(page.getByTestId('chart-group')).toContainText('新对话只看内存');
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(1);
+  await expect(page.getByText('你：只看 CPU')).toHaveCount(0);
+
   await page.goto('/a/mini-torchbearing-app/workbench?theme=dark&sessionId=missing-session&taskId=missing-task');
   await expect(page).toHaveURL((url) => url.searchParams.get('theme') === 'dark' && !url.searchParams.has('sessionId') && !url.searchParams.has('taskId'));
   await expect(page.getByRole('status')).toHaveText('已清除当前运行环境中不存在的旧会话，请重新提交分析。');

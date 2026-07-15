@@ -39,4 +39,13 @@ describe('sessionReducer', () => {
 
     expect(cleared).toEqual(initialSessionWorkbenchState);
   });
+
+  it('ignores a late event from a task after starting a fresh conversation', () => {
+    const loaded = sessionReducer(initialSessionWorkbenchState, { type: 'history.loaded', messages: [userMessage], tasks: [task], messageNextPageToken: null, taskNextPageToken: null });
+    const cleared = sessionReducer(loaded, { type: 'session.cleared' });
+    const afterLateEvent = sessionReducer(cleared, { type: 'task.event', event: { eventId: 'event-late', taskId: 'task-1', sessionId: 'session-1', sequence: 1, type: 'assistant.message.delta', timestamp: '2026-07-14T00:00:01Z', payload: { delta: 'old conversation' } } as never });
+
+    expect(afterLateEvent).toBe(cleared);
+    expect(afterLateEvent).toEqual(initialSessionWorkbenchState);
+  });
 });

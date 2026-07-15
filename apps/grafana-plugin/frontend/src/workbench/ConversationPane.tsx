@@ -15,17 +15,22 @@ type Props = {
   loadingMore: boolean;
   notice?: string;
   requestError?: string;
+  newConversationDisabled: boolean;
   onMessageChange: (message: string) => void;
   onSubmit: () => void;
   onLoadMore: () => void;
+  onNewConversation: () => void;
 };
 
-export function ConversationPane({ sessionTitle, messages, tasks, runtimeByTaskId, activeTask, message, busy, canLoadMore, loadingMore, notice, requestError, onMessageChange, onSubmit, onLoadMore }: Props) {
+export function ConversationPane({ sessionTitle, messages, tasks, runtimeByTaskId, activeTask, message, busy, canLoadMore, loadingMore, notice, requestError, newConversationDisabled, onMessageChange, onSubmit, onLoadMore, onNewConversation }: Props) {
   return <Pane aria-label="对话" data-testid="conversation-pane" minHeight={{ xs: '420px', xl: 0 }}>
     <Stack direction="column" gap={2} height="100%" minHeight={0}>
-      <Box padding={3} paddingBottom={0}>
-        <Text element="h2" variant="h4">对话</Text>
-        <Text color="secondary">{sessionTitle ?? '当前会话'}</Text>
+      <Box padding={3} paddingBottom={0} display="flex" justifyContent="space-between" alignItems="flex-start" gap={2}>
+        <Box minWidth={0}>
+          <Text element="h2" variant="h4">对话</Text>
+          <Text color="secondary">{sessionTitle ?? '当前会话'}</Text>
+        </Box>
+        <Button variant="secondary" size="sm" onClick={onNewConversation} disabled={newConversationDisabled}>新建对话</Button>
       </Box>
       <ScrollContainer grow={1} minHeight={0} paddingX={3} overflowY="auto">
         <Stack direction="column" gap={2}>

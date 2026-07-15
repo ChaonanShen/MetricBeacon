@@ -141,6 +141,26 @@ export function Workbench(_props: AppRootProps) {
       requestAnimationFrame(() => requestAnimationFrame(() => chartCanvas.current?.restoreAfterPrepend()));
     },
   });
+  const startNewConversation = () => {
+    if (create.isPending || loadMore.isPending) return;
+    if (sessionId) {
+      void client.cancelQueries({ queryKey: ['mini-torchbearing-session', sessionId] });
+      void client.cancelQueries({ queryKey: ['mini-torchbearing-session-history', sessionId] });
+    }
+    setMessage('');
+    setSessionId(undefined);
+    setSelectedChartId(undefined);
+    setRecoveryNotice(undefined);
+    sequenceByTask.current = {};
+    replayedTasks.current = new Set<string>();
+    idempotencyKey.current = undefined;
+    pendingTask.current = undefined;
+    autoFocusedTask.current = undefined;
+    create.reset();
+    loadMore.reset();
+    dispatch({ type: 'session.cleared' });
+    clearWorkbenchRoute();
+  };
   const submit = () => { if (message.trim() && !activeTask) create.mutate(); };
   const staleSession = session.isError && isResourceNotFound(session.error);
   const requestError = [create.error, loadMore.error, staleSession ? undefined : session.error, staleSession ? undefined : history.error].find(Boolean);
@@ -165,7 +185,7 @@ export function Workbench(_props: AppRootProps) {
     <h2>Mini Torchbearing Workbench</h2>
     <Stack direction={{ xs: 'column', xl: 'row' }} gap={2} height={{ xs: 'auto', xl: 'calc(100dvh - 112px)' }} alignItems="stretch">
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
-        <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
+        <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} newConversationDisabled={create.isPending || loadMore.isPending} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} onNewConversation={startNewConversation} />
       </Box>
       <ChartCanvas ref={chartCanvas} groups={groups} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />
       <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
