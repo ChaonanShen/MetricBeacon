@@ -15,8 +15,12 @@ mini-torchbearing/
 │       │   │   │   ├── resource-error.ts  # Resource 404 恢复判定与安全错误展示
 │       │   │   │   └── generated/         # 由 OpenAPI 生成的前端类型
 │       │   │   └── workbench/             # 分析工作台
-│       │   │       ├── Workbench.tsx      # Session list/切换、任务创建、恢复与 SSE 编排
-│       │   │       ├── SessionPane.tsx   # 新建入口、owner Session 分页列表与选择
+│       │   │       ├── Workbench.tsx      # 常驻 controller：Session list/切换、任务创建、恢复与 SSE 编排
+│       │   │       ├── WorkbenchShell.tsx # 产品页面壳与展示 slot，不复制请求或服务端状态
+│       │   │       ├── WorkbenchHeader.tsx # 页内产品标题与当前会话状态
+│       │   │       ├── workbench-view.ts  # Context、状态与示例问题的纯展示派生
+│       │   │       ├── workbench-styles.ts # Grafana theme 到 scoped 产品 CSS variables 的映射
+│       │   │       ├── SessionPane.tsx   # 新建入口、owner Session 分页列表与选择（迁移期间保留）
 │       │   │       ├── WorkbenchPane.tsx # 三栏共用的 theme-aware Pane 壳
 │       │   │       ├── ConversationPane.tsx # 当前对话、独立消息滚动、Task 状态与输入
 │       │   │       ├── ChartCanvas.tsx    # Task 分组、最多两列画布与滚动控制

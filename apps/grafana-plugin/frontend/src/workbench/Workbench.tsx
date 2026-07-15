@@ -1,5 +1,4 @@
 import { AppRootProps } from '@grafana/data';
-import { Box, Stack } from '@grafana/ui';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
@@ -14,6 +13,8 @@ import { createInitialSessionWorkbenchState, isTerminal, sessionReducer } from '
 import { deriveSessionTitle, flattenSessionPages } from './session-list';
 import { SessionPane } from './SessionPane';
 import { subscribeTaskEvents } from './sse';
+import { deriveWorkbenchContext } from './workbench-view';
+import { WorkbenchShell } from './WorkbenchShell';
 
 type Event = Omit<GeneratedTaskEvent, 'payload'> & { payload: Record<string, unknown> };
 
@@ -183,8 +184,9 @@ export function Workbench(_props: AppRootProps) {
   const submit = () => { if (message.trim() && !activeTask) create.mutate(); };
   const staleSession = session.isError && isResourceNotFound(session.error);
   const requestError = [create.error, loadMore.error, staleSession ? undefined : session.error, staleSession ? undefined : history.error].find(Boolean);
-  const messages = state.messageOrder.map((id) => state.messagesById[id]);
-  const groups = deriveChartGroups(state.taskOrder.map((taskID) => state.tasksById[taskID]), messages, state.runtimeByTaskId);
+  const messages = useMemo(() => state.messageOrder.map((id) => state.messagesById[id]), [state.messageOrder, state.messagesById]);
+  const tasks = useMemo(() => state.taskOrder.map((id) => state.tasksById[id]), [state.taskOrder, state.tasksById]);
+  const groups = deriveChartGroups(tasks, messages, state.runtimeByTaskId);
   const chartGroupKey = groups.map((group) => `${group.taskId}:${group.charts.map(({ chart }) => chart.id).join(',')}`).join(';');
   const allHistoryReplayed = state.taskOrder.length > 0 && state.taskOrder.every((taskId) => state.replayedTaskIds[taskId]);
   useEffect(() => {
@@ -197,17 +199,12 @@ export function Workbench(_props: AppRootProps) {
   }, [allHistoryReplayed, chartGroupKey, sessionId, state.activeTaskId]);
   const listedSessions = flattenSessionPages(sessionPages.data?.pages ?? []);
   const switchingDisabled = create.isPending || loadMore.isPending;
+  const context = useMemo(() => deriveWorkbenchContext(session.data?.title, tasks, activeTask), [activeTask, session.data?.title, tasks]);
 
-  return <main style={{ padding: 16 }}>
-    <h2>Mini Torchbearing Workbench</h2>
-    <Stack direction={{ xs: 'column', xl: 'row' }} gap={2} height={{ xs: 'auto', xl: 'calc(100dvh - 112px)' }} alignItems="stretch">
-      <Box width={{ xs: '100%', xl: '260px' }} height={{ xs: '280px', xl: '100%' }} shrink={{ xs: 1, xl: 0 }}>
-        <SessionPane sessions={listedSessions} selectedSessionId={sessionId} loading={sessionPages.isLoading} loadingMore={sessionPages.isFetchingNextPage} hasMore={Boolean(sessionPages.hasNextPage)} error={sessionPages.error ? formatResourceError(sessionPages.error) : undefined} switchingDisabled={switchingDisabled} onNewConversation={() => selectConversation()} onSelectSession={selectConversation} onLoadMore={() => { void sessionPages.fetchNextPage(); }} />
-      </Box>
-      <Box width={{ xs: '100%', xl: 'auto' }} minWidth={{ xs: 0, xl: '320px' }} maxWidth={{ xs: 'none', xl: '420px' }} height={{ xs: 'auto', xl: '100%' }} grow={{ xs: 0, xl: 1 }} shrink={{ xs: 1, xl: 1 }} basis={{ xs: 'auto', xl: '0' }}>
-        <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />
-      </Box>
-      <ChartCanvas ref={chartCanvas} groups={groups} />
-    </Stack>
-  </main>;
+  return <WorkbenchShell
+    context={context}
+    sessionPane={<SessionPane sessions={listedSessions} selectedSessionId={sessionId} loading={sessionPages.isLoading} loadingMore={sessionPages.isFetchingNextPage} hasMore={Boolean(sessionPages.hasNextPage)} error={sessionPages.error ? formatResourceError(sessionPages.error) : undefined} switchingDisabled={switchingDisabled} onNewConversation={() => selectConversation()} onSelectSession={selectConversation} onLoadMore={() => { void sessionPages.fetchNextPage(); }} />}
+    conversationPane={<ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={tasks} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />}
+    canvas={<ChartCanvas ref={chartCanvas} groups={groups} />}
+  />;
 }
