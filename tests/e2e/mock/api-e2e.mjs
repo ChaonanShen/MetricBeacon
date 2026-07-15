@@ -136,6 +136,13 @@ const taskPage = await requestJSON(`${resourceBase}/sessions/${encodeURIComponen
 assert.equal(taskPage.response.status, 200);
 assert.equal(taskPage.body.items.length, cases.length, 'all completed Tasks must remain in Session history');
 assert.equal(taskPage.body.nextPageToken, null);
+const sessionPage = await requestJSON(`${resourceBase}/sessions?pageSize=20`);
+assert.equal(sessionPage.response.status, 200);
+const listedSession = sessionPage.body.items.find((item) => item.id === session.body.id);
+assert.ok(listedSession, 'completed API Session must appear in owner history');
+assert.equal(listedSession.title, 'Mock E2E');
+assert.ok(listedSession.version >= cases.length + 1, `Session version did not track accepted Tasks: ${listedSession.version}`);
+assert.ok(Date.parse(listedSession.updatedAt) >= Date.parse(listedSession.createdAt), 'Session activity moved backwards');
 const finiteReplay = await requestJSON(`${resourceBase}/tasks/${encodeURIComponent(task.body.id)}/events/replay?afterSequence=0&pageSize=200`);
 assert.equal(finiteReplay.response.status, 200);
 assert.equal(finiteReplay.body.targetSequence, events.at(-1).sequence);

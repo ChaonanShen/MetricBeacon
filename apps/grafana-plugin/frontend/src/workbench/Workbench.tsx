@@ -39,7 +39,11 @@ export function Workbench(_props: AppRootProps) {
   });
   const history = useQuery({
     queryKey: ['mini-torchbearing-session-history', sessionId],
-    queryFn: async () => Promise.all([resourceClient.listMessages(sessionId!), resourceClient.listTasks(sessionId!)]),
+    queryFn: async () => {
+      const requestedSessionId = sessionId!;
+      const [messages, tasks] = await Promise.all([resourceClient.listMessages(requestedSessionId), resourceClient.listTasks(requestedSessionId)]);
+      return { sessionId: requestedSessionId, messages, tasks };
+    },
     enabled: Boolean(sessionId),
   });
   const sessionPages = useInfiniteQuery({
@@ -67,9 +71,8 @@ export function Workbench(_props: AppRootProps) {
 
   useEffect(() => {
     if (!history.data) return;
-    const [messages, tasks] = history.data;
-    if (sessionId) dispatch({ type: 'history.loaded', sessionId, messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken });
-  }, [history.data, sessionId]);
+    dispatch({ type: 'history.loaded', sessionId: history.data.sessionId, messages: history.data.messages.items, tasks: history.data.tasks.items, messageNextPageToken: history.data.messages.nextPageToken, taskNextPageToken: history.data.tasks.nextPageToken });
+  }, [history.data]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,14 +146,15 @@ export function Workbench(_props: AppRootProps) {
   const loadMore = useMutation({
     mutationFn: async () => {
       chartCanvas.current?.captureScrollSnapshot();
+      const requestedSessionId = sessionId!;
       const [messages, tasks] = await Promise.all([
-        state.messageNextPageToken ? resourceClient.listMessages(sessionId!, state.messageNextPageToken) : Promise.resolve({ items: [], nextPageToken: state.messageNextPageToken }),
-        state.taskNextPageToken ? resourceClient.listTasks(sessionId!, state.taskNextPageToken) : Promise.resolve({ items: [], nextPageToken: state.taskNextPageToken }),
+        state.messageNextPageToken ? resourceClient.listMessages(requestedSessionId, state.messageNextPageToken) : Promise.resolve({ items: [], nextPageToken: state.messageNextPageToken }),
+        state.taskNextPageToken ? resourceClient.listTasks(requestedSessionId, state.taskNextPageToken) : Promise.resolve({ items: [], nextPageToken: state.taskNextPageToken }),
       ]);
-      return { messages, tasks };
+      return { sessionId: requestedSessionId, messages, tasks };
     },
-    onSuccess: ({ messages, tasks }) => {
-      dispatch({ type: 'history.loaded', sessionId: sessionId!, messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken });
+    onSuccess: ({ sessionId: loadedSessionId, messages, tasks }) => {
+      dispatch({ type: 'history.loaded', sessionId: loadedSessionId, messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken });
       requestAnimationFrame(() => requestAnimationFrame(() => chartCanvas.current?.restoreAfterPrepend()));
     },
   });

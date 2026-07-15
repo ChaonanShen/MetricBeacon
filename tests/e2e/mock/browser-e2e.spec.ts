@@ -53,6 +53,9 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(groups.nth(1)).toContainText('只看 CPU');
   await expect(groups.nth(0).getByTestId('timeseries-panel')).toHaveCount(3);
   await expect(groups.nth(1).getByTestId('timeseries-panel')).toHaveCount(1);
+  await expect(page.getByText('分析上下文', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '详情' })).toHaveCount(0);
+  await expect(sessionItem(page, '帮我看看最近 5 分钟')).toHaveAttribute('aria-current', 'page');
 
   await expectThreePaneDesktopLayout(page);
   const widePanels = await panelBoxes(page);
@@ -60,16 +63,6 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   expect(widePanels[2].y).toBeGreaterThan(widePanels[0].y);
   expect(widePanels[2].width).toBeGreaterThan(widePanels[0].width * 1.8);
   expect(widePanels[3].y).toBeGreaterThan(widePanels[2].y + widePanels[2].height);
-
-  await page.getByRole('button', { name: '详情' }).nth(1).click();
-  const contextPane = page.getByTestId('context-pane');
-  await expect(contextPane.getByText('内存可用率', { exact: true })).toBeVisible();
-  await expect(contextPane.getByText('PromQL', { exact: true })).toBeVisible();
-  await expect(contextPane.getByText('序列数', { exact: true })).toBeVisible();
-  await expect(contextPane.getByText('有效采样间隔', { exact: true })).toBeVisible();
-  await expect(contextPane.getByText('CPU rate window', { exact: true })).toBeVisible();
-  await expect(contextPane.getByText('实际样本范围', { exact: true })).toBeVisible();
-  await expect(contextPane.getByText(realMetrics ? '1' : '2', { exact: true })).toBeVisible();
 
   await page.getByTestId('timeseries-panel').first().locator('summary').click();
   await expect(page.getByTestId('timeseries-panel').first().locator('pre')).toBeVisible();
@@ -107,8 +100,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(page.getByTestId('chart-group')).toHaveCount(0);
   await expect(page.getByText('你：只看 CPU')).toHaveCount(0);
   await expect(page.getByText('0 轮分析 · 0 张图表')).toBeVisible();
-  await expect(contextPane.getByText('尚未开始', { exact: true })).toBeVisible();
-  await expect(contextPane.getByText('选择一张图表以查看只读详情。')).toBeVisible();
+  await expect(sessionItem(page, '帮我看看最近 5 分钟')).toBeVisible();
   const oldSession = await page.context().request.get(`/api/plugins/mini-torchbearing-app/resources/sessions/${encodeURIComponent(originalSessionId!)}`);
   expect(oldSession.ok()).toBeTruthy();
 
@@ -122,6 +114,39 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(page.getByTestId('chart-group')).toContainText('新对话只看内存');
   await expect(page.getByTestId('timeseries-panel')).toHaveCount(1);
   await expect(page.getByText('你：只看 CPU')).toHaveCount(0);
+
+  const historyItems = page.locator('.mtb-session-item');
+  await expect(historyItems.nth(0)).toContainText('新对话只看内存');
+  await expect(historyItems.nth(1)).toContainText('帮我看看最近 5 分钟');
+
+  await sessionItem(page, '帮我看看最近 5 分钟').click();
+  await expect(page).toHaveURL((url) => url.searchParams.get('sessionId') === originalSessionId && !url.searchParams.has('taskId'));
+  await expect(sessionItem(page, '帮我看看最近 5 分钟')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(4);
+  await expect(page.getByTestId('chart-group')).toHaveCount(2);
+  await expect(page.getByText('你：只看 CPU')).toBeVisible();
+  await expect(page.getByText('你：新对话只看内存')).toHaveCount(0);
+
+  await page.getByLabel('分析请求').fill('回到旧会话只看负载');
+  await page.getByRole('button', { name: '开始分析' }).click();
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(5);
+  await expect(page.getByTestId('chart-group')).toHaveCount(3);
+  await expect(page.getByText('你：回到旧会话只看负载')).toBeVisible();
+  await expect(historyItems.nth(0)).toContainText('帮我看看最近 5 分钟');
+  await expect(historyItems.nth(1)).toContainText('新对话只看内存');
+
+  await sessionItem(page, '新对话只看内存').click();
+  await expect(page).toHaveURL((url) => url.searchParams.get('sessionId') === freshSessionId && !url.searchParams.has('taskId'));
+  await expect(sessionItem(page, '新对话只看内存')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(1);
+  await expect(page.getByTestId('chart-group')).toHaveCount(1);
+  await expect(page.getByText('你：新对话只看内存')).toBeVisible();
+  await expect(page.getByText('你：回到旧会话只看负载')).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByTestId('timeseries-panel')).toHaveCount(1);
+  await expect(page.getByText('你：新对话只看内存')).toBeVisible();
+  await expect(sessionItem(page, '新对话只看内存')).toHaveAttribute('aria-current', 'page');
 
   await page.goto('/a/mini-torchbearing-app/workbench?theme=dark&sessionId=missing-session&taskId=missing-task');
   await expect(page).toHaveURL((url) => url.searchParams.get('theme') === 'dark' && !url.searchParams.has('sessionId') && !url.searchParams.has('taskId'));
@@ -158,34 +183,38 @@ async function panelBoxes(page: import('@playwright/test').Page) {
 }
 
 async function expectThreePaneDesktopLayout(page: import('@playwright/test').Page) {
-  const [conversation, canvas, context] = await Promise.all([
+  const [sessions, conversation, canvas] = await Promise.all([
+    page.getByTestId('session-pane').boundingBox(),
     page.getByTestId('conversation-pane').boundingBox(),
     page.getByTestId('chart-canvas').boundingBox(),
-    page.getByTestId('context-pane').boundingBox(),
   ]);
+  expect(sessions).not.toBeNull();
   expect(conversation).not.toBeNull();
   expect(canvas).not.toBeNull();
-  expect(context).not.toBeNull();
+  expect(sessions!.y).toBeCloseTo(conversation!.y, 0);
   expect(conversation!.y).toBeCloseTo(canvas!.y, 0);
-  expect(canvas!.y).toBeCloseTo(context!.y, 0);
+  expect(sessions!.x).toBeLessThan(conversation!.x);
   expect(conversation!.x).toBeLessThan(canvas!.x);
-  expect(canvas!.x).toBeLessThan(context!.x);
-  expect(conversation!.width / canvas!.width).toBeGreaterThan(0.28);
-  expect(conversation!.width / canvas!.width).toBeLessThan(0.42);
-  expect(context!.width).toBeCloseTo(280, 0);
+  expect(sessions!.width).toBeCloseTo(260, 0);
+  expect(conversation!.width).toBeGreaterThanOrEqual(320);
+  expect(conversation!.width).toBeLessThanOrEqual(420);
 }
 
 async function expectThreePaneNarrowLayout(page: import('@playwright/test').Page) {
-  const [conversation, canvas, context] = await Promise.all([
+  const [sessions, conversation, canvas] = await Promise.all([
+    page.getByTestId('session-pane').boundingBox(),
     page.getByTestId('conversation-pane').boundingBox(),
     page.getByTestId('chart-canvas').boundingBox(),
-    page.getByTestId('context-pane').boundingBox(),
   ]);
+  expect(sessions).not.toBeNull();
   expect(conversation).not.toBeNull();
   expect(canvas).not.toBeNull();
-  expect(context).not.toBeNull();
+  expect(sessions!.y).toBeLessThan(conversation!.y);
   expect(conversation!.y).toBeLessThan(canvas!.y);
-  expect(canvas!.y).toBeLessThan(context!.y);
+}
+
+function sessionItem(page: import('@playwright/test').Page, title: string) {
+  return page.locator('.mtb-session-item').filter({ hasText: title });
 }
 
 async function expectNoHorizontalOverflow(page: import('@playwright/test').Page) {
