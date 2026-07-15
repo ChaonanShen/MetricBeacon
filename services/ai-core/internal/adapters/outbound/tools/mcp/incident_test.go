@@ -81,6 +81,14 @@ func TestIncidentToolsetRejectsMalformedToolResult(t *testing.T) {
 	}
 }
 
+func TestTypedIncidentCallReturnsSafeEvidenceWhenBoundaryFails(t *testing.T) {
+	gateway := &incidentGatewayStub{err: common.NewError(common.ToolTimeout, "tool timed out", true)}
+	_, evidence, err := callTyped[map[string]any](context.Background(), gateway, incidentIdentity(), "order_service.get_runtime", map[string]any{}, func(value map[string]any) any { return value })
+	if err == nil || evidence.Name != "order_service.get_runtime" || !json.Valid(evidence.InputSummary) || len(evidence.OutputSummary) != 0 || evidence.DurationMS < 0 {
+		t.Fatalf("evidence=%#v err=%v", evidence, err)
+	}
+}
+
 func TestIncidentToolsetPreparesOnlyVersionBoundIntent(t *testing.T) {
 	observedAt := time.Date(2026, 7, 16, 8, 0, 0, 0, time.UTC)
 	gateway := &incidentGatewayStub{responses: map[string]string{
@@ -122,6 +130,7 @@ type incidentGatewayCall struct {
 type incidentGatewayStub struct {
 	responses map[string]string
 	calls     []incidentGatewayCall
+	err       error
 }
 
 func (g *incidentGatewayStub) ListTools(context.Context, requestcontext.Context, tools.Filter) ([]tools.Descriptor, error) {
@@ -129,6 +138,9 @@ func (g *incidentGatewayStub) ListTools(context.Context, requestcontext.Context,
 }
 func (g *incidentGatewayStub) CallTool(_ context.Context, identity requestcontext.Context, call tools.Call) (tools.Result, error) {
 	g.calls = append(g.calls, incidentGatewayCall{identity: identity, call: call})
+	if g.err != nil {
+		return tools.Result{}, g.err
+	}
 	return tools.Result{Content: []byte(g.responses[call.Name])}, nil
 }
 func (g *incidentGatewayStub) names() []string {

@@ -135,6 +135,9 @@ func (t *IncidentToolset) Prepare(ctx context.Context, identity requestcontext.C
 
 func callTyped[T any](ctx context.Context, gateway tools.Gateway, identity requestcontext.Context, name string, input any, summarize func(T) any) (T, incidentport.ToolEvidence, error) {
 	var zero T
+	if gateway == nil || name == "" {
+		return zero, incidentport.ToolEvidence{}, common.NewError(common.InvalidArgument, "incident tool call is invalid", false)
+	}
 	arguments, err := json.Marshal(input)
 	if err != nil {
 		return zero, incidentport.ToolEvidence{}, common.NewError(common.SchemaValidationFailed, "incident tool input could not be encoded", false)
@@ -142,14 +145,14 @@ func callTyped[T any](ctx context.Context, gateway tools.Gateway, identity reque
 	started := time.Now()
 	result, err := gateway.CallTool(ctx, identity, tools.Call{Name: name, Version: "v1", Arguments: arguments})
 	duration := time.Since(started).Milliseconds()
+	inputSummary := append(json.RawMessage(nil), arguments...)
 	if err != nil {
-		return zero, incidentport.ToolEvidence{}, err
+		return zero, incidentport.ToolEvidence{Name: name, InputSummary: inputSummary, DurationMS: duration}, err
 	}
 	var output T
 	if err := json.Unmarshal(result.Content, &output); err != nil {
 		return zero, incidentport.ToolEvidence{}, common.NewError(common.SchemaValidationFailed, "incident tool returned an invalid result", false)
 	}
-	inputSummary, _ := json.Marshal(input)
 	outputSummary, _ := json.Marshal(summarize(output))
 	return output, incidentport.ToolEvidence{Name: name, InputSummary: inputSummary, OutputSummary: outputSummary, DurationMS: duration}, nil
 }
