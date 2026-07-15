@@ -43,8 +43,13 @@ with gate evidence in
 
 The completed grouped chart-canvas refinement is
 [`grouped_chart_canvas_execution_plan.md`](grouped_chart_canvas_execution_plan.md),
-with future gate evidence in
+with gate evidence in
 [`grouped_chart_canvas_progress.md`](grouped_chart_canvas_progress.md).
+
+The active fresh-conversation Workbench refinement is
+[`fresh_conversation_workbench_execution_plan.md`](fresh_conversation_workbench_execution_plan.md),
+with gate evidence in
+[`fresh_conversation_workbench_progress.md`](fresh_conversation_workbench_progress.md).
 
 The related stable product and architecture material is in
 [`../design/README.md`](../design/README.md); ADRs remain in [`../adr/`](../adr/).
