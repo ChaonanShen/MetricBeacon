@@ -19,6 +19,15 @@ export const examplePrompts = [
   '查看最近 30 分钟系统负载',
 ] as const;
 
+export const productNavigation = [
+  { id: 'workbench', label: '工作台', enabled: true },
+  { id: 'sessions', label: '会话', enabled: true },
+  { id: 'knowledge', label: '知识库', enabled: false },
+  { id: 'playbook', label: 'Playbook', enabled: false },
+  { id: 'skill', label: 'Skill', enabled: false },
+  { id: 'promotion', label: '晋升', enabled: false },
+] as const;
+
 const taskStatusView: Record<Task['status'], { label: string; tone: ViewTone }> = {
   created: { label: '已创建', tone: 'info' },
   planning: { label: '规划中', tone: 'info' },

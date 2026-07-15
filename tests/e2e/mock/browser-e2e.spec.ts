@@ -11,7 +11,15 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   expect(login.ok()).toBeTruthy();
 
   await page.goto('/a/mini-torchbearing-app/workbench');
-  await expect(page.getByRole('heading', { name: 'Mini Torchbearing Workbench' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '指标分析工作台', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+  await expect(page.getByRole('navigation', { name: '产品功能' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '工作台' })).toHaveAttribute('aria-current', 'page');
+  for (const item of ['知识库', 'Playbook', 'Skill', '晋升']) {
+    await expect(page.getByRole('button', { name: item })).toBeDisabled();
+  }
+  await expect(page.getByLabel('分析上下文')).toBeVisible();
+  await expect(page.getByLabel('聊天')).toBeVisible();
   await expect(page.getByLabel('默认时间范围')).toHaveCount(0);
   await expect(page.getByLabel('采样分辨率')).toHaveCount(0);
   let submittedTask: Record<string, any> | undefined;
@@ -26,6 +34,9 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   expect(originalSessionId).toBeTruthy();
   expect(submittedTask?.analysisContext).toEqual({ datasourceUid: 'prometheus-main' });
   await expect(page.getByText(/已查询 node_exporter/)).toBeVisible();
+  await expect(page.getByLabel('分析上下文')).toContainText('Prometheus');
+  await expect(page.getByLabel('分析上下文')).toContainText('CPU、内存、系统负载');
+  await expect(page.getByLabel('分析上下文')).toContainText('已完成');
   const chartCanvas = page.getByTestId('chart-canvas');
   for (const title of chartTitles) {
     await expect(chartCanvas.getByText(title, { exact: true })).toBeVisible();
@@ -150,7 +161,7 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
 
   await page.goto('/a/mini-torchbearing-app/workbench?theme=dark&sessionId=missing-session&taskId=missing-task');
   await expect(page).toHaveURL((url) => url.searchParams.get('theme') === 'dark' && !url.searchParams.has('sessionId') && !url.searchParams.has('taskId'));
-  await expect(page.getByRole('status')).toHaveText('已清除当前运行环境中不存在的旧会话，请重新提交分析。');
+  await expect(page.getByRole('status').filter({ hasText: '已清除当前运行环境中不存在的旧会话' })).toHaveText('已清除当前运行环境中不存在的旧会话，请重新提交分析。');
   await page.getByLabel('分析请求').fill('从当前运行模式重新分析 node_exporter');
   await page.getByRole('button', { name: '开始分析' }).click();
   await expect(page).toHaveURL(/sessionId=[^&]+&taskId=[^&]+/);
@@ -183,34 +194,40 @@ async function panelBoxes(page: import('@playwright/test').Page) {
 }
 
 async function expectThreePaneDesktopLayout(page: import('@playwright/test').Page) {
-  const [sessions, conversation, canvas] = await Promise.all([
+  const [sessions, conversation, context, canvas] = await Promise.all([
     page.getByTestId('session-pane').boundingBox(),
     page.getByTestId('conversation-pane').boundingBox(),
+    page.getByTestId('context-pane').boundingBox(),
     page.getByTestId('chart-canvas').boundingBox(),
   ]);
   expect(sessions).not.toBeNull();
   expect(conversation).not.toBeNull();
+  expect(context).not.toBeNull();
   expect(canvas).not.toBeNull();
-  expect(sessions!.y).toBeCloseTo(conversation!.y, 0);
-  expect(conversation!.y).toBeCloseTo(canvas!.y, 0);
-  expect(sessions!.x).toBeLessThan(conversation!.x);
-  expect(conversation!.x).toBeLessThan(canvas!.x);
-  expect(sessions!.width).toBeCloseTo(260, 0);
-  expect(conversation!.width).toBeGreaterThanOrEqual(320);
-  expect(conversation!.width).toBeLessThanOrEqual(420);
+  expect(sessions!.x).toBeCloseTo(conversation!.x, 0);
+  expect(sessions!.y).toBeLessThan(conversation!.y);
+  expect(canvas!.x).toBeLessThan(context!.x);
+  expect(context!.x).toBeLessThan(conversation!.x);
+  expect(context!.width).toBeGreaterThanOrEqual(240);
+  expect(context!.width).toBeLessThanOrEqual(280);
+  expect(conversation!.width).toBeGreaterThanOrEqual(340);
+  expect(conversation!.width).toBeLessThanOrEqual(380);
 }
 
 async function expectThreePaneNarrowLayout(page: import('@playwright/test').Page) {
-  const [sessions, conversation, canvas] = await Promise.all([
+  const [sessions, conversation, context, canvas] = await Promise.all([
     page.getByTestId('session-pane').boundingBox(),
     page.getByTestId('conversation-pane').boundingBox(),
+    page.getByTestId('context-pane').boundingBox(),
     page.getByTestId('chart-canvas').boundingBox(),
   ]);
   expect(sessions).not.toBeNull();
   expect(conversation).not.toBeNull();
+  expect(context).not.toBeNull();
   expect(canvas).not.toBeNull();
   expect(sessions!.y).toBeLessThan(conversation!.y);
-  expect(conversation!.y).toBeLessThan(canvas!.y);
+  expect(conversation!.y).toBeLessThan(context!.y);
+  expect(context!.y).toBeLessThan(canvas!.y);
 }
 
 function sessionItem(page: import('@playwright/test').Page, title: string) {

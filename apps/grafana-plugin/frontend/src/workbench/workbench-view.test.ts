@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Task } from '../api/resource';
-import { deriveWorkbenchContext, examplePrompts } from './workbench-view';
+import { deriveWorkbenchContext, examplePrompts, productNavigation } from './workbench-view';
 
 describe('deriveWorkbenchContext', () => {
   it('returns truthful fresh-conversation fallbacks without inventing task context', () => {
@@ -61,6 +61,13 @@ describe('examplePrompts', () => {
       '分析最近 30 分钟内存可用率',
       '查看最近 30 分钟系统负载',
     ]);
+  });
+});
+
+describe('productNavigation', () => {
+  it('only enables capabilities backed by the current workbench', () => {
+    expect(productNavigation.filter((item) => item.enabled).map((item) => item.id)).toEqual(['workbench', 'sessions']);
+    expect(productNavigation.filter((item) => !item.enabled).map((item) => item.id)).toEqual(['knowledge', 'playbook', 'skill', 'promotion']);
   });
 });
 

@@ -18,6 +18,7 @@ mini-torchbearing/
 │       │   │       ├── Workbench.tsx      # 常驻 controller：Session list/切换、任务创建、恢复与 SSE 编排
 │       │   │       ├── WorkbenchShell.tsx # 产品页面壳与展示 slot，不复制请求或服务端状态
 │       │   │       ├── WorkbenchHeader.tsx # 页内产品标题与当前会话状态
+│       │   │       ├── ContextPane.tsx    # 真实 Session/Task/QueryPlan 只读上下文
 │       │   │       ├── workbench-view.ts  # Context、状态与示例问题的纯展示派生
 │       │   │       ├── workbench-styles.ts # Grafana theme 到 scoped 产品 CSS variables 的映射
 │       │   │       ├── SessionPane.tsx   # 新建入口、owner Session 分页列表与选择（迁移期间保留）
