@@ -13,6 +13,7 @@ contactPoints:
           maxAlerts: "10"
           headers:
             X-MTB-Alert-Source: demo-grafana
+            X-Request-ID: grafana-order-incident-webhook
           hmacConfig:
             secret: $ORDER_INCIDENT_WEBHOOK_SECRET
             header: X-Grafana-Alerting-Signature
