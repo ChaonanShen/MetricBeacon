@@ -108,7 +108,10 @@ mini-torchbearing/
 │   │   └── browser-e2e.spec.ts
 │   └── e2e/real-agent/api-smoke.mjs        # view-only Eino、8 轮重复规划、本地回复、replay 与泄漏检查
 │
-├── scripts/                               # 生成、契约、边界、分层诊断及三模式 E2E 门禁脚本
+├── scripts/
+│   ├── mtb                               # Worktree 配置/工具链/依赖与后续统一运行入口
+│   ├── mtb.mjs                           # 可测试的配置解析、init、doctor 与依赖指纹实现
+│   └── ...                               # 生成、契约、边界、分层诊断及三模式 E2E 门禁脚本
 ├── docs/                                  # 架构、设计、ADR、开发计划与当前说明
 │   └── implementation/real_backend_test_matrix.md # code agent 分层测试与结果判读手册
 ├── deploy/prometheus/prometheus.yml       # real-metrics 的 5 秒 node-exporter scrape 配置

@@ -43,7 +43,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建/恢复/本地切换新 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|左栏可清空当前工作台并在下一次提交懒创建新 Session；旧 Session 保持持久化但暂不提供历史列表。桌面左栏以约 1:3 比例共享中心可用空间并限制为 320..420px，header/输入固定且消息独立滚动。中栏按 Task oldest-first 分组，宽画布最多两列、奇数尾图跨行，窄容器单列；右栏仍为 280px 只读详情。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
-|`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`compose.mock-e2e.yaml` 启动 Mock 栈；`compose.real-metrics-e2e.yaml` 叠加 Prometheus 与 node_exporter。`make diagnose-real-metrics` 只启动指标侧三服务，先直接验证三条 Prometheus vector，再通过真实 MCP transport 验证搜索、标签和三条 matrix 查询；两阶段都检查 instance、递增时间、有限值、CPU/内存 0..100、load 非负和基数上限，并只输出 series/samples/min/max/latest。诊断默认使用宿主 `18081`，可与占用默认 `8081` 的手工栈共存。`make diagnose-deepseek` 则绕过业务链路验证配置模型和最小严格 JSON 回复。指标诊断与两个真实 E2E 共用 target/two-scrape 就绪判定。Real-metrics 浏览器验证图表渲染和恢复，不复用 Mock fixture 的实例标签断言；真实 series 由 API E2E 覆盖。`make e2e-real-agent` 再叠加 opt-in Eino/DeepSeek，要求显式 key，并检查概览/CPU、重放恢复、工具配对和 API/日志/SQLite 的泄漏标记。|
+|`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`scripts/mtb` 已提供根 `.env` 的 worktree ID/slot 初始化、校验、脱敏展示、工具链 doctor 和基于 lockfile 指纹的按需 `npm ci`；linked worktree 未初始化时安全失败，主工作区兼容 `main/slot 0`。Compose 生命周期与动态测试端口仍由本活动切片后续 Gate 接入。现有 `compose.mock-e2e.yaml` 启动 Mock 栈，real overlays 切换真实指标/Agent；原分层诊断和 E2E 行为暂保持不变。|
 
 ## 关键数据与依赖边界
 
