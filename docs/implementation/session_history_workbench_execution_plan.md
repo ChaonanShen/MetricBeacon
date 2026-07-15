@@ -1,7 +1,8 @@
 # 历史会话与三栏工作台执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
+> completedAt: 2026-07-15
 > implementationAuthorized: true
 > decision: [`../adr/ADR-022-private-session-history.md`](../adr/ADR-022-private-session-history.md)
 > dependsOn: `fresh_conversation_workbench_execution_plan.md`、`grouped_chart_canvas_execution_plan.md`
@@ -61,4 +62,3 @@ API E2E 验证 Session list；Browser E2E 验证创建 A/B、切换恢复、继�
 ## 5. 提交与保护
 
 每个 Gate 小步提交，仅包含对应代码、测试和必要演进文档。不 push、不创建 PR、不 amend、不重写历史；保留并排除用户未跟踪的 `docs/design/product_design_final.md`。
-

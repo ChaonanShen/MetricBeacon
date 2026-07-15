@@ -82,7 +82,7 @@ The completed fresh-conversation Workbench refinement is
 It adds a local new-conversation reset plus a wider independently scrolling conversation pane without adding session-history UI or changing backend contracts. Progress is tracked in
 [`implementation/fresh_conversation_workbench_progress.md`](implementation/fresh_conversation_workbench_progress.md).
 
-The active Session-history slice is
+The completed Session-history slice is
 [`implementation/session_history_workbench_execution_plan.md`](implementation/session_history_workbench_execution_plan.md).
 It adds an owner-scoped durable Session list and changes the Workbench to
 “会话 / 对话 / 图表”; progress is tracked in
@@ -134,8 +134,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/grouped_chart_canvas_progress.md` | Completed progress record | Gate status and verification evidence for the grouped chart canvas. |
 | `implementation/fresh_conversation_workbench_execution_plan.md` | Completed execution plan | Local new-conversation reset and bounded conversation-pane layout refinement. |
 | `implementation/fresh_conversation_workbench_progress.md` | Completed progress record | Gate status and verification evidence for the fresh-conversation refinement. |
-| `implementation/session_history_workbench_execution_plan.md` | Active execution plan | Owner-scoped Session history, switching, recovery and three-pane replacement. |
-| `implementation/session_history_workbench_progress.md` | Active progress record | Gate status and verification evidence for Session history. |
+| `implementation/session_history_workbench_execution_plan.md` | Completed execution plan | Owner-scoped Session history, switching, recovery and three-pane replacement. |
+| `implementation/session_history_workbench_progress.md` | Completed progress record | Gate status and verification evidence for Session history. |
 | `implementation/worktree_isolated_development_execution_plan.md` | Completed execution plan | Per-worktree runtime isolation and the unified build/start/verify entrypoint. |
 | `implementation/worktree_isolated_development_progress.md` | Completed progress record | Gate status and verification evidence for worktree isolation. |
 | `implementation/real_backend_test_matrix.md` | Current runbook | Code-agent command order, expected result shapes and layered failure localization. |

@@ -8,9 +8,9 @@
 > 已完成的 [`grouped_chart_canvas_execution_plan.md`](grouped_chart_canvas_execution_plan.md)
 > 已取代 `chart_trio_ui_fit_plan.md` 留下的自由多列布局；历史文件仅保留原验证证据。
 >
-> 当前局部 UI 工作由
-> [`fresh_conversation_workbench_execution_plan.md`](fresh_conversation_workbench_execution_plan.md)
-> 跟踪；它不改变服务、契约、持久化或图表画布边界。
+> 当前会话历史与三栏 UI 由已完成的
+> [`session_history_workbench_execution_plan.md`](session_history_workbench_execution_plan.md)
+> 记录；其 owner/activity 边界见 ADR-022。
 
 用户在 Grafana App Plugin 中只提交自然语言。AI Core 同步调用 Mock 或 Eino IntentPlanner，将注册 views 与可选 range/step 与 API hint/本地默认值合并，校验后冻结持久化 QueryPlan。Eino Planner 使用 provider JSON mode、专属 prompt 和由历史 User Message + QueryPlan 组成的结构化上下文，不接收 Assistant 事实回复。后台仅执行这份计划的 `cpu|memory|load` views，PromQL 由 assistant-mcp 注册表编译，数值回复由实际查询结果在本地汇总。
 
@@ -50,7 +50,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 - AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。`0004` 为 Task 回填并持久化有效 step/CPU rate window，为历史 Chart query 回填 step，并为 Execution 增加可空的实际样本范围。每条 Message 已持久化关联其 Task：User Message 与 `Task.inputMessageId` 双向一致，Assistant Message 也归属产生它的 Task；迁移会拒绝无法无歧义关联的旧数据。
 - 同一 tenant/Session 最多允许一个非终态 Task，SQLite partial unique index 是并发竞争的最终约束；进程内顶层写事务串行进入 SQLite，避免锁竞争掩盖该业务冲突。工具审计以内部稳定 source call ID 关联 start/completed/failed 记录，Mock Runtime 使用可重复的 source call ID。
 - AI Core 与 Plugin Resource API 提供 creator-scoped、按 `updatedAt DESC,id DESC` 的非空 Session page，并提供按 `createdAt DESC,id DESC` 的 Session Message/Task keyset 分页及固定 `targetSequence` 的有限 JSON TaskEvent replay。page token 绑定资源、父级和 owner context，不能跨接口、资源或用户复用；Plugin 由 Grafana 身份上下文覆盖浏览器伪造的身份头。
-- 前端以 Session 级 Message/Task/runtimes 状态恢复工作台，历史事件重放至固定目标序列；只有非终态 Task 建立一个 SSE，收到终态事件后关闭。重复事件会忽略，sequence 间隙会从最后连续序列重连。若 URL Session 在当前独立 AI Core volume 中明确不存在，前端会清除两个 workbench 路由 ID 和旧 reducer/replay/幂等状态；网络、权限与依赖错误不会触发该恢复，而会显示安全分类。
+- 前端以 Session 级 Message/Task/runtimes 状态恢复工作台，历史事件重放至固定目标序列；只有非终态 Task 建立一个 SSE，收到终态事件后关闭。后台 history refresh 不会抢先把本地活跃 Task 标为终态，避免消息已恢复但图表事件未归并的竞态。重复事件会忽略，sequence 间隙会从最后连续序列重连。若 URL Session 在当前独立 AI Core volume 中明确不存在，前端会清除两个 workbench 路由 ID 和旧 reducer/replay/幂等状态；网络、权限与依赖错误不会触发该恢复，而会显示安全分类。
 - 用户新建或选择对话时清除当前 Workbench route/reducer、请求错误和 replay/幂等 refs，但不删除 AI Core 中的旧 Session；Session-aware reducer 拒绝旧 history/replay/SSE 的迟到结果。会话栏无限分页选择 creator 私有历史，下一次 Task 接受事务同步更新 Session `updatedAt/version` 并使它回到列表顶部；外用户访问统一返回不存在。
 - 同步 IntentPlanner 只接收当前 User Message 和最近最多 6 个 views 非空的持久化 User Message + QueryPlan 意图，按完整消息边界限制在 12,000 个 Unicode 字符内并保持时间正序；历史读取失败不静默降级。Assistant 事实回复、实际数值和时间戳不会进入模型输入。当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
@@ -191,16 +191,16 @@ Backend 由 Grafana 承载。
 |`make test-ai-agent`|受限 Eino Runtime：fake model、view-only Tool JSON、source-call 配对、expression 查询前拒绝、成功 proposal 权威性、本地 formatter 与模型输入摘要隔离。|通过。|
 |`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、同一 Session 连续 8 次相同 CPU/内存请求、durable tool 配对、有限 replay 与 API/日志/SQLite 泄漏检查。|通过：概览 21 events/3 query tool calls/3 charts，CPU 追问 13 events/1 query tool call/1 chart；8 次重复请求均得到 `600s/120s` 双视图计划，各为 17 events/2 query tool calls/2 charts；调用进程从 `.env` 临时加载 key，未输出或持久化 key。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
-|`make test-frontend`|Vitest 工作台状态、SSE、路由、Resource 错误、查询控件、时间范围和 DataFrame mapper；随后 TypeScript typecheck。|通过：9 个测试文件、26 个用例。|
+|`make test-frontend`|Vitest 工作台 Session 状态、历史分页/标题、SSE、路由、Resource 错误、图表分组/聚焦和 DataFrame mapper；随后 TypeScript typecheck。|通过：10 个测试文件、30 个用例。|
 |`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果、DeepSeek 探针、worktree 配置和 Compose 命名/端口解析，并检查诊断与 E2E Shell 语法。|通过：44 个 Node 测试。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
-|`make validate-contracts`|3 份 OpenAPI、24 份 JSON Schema 与 node_exporter fixture。|通过。|
+|`make validate-contracts`|3 份 OpenAPI、25 份 JSON Schema 与 node_exporter fixture。|通过。|
 |`make generated-client-diff`|重新生成 Client/类型后确认 Git 无差异。|通过。|
 |`make lint`|Go 格式检查和前端 typecheck。|通过。|
 |`make boundary-check`、`make secret-scan`|AI Core 依赖边界和常见私钥/AKIA 模式扫描。|通过。|
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
-|`make e2e-mock`|构建前端与三个容器；API E2E 覆盖 30 秒、1 分钟、30 分钟、显式 5 秒、30 分钟且每 5 分钟采样和默认三视图六种输入，校验 QueryPlan、精确点数/间隔/首尾、Chart/Execution、本地回复、有限 replay 与 SSE；Playwright 验证控件、连续提交、刷新及 stale-Session 恢复。|通过；六种输入分别生效为 `30s/5/30`、`1m/5/30`、`30m/10/60`、`5m/5/30`、`30m/300/60` 和默认 `30m/10/60`。|
-|`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后对相同六种输入执行 API/浏览器 E2E。|通过；新增 `30m/300/60` CPU/load 输入完成 2 次工具调用和 2 张非空真实图。六种输入均返回非空有限且按有效 step 对齐的真实 series，实际短历史由 Execution 如实记录；浮点秒边界仅在真实模式测试中允许 1 秒容差。|
+|`make e2e-mock`|构建前端与三个容器；API E2E 覆盖六种有界输入和 owner Session page/activity；Playwright 验证 A/B 会话创建、切换恢复、继续旧会话置顶、刷新、stale Session、三栏响应式布局与旧上下文 UI 移除。|通过；最终连续两轮均为 API 和 Playwright 1/1 成功，临时资源已清理。|
+|`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后执行相同 API 与会话历史浏览器 E2E。|通过；六种输入均返回非空有限且按有效 step 对齐的真实 series，A/B 历史恢复与继续对话也在真实 metrics Adapter 下通过。|
 |`make diagnose-real-metrics`|绕过 Grafana 与 AI Core，分阶段检查原始 Prometheus 与 assistant-mcp 的真实返回及指标语义。|通过：三条 vector/matrix 各 1 series/1 sample；CPU 约 98.2..98.7，内存约 64.64，load 3.25，均通过语义校验。|
 |`make diagnose-deepseek`|绕过 Agent/MCP，验证配置 model 出现在 `/models` 并返回固定严格 JSON。|通过：`deepseek-v4-flash` 在 539 ms 返回 `{"status":"ok","answer":"pong"}`；未输出 key。|
 

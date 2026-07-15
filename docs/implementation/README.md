@@ -56,7 +56,7 @@ The completed fresh-conversation Workbench refinement is
 with gate evidence in
 [`fresh_conversation_workbench_progress.md`](fresh_conversation_workbench_progress.md).
 
-The active Session-history Workbench slice is
+The completed Session-history Workbench slice is
 [`session_history_workbench_execution_plan.md`](session_history_workbench_execution_plan.md),
 with gate evidence in
 [`session_history_workbench_progress.md`](session_history_workbench_progress.md).
