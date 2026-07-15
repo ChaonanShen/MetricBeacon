@@ -29,3 +29,13 @@ func New(id, tenantID, title, createdBy string, now time.Time) (AnalysisSession,
 	now = now.UTC()
 	return AnalysisSession{ID: id, TenantID: tenantID, Title: title, Status: StatusActive, CreatedBy: createdBy, CreatedAt: now, UpdatedAt: now, Version: 1}, nil
 }
+
+func (s *AnalysisSession) Touch(now time.Time) error {
+	now = now.UTC()
+	if now.Before(s.UpdatedAt) {
+		return common.NewError(common.InvalidStateTransition, "session activity time cannot move backwards", false)
+	}
+	s.UpdatedAt = now
+	s.Version++
+	return nil
+}

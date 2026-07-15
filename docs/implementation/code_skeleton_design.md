@@ -1400,6 +1400,11 @@ type ApplicationStore interface {
 }
 ```
 
+当前 node_exporter 私有会话 profile 先实现 `GetOwned` 和
+`ListPageByOwner`：列表限定 tenant + creator、排除无 Task 的空 Session，
+并按 `updatedAt DESC,id DESC` 使用专用游标分页。长期 `Search`、可见性、删除
+和分享接口仍须等待对应产品切片，不能由浏览器本地列表替代。
+
 Repository 方法只能返回领域错误，如 `ErrNotFound`、`ErrVersionConflict`、`ErrConstraintViolation`。SQLite/PostgreSQL 原始错误不得越过 Adapter。
 
 ### 11.9 Durable TaskEventStore 与可选通知器

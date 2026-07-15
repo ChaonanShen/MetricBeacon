@@ -13,7 +13,22 @@ import (
 type SessionRepository interface {
 	Create(context.Context, session.AnalysisSession) error
 	Get(context.Context, string, string) (session.AnalysisSession, error)
+	GetOwned(context.Context, string, string, string) (session.AnalysisSession, error)
+	ListPageByOwner(context.Context, string, string, SessionListRequest) (SessionListPage, error)
 	Update(context.Context, session.AnalysisSession, int64) error
+}
+type SessionListRequest struct {
+	Limit           int
+	BeforeUpdatedAt *time.Time
+	BeforeID        string
+}
+type SessionListPage struct {
+	Items     []session.AnalysisSession
+	NextAfter *SessionListCursor
+}
+type SessionListCursor struct {
+	UpdatedAt time.Time
+	ID        string
 }
 type MessageRepository interface {
 	Append(context.Context, session.Message) error

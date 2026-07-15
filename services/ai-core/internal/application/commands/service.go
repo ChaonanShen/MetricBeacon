@@ -128,7 +128,8 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 		return task.AnalysisTask{}, err
 	}
 	err = s.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
-		record, err := tx.Idempotency().Reserve(ctx, key, requestHash, s.Clock.Now().Add(idempotencyTTL))
+		acceptedAt := s.Clock.Now()
+		record, err := tx.Idempotency().Reserve(ctx, key, requestHash, acceptedAt.Add(idempotencyTTL))
 		if err != nil {
 			return err
 		}
@@ -137,18 +138,19 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 			return err
 		}
 		shouldRun = true
-		if _, err = tx.Sessions().Get(ctx, identity.TenantID, input.SessionID); err != nil {
+		analysisSession, err := tx.Sessions().Get(ctx, identity.TenantID, input.SessionID)
+		if err != nil {
 			return err
 		}
 		taskID := s.IDs.NewID("task")
-		message, err := session.NewMessage(s.IDs.NewID("message"), identity.TenantID, input.SessionID, taskID, session.RoleUser, input.Message, s.Clock.Now())
+		message, err := session.NewMessage(s.IDs.NewID("message"), identity.TenantID, input.SessionID, taskID, session.RoleUser, input.Message, acceptedAt)
 		if err != nil {
 			return err
 		}
 		if err = tx.Messages().Append(ctx, message); err != nil {
 			return err
 		}
-		result, err = task.New(taskID, identity.TenantID, input.SessionID, message.ID, input.DatasourceUID, resolvedRange, queryPlan, s.Clock.Now())
+		result, err = task.New(taskID, identity.TenantID, input.SessionID, message.ID, input.DatasourceUID, resolvedRange, queryPlan, acceptedAt)
 		if err != nil {
 			return err
 		}
@@ -156,11 +158,17 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 			return err
 		}
 		payload, _ := json.Marshal(map[string]any{"task": taskSnapshot(result)})
-		event, err := tx.TaskEvents().Append(ctx, task.EventDraft{EventID: s.IDs.NewID("event"), TenantID: result.TenantID, TaskID: result.ID, SessionID: result.SessionID, Type: task.EventTaskCreated, Timestamp: s.Clock.Now(), Payload: payload})
+		event, err := tx.TaskEvents().Append(ctx, task.EventDraft{EventID: s.IDs.NewID("event"), TenantID: result.TenantID, TaskID: result.ID, SessionID: result.SessionID, Type: task.EventTaskCreated, Timestamp: acceptedAt, Payload: payload})
 		if err != nil {
 			return err
 		}
 		result.LatestSequence = event.Sequence
+		if err := analysisSession.Touch(acceptedAt); err != nil {
+			return err
+		}
+		if err := tx.Sessions().Update(ctx, analysisSession, analysisSession.Version-1); err != nil {
+			return err
+		}
 		response, _ := json.Marshal(map[string]string{"id": result.ID})
 		return tx.Idempotency().Complete(ctx, key, result.ID, response)
 	})

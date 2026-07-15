@@ -181,6 +181,63 @@ func TestApplicationStoreRollbackAndIdempotencyContract(t *testing.T) {
 	requireCode(t, err, common.IdempotencyConflict)
 }
 
+func TestSessionHistoryIsOwnerScopedNonEmptyAndKeysetPaged(t *testing.T) {
+	ctx := context.Background()
+	store := openStore(t)
+	now := fixedNow()
+	createSessionHistoryFixture(t, ctx, store, tenantID, "user:1", "session_old", now.Add(-2*time.Minute), true)
+	createSessionHistoryFixture(t, ctx, store, tenantID, "user:1", "session_same_a", now, true)
+	createSessionHistoryFixture(t, ctx, store, tenantID, "user:1", "session_same_b", now, true)
+	createSessionHistoryFixture(t, ctx, store, tenantID, "user:1", "session_empty", now.Add(time.Minute), false)
+	createSessionHistoryFixture(t, ctx, store, tenantID, "user:2", "session_other_user", now.Add(2*time.Minute), true)
+	createSessionHistoryFixture(t, ctx, store, "org:2", "user:1", "session_other_tenant", now.Add(3*time.Minute), true)
+
+	first, err := store.Sessions().ListPageByOwner(ctx, tenantID, "user:1", repositories.SessionListRequest{Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sessionIDs(first.Items); !reflect.DeepEqual(got, []string{"session_same_b", "session_same_a"}) || first.NextAfter == nil {
+		t.Fatalf("first page = %#v cursor=%#v", got, first.NextAfter)
+	}
+	second, err := store.Sessions().ListPageByOwner(ctx, tenantID, "user:1", repositories.SessionListRequest{Limit: 2, BeforeUpdatedAt: &first.NextAfter.UpdatedAt, BeforeID: first.NextAfter.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sessionIDs(second.Items); !reflect.DeepEqual(got, []string{"session_old"}) || second.NextAfter != nil {
+		t.Fatalf("second page = %#v cursor=%#v", got, second.NextAfter)
+	}
+	owned, err := store.Sessions().GetOwned(ctx, tenantID, "user:1", "session_old")
+	if err != nil || owned.CreatedBy != "user:1" {
+		t.Fatalf("owned session = %#v, %v", owned, err)
+	}
+	_, err = store.Sessions().GetOwned(ctx, tenantID, "user:2", "session_old")
+	requireCode(t, err, common.ResourceNotFound)
+	_, err = store.Sessions().ListPageByOwner(ctx, tenantID, "user:1", repositories.SessionListRequest{Limit: 0})
+	requireCode(t, err, common.InvalidArgument)
+}
+
+func TestSessionHistoryIndexMigratesExistingDatabase(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "v1-session-history.sqlite")
+	seedV1Database(t, path, false)
+	store, err := storage.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var found int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_index_list('sessions') WHERE name = 'sessions_tenant_creator_updated_id_idx'`).Scan(&found); err != nil || found != 1 {
+		t.Fatalf("session history index count = %d, %v", found, err)
+	}
+}
+
 func TestTaskEventsAreAtomicSequentialAndReplayable(t *testing.T) {
 	ctx := context.Background()
 	store := openStore(t)
@@ -420,6 +477,56 @@ func createTaskFixture(t *testing.T, ctx context.Context, store repositories.App
 		t.Fatal(err)
 	}
 	return taskFixture{now: now, timeRange: timeRange, session: analysisSession, message: message, task: analysisTask}
+}
+
+func createSessionHistoryFixture(t *testing.T, ctx context.Context, store repositories.ApplicationStore, tenant, owner, id string, updatedAt time.Time, withTask bool) {
+	t.Helper()
+	createdAt := fixedNow().Add(-time.Hour)
+	value, err := session.New(id, tenant, id, owner, createdAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := value.Touch(updatedAt); err != nil {
+		t.Fatal(err)
+	}
+	if !withTask {
+		if err := store.Sessions().Create(ctx, value); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	taskID := "task_" + id
+	message, err := session.NewMessage("message_"+id, tenant, id, taskID, session.RoleUser, id, updatedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	timeRange, err := common.NewAbsoluteTimeRange(updatedAt.Add(-time.Minute), updatedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	analysisTask, err := task.New(taskID, tenant, id, message.ID, "prometheus-main", timeRange, task.LegacyQueryPlan(), updatedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Sessions().Create(ctx, value); err != nil {
+			return err
+		}
+		if err := tx.Messages().Append(ctx, message); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(ctx, analysisTask)
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func sessionIDs(items []session.AnalysisSession) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	return ids
 }
 
 func openStore(t *testing.T) *storage.Store {

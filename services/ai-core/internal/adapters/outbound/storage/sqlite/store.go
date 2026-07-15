@@ -63,6 +63,12 @@ func (r sessionRepository) Create(ctx context.Context, value session.AnalysisSes
 func (r sessionRepository) Get(ctx context.Context, tenantID, sessionID string) (session.AnalysisSession, error) {
 	return r.store.getSession(ctx, tenantID, sessionID)
 }
+func (r sessionRepository) GetOwned(ctx context.Context, tenantID, userID, sessionID string) (session.AnalysisSession, error) {
+	return r.store.getOwnedSession(ctx, tenantID, userID, sessionID)
+}
+func (r sessionRepository) ListPageByOwner(ctx context.Context, tenantID, userID string, page repositories.SessionListRequest) (repositories.SessionListPage, error) {
+	return r.store.listSessionPageByOwner(ctx, tenantID, userID, page)
+}
 func (r sessionRepository) Update(ctx context.Context, value session.AnalysisSession, expectedVersion int64) error {
 	return r.store.updateSession(ctx, value, expectedVersion)
 }
@@ -228,6 +234,52 @@ func (s *Store) getSession(ctx context.Context, tenantID, sessionID string) (ses
 	}
 	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, title, status, created_by, created_at, updated_at, version FROM sessions WHERE tenant_id = ? AND id = ?`, tenantID, sessionID)
 	return scanSession(row)
+}
+
+func (s *Store) getOwnedSession(ctx context.Context, tenantID, userID, sessionID string) (session.AnalysisSession, error) {
+	if tenantID == "" || userID == "" || sessionID == "" {
+		return session.AnalysisSession{}, common.NewError(common.InvalidArgument, "tenant, user and session are required", false)
+	}
+	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, title, status, created_by, created_at, updated_at, version FROM sessions WHERE tenant_id = ? AND created_by = ? AND id = ?`, tenantID, userID, sessionID)
+	return scanSession(row)
+}
+
+func (s *Store) listSessionPageByOwner(ctx context.Context, tenantID, userID string, page repositories.SessionListRequest) (repositories.SessionListPage, error) {
+	if tenantID == "" || userID == "" || page.Limit < 1 || page.Limit > 50 || (page.BeforeUpdatedAt == nil && page.BeforeID != "") || (page.BeforeUpdatedAt != nil && page.BeforeID == "") {
+		return repositories.SessionListPage{}, common.NewError(common.InvalidArgument, "session page request is invalid", false)
+	}
+	query := `SELECT s.id, s.tenant_id, s.title, s.status, s.created_by, s.created_at, s.updated_at, s.version FROM sessions s WHERE s.tenant_id = ? AND s.created_by = ? AND EXISTS (SELECT 1 FROM tasks t WHERE t.tenant_id = s.tenant_id AND t.session_id = s.id)`
+	args := []any{tenantID, userID}
+	if page.BeforeUpdatedAt != nil {
+		query += ` AND (s.updated_at < ? OR (s.updated_at = ? AND s.id < ?))`
+		cursor := storageTimestamp(*page.BeforeUpdatedAt)
+		args = append(args, cursor, cursor, page.BeforeID)
+	}
+	query += ` ORDER BY s.updated_at DESC, s.id DESC LIMIT ?`
+	args = append(args, page.Limit+1)
+	rows, err := s.executor().QueryContext(ctx, query, args...)
+	if err != nil {
+		return repositories.SessionListPage{}, mapError(err)
+	}
+	defer rows.Close()
+	items := make([]session.AnalysisSession, 0, page.Limit+1)
+	for rows.Next() {
+		item, err := scanSession(rows)
+		if err != nil {
+			return repositories.SessionListPage{}, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return repositories.SessionListPage{}, mapError(err)
+	}
+	result := repositories.SessionListPage{Items: items}
+	if len(result.Items) > page.Limit {
+		result.Items = result.Items[:page.Limit]
+		last := result.Items[len(result.Items)-1]
+		result.NextAfter = &repositories.SessionListCursor{UpdatedAt: last.UpdatedAt, ID: last.ID}
+	}
+	return result, nil
 }
 
 func (s *Store) updateSession(ctx context.Context, value session.AnalysisSession, expectedVersion int64) error {

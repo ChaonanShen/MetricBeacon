@@ -19,3 +19,6 @@ var BoundedQueryPlan string
 
 //go:embed 0005_query_plan_views.sql
 var QueryPlanViews string
+
+//go:embed 0006_session_history_index.sql
+var SessionHistoryIndex string
