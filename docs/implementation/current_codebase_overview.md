@@ -1,6 +1,6 @@
 # 当前骨架代码说明
 
-> 本文以 2026-07-16 的实际代码为准，说明已可工作的同步 Agent 规划与有界 node_exporter 查询闭环；长期设计请参照
+> 本文以 2026-07-16 的实际代码为准，说明已可工作的有界 node_exporter 查询与可控订单 Incident 处置闭环；长期设计请参照
 > [`code_skeleton_design.md`](code_skeleton_design.md)。
 
 ## 当前可演示的能力
@@ -75,7 +75,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 
 ## 尚未实现的范围
 
-有界查询参数切片的契约、解析/持久化、MCP 动态执行、view-only Agent、本地可信回复、Workbench 控件及三模式端到端验收均已完成。以下仍是明确的非目标：任意 PromQL、图表编辑/重跑、Dashboard 写入与审批、真实 Grafana 写权限、知识库/Skill/Playbook、会话分享/Fork、告警和其他数据源。
+有界指标分析与订单 Incident 的 Knowledge/Skill/Playbook、告警、审批、类型化修复、三重验证和审计均已完成。以下仍是明确的非目标：任意 PromQL/shell/HTTP/execute、图表编辑/重跑、Dashboard 写入与审批、在线资产编辑、会话分享/Fork、多服务或任意动作处置、生产级密钥管理和 PostgreSQL 等真实外部系统接入。
 
 ## 上手使用
 
@@ -111,7 +111,7 @@ slot 不得与其他已初始化 worktree 重复：
 |确定性 Mock|`compose.mock-e2e.yaml`|Mock Agent，固定生成 CPU、内存、负载三视图|fixture|无外部服务或模型凭证|
 |真实指标|Mock 基础文件 + `compose.real-metrics-e2e.yaml`|Mock Agent，仍固定生成三视图|本地 Prometheus 抓取 node_exporter|Docker 可运行 Prometheus/node_exporter|
 |真实 Agent|上述两个文件 + `compose.real-agent-e2e.yaml`|受限 Eino/DeepSeek Agent|本地 Prometheus 抓取 node_exporter|`.env` 中配置 `DEEPSEEK_API_KEY`|
-|订单 Incident|Mock 基础 + real-metrics + `compose.incident-e2e.yaml`|既有指标 Agent + 确定性 Incident 诊断/prepare；独立 Remediation Toolset 已接入 durable write-once Execute/Reconcile/三重 Verify|Prometheus 抓取 node_exporter 与真实 order-demo；Grafana Alert firing/resolved|Docker；AI Core 已接通组织游标列表/可见性、Approval、Execution/Audit，Plugin 和 Workbench 已完成；真实批准 E2E 尚待 G8|
+|订单 Incident|Mock 基础 + real-metrics + `compose.incident-e2e.yaml`|既有指标 Agent + 确定性 Incident 诊断/prepare；独立 Remediation Toolset 执行 durable write-once Execute/Reconcile/三重 Verify|Prometheus 抓取 node_exporter 与真实 order-demo；Grafana Alert firing/resolved|Docker；组织 Incident、Approval、单次 CAS、完整恢复窗口、业务探针、三层审计和持久化 Workbench E2E 均已完成|
 
 长期开发栈都由统一入口准备依赖、编译一次 Plugin 前端并执行 Compose build/up/wait：
 
@@ -207,7 +207,7 @@ Backend 由 Grafana 承载。
 |`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、同一 Session 连续 8 次相同 CPU/内存请求、durable tool 配对、有限 replay 与 API/日志/SQLite 泄漏检查。|通过：概览 21 events/3 query tool calls/3 charts，CPU 追问 13 events/1 query tool call/1 chart；8 次重复请求均得到 `600s/120s` 双视图计划，各为 17 events/2 query tool calls/2 charts；调用进程从 `.env` 临时加载 key，未输出或持久化 key。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
 |`make test-frontend`|Vitest 工作台 Session/Incident 状态、历史分页/标题、审批展示、durable 时间线、取消态、SSE、路由、Resource 错误、产品 View/Shell、图表分组/聚焦和 DataFrame mapper；随后 TypeScript typecheck。|通过：13 个测试文件、46 个用例；独立前端 build 通过。|
-|`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果、DeepSeek 探针、worktree 配置和 Compose 命名/端口解析，并检查诊断与 E2E Shell 语法。|通过：44 个 Node 测试。|
+|`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果、DeepSeek 探针、worktree 配置和 Compose 命名/端口解析，并检查诊断与 E2E Shell 语法。|通过：45 个 Node 测试。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
 |`make validate-contracts`|Plugin/AI Core/order-demo OpenAPI、36 份 JSON Schema、资产与 node_exporter fixture。|通过；包含有效 Incident/Approval/Webhook 以及 QueryPlan 混入、ground truth 和缺失 fingerprint 的反例。|
 |`make generated-client-diff`|重新生成 Client/类型后确认 Git 无差异。|通过。|
@@ -216,6 +216,7 @@ Backend 由 Grafana 承载。
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
 |`make e2e-mock`|构建前端与三个容器；API E2E 覆盖六种有界输入和 owner Session page/activity；3 个 Playwright 场景验证真实多轮/A-B/replay、503 同幂等键重试、产品导航、真实 Context、dark/light、响应式布局和请求/存储防泄漏。|UI 迁移 G5 连续两轮均通过 API 全链与 Playwright 3/3；临时资源均由脚本清理。|
 |`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后执行相同 API 与产品工作台浏览器 E2E。|通过；六种输入均返回非空有限且按有效 step 对齐的真实 series，Playwright 3/3 覆盖纵向链路、错误恢复和 Shell/响应式验收。|
+|`make e2e-incident`|隔离 Docker 订单流量、真实故障、Prometheus/Grafana Alert、诊断、Approval、类型化 CAS、完整恢复窗口、业务探针、resolved、持久化/审计与浏览器刷新恢复。|通过：44 个连续 durable events、一次 `0 -> 2` 执行、SQLite/assistant-mcp 三层审计及 Playwright 1/1；临时资源已清理。|
 |`make diagnose-real-metrics`|绕过 Grafana 与 AI Core，分阶段检查原始 Prometheus 与 assistant-mcp 的真实返回及指标语义。|通过：三条 vector/matrix 各 1 series/1 sample；CPU 约 98.2..98.7，内存约 64.64，load 3.25，均通过语义校验。|
 |`make diagnose-deepseek`|绕过 Agent/MCP，验证配置 model 出现在 `/models` 并返回固定严格 JSON。|通过：`deepseek-v4-flash` 在 539 ms 返回 `{"status":"ok","answer":"pong"}`；未输出 key。|
 

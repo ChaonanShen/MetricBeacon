@@ -339,7 +339,13 @@ function withTransientCompose(context, operation) {
   const handlers = Object.fromEntries(['SIGINT', 'SIGTERM', 'SIGHUP'].map((signal) => [signal, () => { interrupted = signal; }]));
   for (const [signal, handler] of Object.entries(handlers)) process.once(signal, handler);
   try {
-    operation();
+    try {
+      operation();
+    } catch (error) {
+      process.stderr.write(`E2E failed; collecting Compose logs for ${context.project}\n`);
+      spawnSync('docker', [...context.args, 'logs', '--no-color'], { cwd: context.config.root, env: context.environment, stdio: 'inherit' });
+      throw error;
+    }
     if (interrupted) throw new Error(`interrupted by ${interrupted}`);
   } finally {
     for (const [signal, handler] of Object.entries(handlers)) process.removeListener(signal, handler);
@@ -360,10 +366,12 @@ function runE2E(config, mode, { frontendBuilt = false } = {}) {
       run('node', [join(config.root, 'tests', 'e2e', 'real-agent', 'api-smoke.mjs')], { cwd: config.root, env: environment });
       assertRealAgentOutputSafe(context);
     } else if (mode === 'incident') {
+      const environment = { ...context.environment, GRAFANA_URL: publishedURL(context, 'grafana', 3000) };
       run(join(config.root, 'tests', 'e2e', 'incident', 'observability-e2e.sh'), [context.project, ...context.files], {
         cwd: config.root,
-        env: context.environment,
+        env: environment,
       });
+      run('npm', ['run', 'test:e2e:incident'], { cwd: join(config.root, 'apps', 'grafana-plugin', 'frontend'), env: environment });
     } else {
       runGrafanaE2E(context, mode === 'real-metrics');
     }

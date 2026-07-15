@@ -37,6 +37,33 @@ wait_for_alert() {
 	return 1
 }
 
+wait_for_db_value() {
+	query=$1
+	wanted=$2
+	limit=$3
+	index=0
+	while [ "$index" -lt "$limit" ]; do
+		rm -rf "$database_dir"
+		mkdir -p "$database_dir"
+		docker cp "$ai_core_container:/var/lib/ai-core/." "$database_dir" >/dev/null
+		value=$(sqlite3 "$database_dir/ai-core.sqlite" "$query")
+		if [ "$value" = "$wanted" ]; then
+			return 0
+		fi
+		index=$((index + 1))
+		sleep 2
+	done
+	echo "database query did not reach $wanted: $query" >&2
+	return 1
+}
+
+command -v sqlite3 >/dev/null
+temporary_dir=$(mktemp -d)
+database_dir=$temporary_dir/ai-core
+trap 'rm -rf "$temporary_dir"' EXIT
+ai_core_container=$(compose ps -q ai-core)
+test -n "$ai_core_container"
+
 fault_container=$(compose ps -q fault-controller)
 test -n "$fault_container"
 test "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$fault_container")" = none
@@ -59,11 +86,38 @@ wait_for_alert Alerting 18
 backlog=$(compose exec -T prometheus wget -qO- 'http://127.0.0.1:9090/api/v1/query?query=mtb_demo_order_queue_depth')
 echo "$backlog" | grep -Eq '"value":\[[^]]*,"([1-9][0-9]|[1-9][0-9][0-9])"\]'
 
-compose exec -T fault-controller curl -fsS -X POST http://127.0.0.1:8092/faults/v1/reset >/dev/null
+node "$(dirname "$0")/golden-e2e.mjs"
 wait_for_alert Normal 18
 
 queue=$(compose exec -T order-service curl -fsS -H 'Authorization: Bearer incident-read-development-token' http://127.0.0.1:8091/ops/v1/queue)
 echo "$queue" | grep -q '"depth":0'
 
-echo "incident observability E2E passed"
+wait_for_db_value "SELECT count(*) FROM alert_events WHERE status='resolved';" 1 20
+wait_for_db_value "SELECT count(*) FROM approvals WHERE status='approved' AND version=2;" 1 1
+wait_for_db_value "SELECT count(*) FROM remediation_executions WHERE state IN ('applied','already_applied') AND before_version + 1 = after_version;" 1 1
+wait_for_db_value "SELECT count(*) FROM audit_records WHERE action='approval_decision' AND outcome='accepted';" 1 1
+wait_for_db_value "SELECT count(*) FROM audit_records WHERE action='remediation_execute' AND outcome='accepted';" 1 1
+wait_for_db_value "SELECT count(*) FROM audit_records WHERE action='remediation_execute' AND outcome='succeeded';" 1 1
+wait_for_db_value "SELECT count(*) FROM audit_records WHERE action='remediation_verify' AND outcome='succeeded';" 1 1
+test "$(sqlite3 "$database_dir/ai-core.sqlite" 'PRAGMA foreign_key_check;')" = ""
 
+operation_id=$(sqlite3 "$database_dir/ai-core.sqlite" 'SELECT operation_id FROM remediation_executions LIMIT 1;')
+test -n "$operation_id"
+receipt=$(compose exec -T order-service curl -fsS -H 'Authorization: Bearer incident-read-development-token' "http://127.0.0.1:8091/ops/v1/operations/$operation_id")
+echo "$receipt" | grep -q '"beforeConcurrency":0'
+echo "$receipt" | grep -q '"afterConcurrency":2'
+
+assistant_mcp_container=$(compose ps -q assistant-mcp)
+docker cp "$assistant_mcp_container:/var/lib/assistant-mcp/execution-audit.jsonl" "$temporary_dir/execution-audit.jsonl" >/dev/null
+test "$(wc -l < "$temporary_dir/execution-audit.jsonl" | tr -d ' ')" = 2
+grep -q '"phase":"execute"' "$temporary_dir/execution-audit.jsonl"
+grep -q '"outcome":"authorized"' "$temporary_dir/execution-audit.jsonl"
+grep -q '"outcome":"succeeded"' "$temporary_dir/execution-audit.jsonl"
+grep -q "\"operationId\":\"$operation_id\"" "$temporary_dir/execution-audit.jsonl"
+
+if compose logs --no-color | grep -Eq 'incident-remediation-development-token|incident-approval-evidence-development-key-v1'; then
+	echo "incident logs leaked a remediation credential" >&2
+	exit 1
+fi
+
+echo "incident golden observability, remediation, persistence and audit E2E passed"

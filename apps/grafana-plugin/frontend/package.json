@@ -10,6 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "test:e2e": "playwright test --config playwright.config.ts",
+    "test:e2e:incident": "playwright test --config playwright.incident.config.ts",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && rollup --config rollup.config.mjs"
   },

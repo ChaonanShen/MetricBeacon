@@ -1,8 +1,10 @@
 # 可控订单业务系统事件处置闭环执行计划
 
-> Status: active
+> Status: completed
 > Created: 2026-07-16
 > Last reviewed: 2026-07-16
+
+> Completion evidence: G0–G8 are complete. The isolated Docker Golden E2E produced one approved Incident with 44 contiguous durable events, one typed CAS remediation, two complete 30-second recovery windows, a successful business probe, resolved alert lifecycle, SQLite/assistant-mcp audit checks, and a passing persisted Workbench browser scenario.
 
 ## 1. 交付目标
 

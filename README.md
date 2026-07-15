@@ -1,13 +1,15 @@
 # mini-torchbearing
 
 Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性的 `node_exporter` Mock
-闭环，并已提供可显式启用的本地真实 Prometheus/node_exporter 指标链路；文档状态、阅读路由和下一阶段方向见
+闭环，并已提供可显式启用的真实 Prometheus/node_exporter 指标链路和可控订单 Incident 处置模式；文档状态与阅读路由见
 [`docs/CLAUDE.md`](docs/CLAUDE.md)。
 
 ## 当前状态
 
 有界 node_exporter 查询和持久化多轮工作台已经实现：Workbench 只提交自然语言，同步 Mock/Eino IntentPlanner 选择 `cpu|memory|load` 并规划可选 range/step；AI Core 本地校验边界、冻结并持久化 QueryPlan，后台只执行已持久化 views。assistant-mcp 生成规范 PromQL，最终数值回复由本地实际样本统计产生。
-`make e2e-mock`、`make e2e-real-metrics` 和有凭证的 `make e2e-real-agent` 已通过；Prometheus、MCP、DeepSeek 分层诊断、durable Task 结果语义分析和跨模式旧 Session 恢复也已完成。Grafana Dashboard 写入仍未实现。最终执行计划与证据见
+`make e2e-mock`、`make e2e-real-metrics`、有凭证的 `make e2e-real-agent` 和 `make e2e-incident` 已通过；订单模式覆盖真实积压、Grafana Alert、Knowledge/Skill/Playbook、只读诊断、Admin Approval、类型化 CAS、三重恢复验证和持久化审计。Grafana Dashboard 写入仍未实现。Incident 执行计划与证据见
+[`docs/implementation/order_service_incident_remediation_execution_plan.md`](docs/implementation/order_service_incident_remediation_execution_plan.md) 和
+[`docs/implementation/order_service_incident_remediation_progress.md`](docs/implementation/order_service_incident_remediation_progress.md)；指标分析执行计划与证据见
 [`docs/implementation/bounded_node_exporter_query_parameters_execution_plan.md`](docs/implementation/bounded_node_exporter_query_parameters_execution_plan.md) 和
 [`docs/implementation/bounded_node_exporter_query_parameters_progress.md`](docs/implementation/bounded_node_exporter_query_parameters_progress.md)。独立探针设计见
 [`docs/implementation/real_backend_diagnostics_execution_plan.md`](docs/implementation/real_backend_diagnostics_execution_plan.md)，分层命令顺序、预期结果形式和故障定位见
@@ -18,7 +20,8 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 - `apps/grafana-plugin`：Grafana App Plugin。Frontend 只调用 Plugin Resource API；
   Backend 只代理到 AI Core。
 - `services/ai-core`：会话、任务、事件、工作流和 SQLite 的唯一所有者。
-- `services/assistant-mcp`：MCP transport、`grafana.*` 只读工具与指标源 Adapter。
+- `services/assistant-mcp`：MCP transport、`grafana.*` 指标工具、版本化 Incident 资产与受限诊断/处置 Adapter。
+- `services/order-demo`：分离 Business、Operational 和 Fault API 的可控订单队列服务。
 - `contracts`：跨进程 OpenAPI、JSON Schema、SSE 和 Tool Schema 的唯一来源。
 - `data/mock-scenarios`：仅供 Mock Prometheus Adapter 读取的确定性 fixture。
 
@@ -30,6 +33,7 @@ Grafana 内嵌的自然语言指标分析工作台。当前默认运行确定性
 ./scripts/mtb verify --full           # make check + 隔离 Mock E2E
 ./scripts/mtb e2e --mode real-metrics
 ./scripts/mtb e2e --mode real-agent   # .env 需配置 DEEPSEEK_API_KEY
+./scripts/mtb e2e --mode incident     # 真实积压、告警、审批、修复、验证与审计
 ```
 
 主工作区在未配置时默认使用 `main`、slot 0 和 `http://localhost:3000`。新建 linked worktree 后，

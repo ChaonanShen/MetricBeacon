@@ -1,7 +1,7 @@
 # 真实后端分层测试矩阵
 
 > status: current runbook
-> updatedAt: 2026-07-15
+> updatedAt: 2026-07-16
 
 本文供开发者或 code agent 判断“第二、第三种模式为什么没有数据”。测试从最窄的解析与连接开始，逐层走到
 完整浏览器链路；不要只以 HTTP 200 或数组非空作为通过条件。
@@ -18,7 +18,8 @@
 |6|`./scripts/mtb e2e --mode mock`|确定性数据通过 Plugin/API/持久化/SSE/浏览器全链路。|与真实数据无关的应用链路回归。|
 |7|`./scripts/mtb e2e --mode real-metrics`|六种自然语言 range/step/view 输入能把真实 Prometheus 数据变成 durable Chart，其中包括 30 分钟范围、每 5 分钟采样。|IntentPlanner→QueryPlan→MCP→Prometheus 的真实数据路径。|
 |8|`./scripts/mtb e2e --mode real-agent`|真实模型同步规划概览三图和 CPU 追问一图，并在同一 Session 连续 8 次正确规划相同 CPU/内存请求；确定性执行结果可持久化/重放。|Planner 严格 JSON、结构化历史、冻结 views 或本地结果格式化。|
-|9|`./scripts/mtb verify --full`|仓库全部静态检查、单元/集成测试及隔离 Mock E2E 通过。|对应失败目标。|
+|9|`./scripts/mtb e2e --mode incident`|真实订单积压触发组织 Incident，经诊断、批准、单次 CAS、两个恢复窗口、业务探针和三层审计后完成，并通过浏览器刷新恢复。|Grafana notifier、Incident workflow、受限工具权限、Approval/Execution 或恢复验证。|
+|10|`./scripts/mtb verify --full`|仓库全部静态检查、单元/集成测试及隔离 Mock E2E 通过。|对应失败目标。|
 
 统一入口自动读取当前 worktree 根目录的 `.env`，且不会输出 key。需要模型的第 5、8 步可直接执行：
 
@@ -118,3 +119,5 @@ E2E 覆盖同一组五种有界输入。真实 Agent 概览为 21 events/3 query
 的双视图计划，并各完成 2 次 query 工具调用和 2 张图。测试只记录计划和事件计数，不记录模型原文、凭证或
 完整时序。相同六种输入的真实指标 E2E 也全部通过；新增 30 分钟 CPU/load、每 5 分钟采样用例完成 2 次
 query 工具调用并生成 2 张非空真实图。
+
+2026-07-16 的订单 Incident Golden E2E 中，worker=0 的真实积压触发 Grafana Alert；批准后只执行一次 `0 -> 2` CAS，Task 以 44 个连续事件完成。两个完整 30 秒恢复窗口、固定业务探针、resolved/queue=0、SQLite Approval/Execution/Audit、assistant-mcp authorized/succeeded JSONL 和 Playwright 1/1 全部通过；未在输出中记录原始 webhook、业务标识或凭证。

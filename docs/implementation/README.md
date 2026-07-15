@@ -71,7 +71,7 @@ The completed product Workbench UI migration is
 with gate evidence in
 [`workbench_product_ui_migration_progress.md`](workbench_product_ui_migration_progress.md).
 
-The active slice is
+The completed order-service Incident slice is
 [`order_service_incident_remediation_execution_plan.md`](order_service_incident_remediation_execution_plan.md).
 It adds a controllable Docker order service and the complete alert, bounded
 diagnosis, Admin approval, typed remediation, recovery verification and audit

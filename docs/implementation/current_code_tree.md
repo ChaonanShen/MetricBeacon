@@ -144,6 +144,10 @@ mini-torchbearing/
 │   │   ├── browser-e2e.spec.ts            # 真实多轮、Session、replay 与图表纵向链
 │   │   ├── browser-shell.spec.ts          # 主题、响应式、a11y 与请求/存储边界
 │   │   └── browser-errors.spec.ts         # Task 依赖错误与同幂等键重试
+│   ├── e2e/incident/                      # 告警→审批→单次修复→三重验证→审计 Golden E2E
+│   │   ├── golden-e2e.mjs                 # Resource API、幂等批准、连续事件和公开数据边界
+│   │   ├── observability-e2e.sh           # 拓扑、Prometheus/Grafana、SQLite/JSONL 审计与恢复
+│   │   └── browser-e2e.spec.ts            # 完成态 Incident 与刷新后持久化恢复
 │   └── e2e/real-agent/api-smoke.mjs        # view-only Eino、8 轮重复规划、本地回复、replay 与泄漏检查
 │
 ├── scripts/
