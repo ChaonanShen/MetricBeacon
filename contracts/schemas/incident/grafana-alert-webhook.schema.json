@@ -14,6 +14,7 @@
     "commonLabels": {"$ref": "#/$defs/labels"},
     "commonAnnotations": {"$ref": "#/$defs/labels"},
     "externalURL": {"type": "string", "maxLength": 500},
+    "appVersion": {"type": "string", "maxLength": 80},
     "version": {"type": "string", "maxLength": 40},
     "groupKey": {"type": "string", "maxLength": 500},
     "truncatedAlerts": {"type": "integer", "minimum": 0},

@@ -288,6 +288,7 @@ export interface components {
             commonLabels?: components["schemas"]["labels"];
             commonAnnotations?: components["schemas"]["labels"];
             externalURL?: string;
+            appVersion?: string;
             version?: string;
             groupKey?: string;
             truncatedAlerts?: number;

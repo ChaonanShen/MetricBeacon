@@ -151,7 +151,7 @@ func validateAlertWebhook(config AlertIngressConfig, webhook generated.GrafanaAl
 	if webhook.OrgId != nil && *webhook.OrgId != config.OrgID {
 		return invalid()
 	}
-	if !validOptionalString(webhook.ExternalURL, 500) || !validOptionalString(webhook.Version, 40) || !validOptionalString(webhook.GroupKey, 500) || !validOptionalString(webhook.Title, 500) || !validOptionalString(webhook.State, 80) || !validOptionalString(webhook.Message, 2000) || (webhook.TruncatedAlerts != nil && *webhook.TruncatedAlerts < 0) {
+	if !validOptionalString(webhook.ExternalURL, 500) || !validOptionalString(webhook.AppVersion, 80) || !validOptionalString(webhook.Version, 40) || !validOptionalString(webhook.GroupKey, 500) || !validOptionalString(webhook.Title, 500) || !validOptionalString(webhook.State, 80) || !validOptionalString(webhook.Message, 2000) || (webhook.TruncatedAlerts != nil && *webhook.TruncatedAlerts < 0) {
 		return invalid()
 	}
 	for _, labels := range []*generated.Labels{webhook.GroupLabels, webhook.CommonLabels, webhook.CommonAnnotations} {

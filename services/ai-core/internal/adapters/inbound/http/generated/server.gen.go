@@ -1029,6 +1029,7 @@ type Execution struct {
 // GrafanaAlertWebhookSchema defines model for grafana-alert-webhook.schema.
 type GrafanaAlertWebhookSchema struct {
 	Alerts            []Alert                         `json:"alerts"`
+	AppVersion        *string                         `json:"appVersion,omitempty"`
 	CommonAnnotations *Labels                         `json:"commonAnnotations,omitempty"`
 	CommonLabels      *Labels                         `json:"commonLabels,omitempty"`
 	ExternalURL       *string                         `json:"externalURL,omitempty"`
