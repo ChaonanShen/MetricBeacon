@@ -13,7 +13,6 @@ import (
 	"unicode/utf8"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
-	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/application/workflows"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
@@ -113,8 +112,11 @@ func (s *Service) CreateTask(ctx context.Context, identity requestcontext.Contex
 	if _, err := s.Store.Sessions().Get(ctx, identity.TenantID, input.SessionID); err != nil {
 		return task.AnalysisTask{}, err
 	}
-	history := s.planningHistory(ctx, identity.TenantID, input.SessionID)
-	intent, err := s.Planner.Plan(ctx, identity, agent.IntentPlanRequest{Message: input.Message, History: history})
+	history, err := s.planningHistory(ctx, identity.TenantID, input.SessionID)
+	if err != nil {
+		return task.AnalysisTask{}, err
+	}
+	intent, err := s.Planner.Plan(ctx, identity, agent.IntentPlanRequest{Message: input.Message, PreviousIntents: history})
 	if err != nil {
 		return task.AnalysisTask{}, err
 	}
@@ -197,25 +199,40 @@ func taskSnapshot(value task.AnalysisTask) map[string]any {
 	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"views": value.QueryPlan.Views, "stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}}
 }
 
-func (s *Service) planningHistory(ctx context.Context, tenantID, sessionID string) []dto.ConversationMessage {
+func (s *Service) planningHistory(ctx context.Context, tenantID, sessionID string) ([]agent.IntentHistoryItem, error) {
 	messages, err := s.Store.Messages().ListBySession(ctx, tenantID, sessionID)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	history := make([]dto.ConversationMessage, 0, 12)
+	history := make([]agent.IntentHistoryItem, 0, 6)
 	characters := 0
-	for index := len(messages) - 1; index >= 0 && len(history) < 12; index-- {
+	for index := len(messages) - 1; index >= 0 && len(history) < 6; index-- {
+		if messages[index].Role != session.RoleUser {
+			continue
+		}
 		count := utf8.RuneCountInString(messages[index].Content)
 		if characters+count > 12_000 {
 			break
 		}
+		plannedTask, err := s.Store.Tasks().Get(ctx, tenantID, messages[index].TaskID)
+		if err != nil {
+			return nil, err
+		}
+		if len(plannedTask.QueryPlan.Views) == 0 {
+			continue
+		}
 		characters += count
-		history = append(history, dto.ConversationMessage{Role: string(messages[index].Role), Content: messages[index].Content})
+		history = append(history, agent.IntentHistoryItem{
+			Message:      messages[index].Content,
+			Views:        append([]string(nil), plannedTask.QueryPlan.Views...),
+			RangeSeconds: int(plannedTask.TimeRange.To.Sub(plannedTask.TimeRange.From) / time.Second),
+			StepSeconds:  plannedTask.QueryPlan.StepSeconds,
+		})
 	}
 	for left, right := 0, len(history)-1; left < right; left, right = left+1, right-1 {
 		history[left], history[right] = history[right], history[left]
 	}
-	return history
+	return history, nil
 }
 
 func hasErrorCode(err error, code common.ErrorCode) bool {

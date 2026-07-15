@@ -138,9 +138,10 @@ func newRuntime(t *testing.T, chatModel model.ToolCallingChatModel, catalog *fak
 }
 
 type scriptedModel struct {
-	mu        sync.Mutex
-	responses []*schema.Message
-	inputs    [][]*schema.Message
+	mu             sync.Mutex
+	responses      []*schema.Message
+	generateErrors []error
+	inputs         [][]*schema.Message
 }
 
 func (m *scriptedModel) WithTools([]*schema.ToolInfo) (model.ToolCallingChatModel, error) {
@@ -158,6 +159,13 @@ func (m *scriptedModel) Generate(_ context.Context, input []*schema.Message, _ .
 		return nil, err
 	}
 	m.inputs = append(m.inputs, copied)
+	if len(m.generateErrors) > 0 {
+		nextErr := m.generateErrors[0]
+		m.generateErrors = m.generateErrors[1:]
+		if nextErr != nil {
+			return nil, nextErr
+		}
+	}
 	if len(m.responses) == 0 {
 		return nil, errors.New("unexpected model call")
 	}

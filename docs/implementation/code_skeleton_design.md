@@ -3063,6 +3063,11 @@ ADR-021 supersede ADR-020 的本地解析职责：Workbench 只提交消息和�
 assistant-mcp 仍只编译注册视图的规范 PromQL。Workbench 可在查询后只读展示有效 QueryPlan。详细 Gate 见
 [`natural_language_query_input_execution_plan.md`](natural_language_query_input_execution_plan.md)。
 
+IntentPlanner 的外部模型输入只包含当前消息和最近最多 6 个持久化 User Message + QueryPlan 形成的结构化意图，
+不包含 Assistant 事实回复、指标值或本地 formatter 文本。Eino Adapter 使用 provider JSON mode、专属四字段协议和
+严格本地校验；空 content 或模型契约错误只允许一次不携带原始响应的重试。模型 transport 错误不重试，所有失败仍
+发生在 Message、Task 和幂等记录写入之前。该加固不改变 ADR-021 的 view、范围、step 或本地执行边界。
+
 验收断言至少包括：
 
 1. Prometheus target `up{job="node-exporter"}` 为 1。

@@ -23,7 +23,7 @@
 
 本切片包含：
 
-- DeepSeek JSON mode、temperature 0 和受限输出长度；
+- DeepSeek JSON mode、可实际传输的近零 temperature 和受限输出长度；
 - Planner 专属 prompt，不再把执行/事实回复 Profile 全文交给模型；
 - 使用持久化用户消息与 QueryPlan 形成结构化历史，不发送 Assistant 事实回复；
 - 严格四字段 JSON 校验，以及针对空/模型契约错误的一次有界重试；
@@ -37,7 +37,8 @@
 
 ### 3.1 模型输出边界
 
-- 保持 `deepseek-v4-flash` 和 non-thinking；启用 `json_object` response format，temperature 为 0，max tokens 为 512。
+- 保持 `deepseek-v4-flash` 和 non-thinking；启用 `json_object` response format。由于当前 Go SDK 会通过
+  `omitempty` 省略精确零值，temperature 使用可实际传输的 0.01，max tokens 为 512。
 - 输出必须恰好包含 `status`、`views`、`rangeSeconds`、`stepSeconds`。缺失/额外字段、尾随内容、未知或重复 view、
   不一致状态均是模型契约错误。
 - 空 content 或模型契约错误进行一次新调用；重试不携带模型原文。网络错误和超时不重试。第二次失败沿用

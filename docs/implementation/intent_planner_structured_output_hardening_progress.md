@@ -8,8 +8,8 @@
 
 |阶段|状态|证据|
 |-|-|-|
-|G0：计划与基线|进行中|63 次模型直连矩阵已定位多轮 Assistant 历史污染和 JSON-only 空 content 边界。|
-|G1：结构化 Planner 边界|待执行|待实现 JSON mode、专属 prompt、结构化历史、严格校验和一次重试。|
+|G0：计划与基线|已完成|63 次模型直连矩阵已定位多轮 Assistant 历史污染和 JSON-only 空 content 边界；契约基线通过。|
+|G1：结构化 Planner 边界|已完成|JSON mode、专属 prompt、最多 6 个持久化结构化意图、严格四字段校验和一次契约重试已实现；Eino/Mock/commands/HTTP/bootstrap 定向测试通过。|
 |G2：一致性与多轮 E2E|待执行|待补 Mock cadence 与连续 8 轮真实 Agent 回归。|
 |G3：完整收口|待执行|待运行完整门禁并更新当前代码快照和 runbook。|
 

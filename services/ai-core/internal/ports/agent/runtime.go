@@ -16,8 +16,15 @@ const (
 )
 
 type IntentPlanRequest struct {
-	Message string
-	History []dto.ConversationMessage
+	Message         string
+	PreviousIntents []IntentHistoryItem
+}
+
+type IntentHistoryItem struct {
+	Message      string
+	Views        []string
+	RangeSeconds int
+	StepSeconds  int
 }
 
 type IntentPlan struct {

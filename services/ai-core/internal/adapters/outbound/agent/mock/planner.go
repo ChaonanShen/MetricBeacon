@@ -24,12 +24,10 @@ func (Planner) Plan(_ context.Context, _ requestcontext.Context, request agent.I
 	message := strings.ToLower(request.Message)
 	views := parseViews(message)
 	if len(views) == 0 {
-		for index := len(request.History) - 1; index >= 0; index-- {
-			if request.History[index].Role == "user" {
-				views = parseViews(strings.ToLower(request.History[index].Content))
-				if len(views) > 0 {
-					break
-				}
+		for index := len(request.PreviousIntents) - 1; index >= 0; index-- {
+			views = append([]string(nil), request.PreviousIntents[index].Views...)
+			if len(views) > 0 {
+				break
 			}
 		}
 	}

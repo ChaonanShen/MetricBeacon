@@ -54,7 +54,7 @@ mini-torchbearing/
 │   │   │   ├── adapters/
 │   │   │   │   ├── inbound/http/          # AI Core HTTP API 与 SSE
 │   │   │   │   └── outbound/              # SQLite、MCP、Mock Agent、Eino Agent、时钟/ID
-│   │   │   │       ├── agent/eino/         # 无 Tool 的严格 JSON IntentPlanner Adapter
+│   │   │   │       ├── agent/eino/         # JSON mode、结构化历史和一次重试的 IntentPlanner Adapter
 │   │   │   │       ├── agent/mock/         # 确定性意图解析与 persisted-view 执行器
 │   │   │   │       └── agent/localresult/  # Mock/Eino 共用的可信事实 formatter
 │   │   │   └── bootstrap/                 # 服务依赖组装

@@ -188,15 +188,89 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 	if invalidTokenResponse.StatusCode != http.StatusBadRequest {
 		t.Fatalf("cross-resource page token response: %d", invalidTokenResponse.StatusCode)
 	}
+
+	followupBody := `{"sessionId":"` + sessionBody.ID + `","message":"now show memory","analysisContext":{"datasourceUid":"prometheus-main"}}`
+	followupResponse := request(t, http.MethodPost, server.URL+"/v1/tasks", followupBody, "request-followup", "followup-key")
+	followupResponse.Body.Close()
+	if followupResponse.StatusCode != http.StatusAccepted {
+		t.Fatalf("follow-up task response: %d", followupResponse.StatusCode)
+	}
+	lastRequest := planner.requests[len(planner.requests)-1]
+	if len(lastRequest.PreviousIntents) != 1 {
+		t.Fatalf("planner previous intents = %#v", lastRequest.PreviousIntents)
+	}
+	previous := lastRequest.PreviousIntents[0]
+	if previous.Message != "show node exporter" || len(previous.Views) != 1 || previous.Views[0] != "cpu" || previous.RangeSeconds != 1800 || previous.StepSeconds != 10 {
+		t.Fatalf("planner previous intent = %#v", previous)
+	}
+}
+
+func TestPlannerHistoryUsesLatestSixPersistedQueryPlans(t *testing.T) {
+	ctx := context.Background()
+	store, err := storage.Open(ctx, filepath.Join(t.TempDir(), "ai-core.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	notifier := inmemory.New()
+	clock, generator := clockadapter.NewSystem(), idadapter.New()
+	workflow := workflows.RunAnalysisWorkflow{Store: store, Notifier: notifier, Runtime: httpRuntime{}, IDs: generator, Clock: clock}
+	planner := &httpPlanner{}
+	api := &API{Store: store, Notifier: notifier, Commands: commands.New(store, notifier, workflow, generator, clock, planner)}
+	server := httptest.NewServer(NewHandler(api))
+	defer server.Close()
+
+	sessionResponse := request(t, http.MethodPost, server.URL+"/v1/sessions", `{"title":"Bounded history"}`, "history-session", "")
+	var sessionBody struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(sessionResponse.Body).Decode(&sessionBody); err != nil {
+		t.Fatal(err)
+	}
+	sessionResponse.Body.Close()
+
+	for index := 0; index < 8; index++ {
+		message := "request-" + string(rune('0'+index))
+		body, err := json.Marshal(map[string]any{"sessionId": sessionBody.ID, "message": message, "analysisContext": map[string]any{"datasourceUid": "prometheus-main"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := request(t, http.MethodPost, server.URL+"/v1/tasks", string(body), "history-task", "history-key-"+string(rune('0'+index)))
+		if response.StatusCode != http.StatusAccepted {
+			response.Body.Close()
+			t.Fatalf("task %d response: %d", index, response.StatusCode)
+		}
+		var taskBody struct {
+			ID string `json:"id"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&taskBody); err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		waitTaskTerminal(t, store, taskBody.ID)
+	}
+
+	last := planner.requests[len(planner.requests)-1]
+	if len(last.PreviousIntents) != 6 {
+		t.Fatalf("previous intent count = %d, want 6", len(last.PreviousIntents))
+	}
+	for index, previous := range last.PreviousIntents {
+		wantMessage := "request-" + string(rune('1'+index))
+		if previous.Message != wantMessage || len(previous.Views) != 1 || previous.Views[0] != "cpu" || previous.RangeSeconds != 1800 || previous.StepSeconds != 10 {
+			t.Fatalf("previous intent %d = %#v, want message %q and default CPU plan", index, previous, wantMessage)
+		}
+	}
 }
 
 type httpPlanner struct {
-	calls   int
-	failure error
+	calls    int
+	failure  error
+	requests []agent.IntentPlanRequest
 }
 
-func (p *httpPlanner) Plan(context.Context, requestcontext.Context, agent.IntentPlanRequest) (agent.IntentPlan, error) {
+func (p *httpPlanner) Plan(_ context.Context, _ requestcontext.Context, request agent.IntentPlanRequest) (agent.IntentPlan, error) {
 	p.calls++
+	p.requests = append(p.requests, request)
 	if p.failure != nil {
 		return agent.IntentPlan{}, p.failure
 	}

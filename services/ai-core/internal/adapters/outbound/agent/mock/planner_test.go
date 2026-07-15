@@ -6,7 +6,6 @@ import (
 	"time"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
-	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
 )
 
@@ -18,7 +17,7 @@ func TestPlannerParsesExactChineseCadenceAndView(t *testing.T) {
 }
 
 func TestPlannerUsesHistoryOnlyForOmittedView(t *testing.T) {
-	plan, err := (Planner{}).Plan(context.Background(), requestcontext.Context{}, agent.IntentPlanRequest{Message: "那改成每隔30s", History: []dto.ConversationMessage{{Role: "user", Content: "查看 CPU"}}})
+	plan, err := (Planner{}).Plan(context.Background(), requestcontext.Context{}, agent.IntentPlanRequest{Message: "那改成每隔30s", PreviousIntents: []agent.IntentHistoryItem{{Message: "查看 CPU", Views: []string{"cpu"}, RangeSeconds: 1800, StepSeconds: 10}}})
 	if err != nil || len(plan.Views) != 1 || plan.Views[0] != "cpu" || plan.StepSeconds == nil || *plan.StepSeconds != 30 {
 		t.Fatalf("plan = %#v, err = %v", plan, err)
 	}
