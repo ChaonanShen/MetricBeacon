@@ -8,6 +8,20 @@ servers:
   - url: http://order-service:8090
 security: []
 paths:
+  /healthz:
+    get:
+      operationId: healthz
+      summary: Report order-service process liveness without dependency access
+      x-mtb-timeout-ms: 1000
+      responses:
+        '200': {description: Process is alive}
+  /readyz:
+    get:
+      operationId: readyz
+      summary: Report order engine readiness
+      x-mtb-timeout-ms: 1000
+      responses:
+        '200': {description: Order engine is ready}
   /api/v1/orders:
     post:
       operationId: createOrder

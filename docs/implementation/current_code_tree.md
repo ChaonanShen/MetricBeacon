@@ -81,13 +81,15 @@ mini-torchbearing/
 │       │   └── bootstrap/                 # 服务依赖组装
 │       └── Dockerfile
 │   └── order-demo/                        # 可控订单业务服务（Go）
-│       └── internal/
+│       ├── cmd/                           # order-service、fault-controller、loadgen
+│       ├── internal/
 │           ├── domain/                    # 订单状态机与版本化 worker 配置策略
 │           ├── application/               # bounded queue、动态 worker、故障、CAS 与业务 probe
 │           ├── ports/metrics/             # 业务指标记录 Port
-│           └── adapters/inbound/http/
-│               ├── generated/             # Business/Operational server 类型
-│               └── faultgenerated/        # 独立测试 Fault server 类型
+│           └── adapters/
+│               ├── inbound/http/          # 分离路由、token、Unix Fault 与生成类型
+│               └── outbound/prometheus/   # 低基数业务 counter/histogram/gauge
+│       └── Dockerfile                     # 同镜像中的三个受限进程入口
 │
 ├── contracts/                             # 跨服务协议的单一来源
 │   ├── openapi/                           # Plugin/AI Core 与订单 Business/Operational/Fault API

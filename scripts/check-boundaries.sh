@@ -3,6 +3,7 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 core="$root/services/ai-core/internal"
+order_demo="$root/services/order-demo/internal"
 
 reject() {
   description=$1
@@ -24,6 +25,16 @@ reject "AI Core domain imports application or adapters" \
 reject "AI Core application imports adapters" \
   '"mini-torchbearing\.local/services/ai-core/internal/adapters/' \
   "$core/application"
+
+reject "order-demo domain/application/ports import an external SDK" \
+  '"(github\.com|golang\.org|modernc\.org|go\.uber\.org)/' \
+  "$order_demo/domain" "$order_demo/application" "$order_demo/ports"
+reject "order-demo domain imports application or adapters" \
+  '"mini-torchbearing\.local/services/order-demo/internal/(application|adapters)/' \
+  "$order_demo/domain"
+reject "order-demo application imports adapters" \
+  '"mini-torchbearing\.local/services/order-demo/internal/adapters/' \
+  "$order_demo/application"
 
 # Fixtures are implementation details of the Mock Prometheus adapter, never an AI Core
 # or MCP handler dependency.

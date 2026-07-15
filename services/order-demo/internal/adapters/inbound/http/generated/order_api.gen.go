@@ -296,6 +296,9 @@ type ServerInterface interface {
 	// Read a bounded order status
 	// (GET /api/v1/orders/{orderId})
 	GetOrder(w http.ResponseWriter, r *http.Request, orderId OrderId)
+	// Report order-service process liveness without dependency access
+	// (GET /healthz)
+	Healthz(w http.ResponseWriter, r *http.Request)
 	// Read versioned worker configuration
 	// (GET /ops/v1/config/worker)
 	GetWorkerConfig(w http.ResponseWriter, r *http.Request)
@@ -320,6 +323,9 @@ type ServerInterface interface {
 	// Read service instance identity and worker supervisor state
 	// (GET /ops/v1/runtime)
 	GetRuntime(w http.ResponseWriter, r *http.Request)
+	// Report order engine readiness
+	// (GET /readyz)
+	Readyz(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -393,6 +399,20 @@ func (siw *ServerInterfaceWrapper) GetOrder(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetOrder(w, r, orderId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Healthz operation middleware
+func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Healthz(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -606,6 +626,20 @@ func (siw *ServerInterfaceWrapper) GetRuntime(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// Readyz operation middleware
+func (siw *ServerInterfaceWrapper) Readyz(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Readyz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -728,6 +762,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/orders", wrapper.CreateOrder)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/orders/{orderId}", wrapper.GetOrder)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ops/v1/config/worker", wrapper.GetWorkerConfig)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ops/v1/config/worker", wrapper.UpdateWorkerConfig)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ops/v1/operations/{operationId}", wrapper.GetOperation)
@@ -736,6 +771,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ops/v1/probes/order-processing", wrapper.RunOrderProcessingProbe)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ops/v1/queue", wrapper.GetQueue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ops/v1/runtime", wrapper.GetRuntime)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.Readyz)
 
 	return m
 }

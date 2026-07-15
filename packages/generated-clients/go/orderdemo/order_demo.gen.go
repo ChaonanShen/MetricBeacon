@@ -371,6 +371,9 @@ type ClientInterface interface {
 	// GetOrder request
 	GetOrder(ctx context.Context, orderId OrderId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// Healthz request
+	Healthz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetWorkerConfig request
 	GetWorkerConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -398,6 +401,9 @@ type ClientInterface interface {
 
 	// GetRuntime request
 	GetRuntime(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// Readyz request
+	Readyz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) CreateOrderWithBody(ctx context.Context, params *CreateOrderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -426,6 +432,18 @@ func (c *Client) CreateOrder(ctx context.Context, params *CreateOrderParams, bod
 
 func (c *Client) GetOrder(ctx context.Context, orderId OrderId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetOrderRequest(c.Server, orderId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) Healthz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewHealthzRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -556,6 +574,18 @@ func (c *Client) GetRuntime(ctx context.Context, reqEditors ...RequestEditorFn) 
 	return c.Client.Do(req)
 }
 
+func (c *Client) Readyz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadyzRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // NewCreateOrderRequest calls the generic CreateOrder builder with application/json body
 func NewCreateOrderRequest(server string, params *CreateOrderParams, body CreateOrderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -626,6 +656,33 @@ func NewGetOrderRequest(server string, orderId OrderId) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/orders/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewHealthzRequest generates requests for Healthz
+func NewHealthzRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/healthz")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -931,6 +988,33 @@ func NewGetRuntimeRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewReadyzRequest generates requests for Readyz
+func NewReadyzRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/readyz")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -982,6 +1066,9 @@ type ClientWithResponsesInterface interface {
 	// GetOrderWithResponse request
 	GetOrderWithResponse(ctx context.Context, orderId OrderId, reqEditors ...RequestEditorFn) (*GetOrderResponse, error)
 
+	// HealthzWithResponse request
+	HealthzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthzResponse, error)
+
 	// GetWorkerConfigWithResponse request
 	GetWorkerConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWorkerConfigResponse, error)
 
@@ -1009,6 +1096,9 @@ type ClientWithResponsesInterface interface {
 
 	// GetRuntimeWithResponse request
 	GetRuntimeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetRuntimeResponse, error)
+
+	// ReadyzWithResponse request
+	ReadyzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadyzResponse, error)
 }
 
 type CreateOrderResponse struct {
@@ -1067,6 +1157,35 @@ func (r GetOrderResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetOrderResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type HealthzResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r HealthzResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r HealthzResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r HealthzResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -1323,6 +1442,35 @@ func (r GetRuntimeResponse) ContentType() string {
 	return ""
 }
 
+type ReadyzResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadyzResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadyzResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadyzResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // CreateOrderWithBodyWithResponse request with arbitrary body returning *CreateOrderResponse
 func (c *ClientWithResponses) CreateOrderWithBodyWithResponse(ctx context.Context, params *CreateOrderParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrderResponse, error) {
 	rsp, err := c.CreateOrderWithBody(ctx, params, contentType, body, reqEditors...)
@@ -1347,6 +1495,15 @@ func (c *ClientWithResponses) GetOrderWithResponse(ctx context.Context, orderId 
 		return nil, err
 	}
 	return ParseGetOrderResponse(rsp)
+}
+
+// HealthzWithResponse request returning *HealthzResponse
+func (c *ClientWithResponses) HealthzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthzResponse, error) {
+	rsp, err := c.Healthz(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseHealthzResponse(rsp)
 }
 
 // GetWorkerConfigWithResponse request returning *GetWorkerConfigResponse
@@ -1437,6 +1594,15 @@ func (c *ClientWithResponses) GetRuntimeWithResponse(ctx context.Context, reqEdi
 	return ParseGetRuntimeResponse(rsp)
 }
 
+// ReadyzWithResponse request returning *ReadyzResponse
+func (c *ClientWithResponses) ReadyzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadyzResponse, error) {
+	rsp, err := c.Readyz(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadyzResponse(rsp)
+}
+
 // ParseCreateOrderResponse parses an HTTP response from a CreateOrderWithResponse call
 func ParseCreateOrderResponse(rsp *http.Response) (*CreateOrderResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -1498,6 +1664,22 @@ func ParseGetOrderResponse(rsp *http.Response) (*GetOrderResponse, error) {
 		}
 		response.JSONDefault = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseHealthzResponse parses an HTTP response from a HealthzWithResponse call
+func ParseHealthzResponse(rsp *http.Response) (*HealthzResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &HealthzResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil
@@ -1764,6 +1946,22 @@ func ParseGetRuntimeResponse(rsp *http.Response) (*GetRuntimeResponse, error) {
 		}
 		response.JSONDefault = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseReadyzResponse parses an HTTP response from a ReadyzWithResponse call
+func ParseReadyzResponse(rsp *http.Response) (*ReadyzResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadyzResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil
