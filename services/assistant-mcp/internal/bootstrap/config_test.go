@@ -45,3 +45,28 @@ func TestDisabledIncidentProfileRequiresNoIncidentSecrets(t *testing.T) {
 		t.Fatalf("disabled profile unexpectedly required incident configuration: %#v %v", config, err)
 	}
 }
+
+func TestRemediationEnvironmentRequiresIndependentSecretsAndAudit(t *testing.T) {
+	t.Setenv("ASSISTANT_MCP_INCIDENT_ENABLED", "true")
+	t.Setenv("ASSISTANT_MCP_REMEDIATION_ENABLED", "true")
+	t.Setenv("ASSISTANT_MCP_INCIDENT_SCHEMA_DIR", repositoryPath(t, "contracts/tools/incident"))
+	t.Setenv("ASSISTANT_MCP_ASSET_DIR", repositoryPath(t, "data/operational-assets"))
+	t.Setenv("ASSISTANT_MCP_ASSET_SCHEMA_DIR", repositoryPath(t, "contracts/schemas/assets"))
+	t.Setenv("ASSISTANT_MCP_ORDER_DRIVER", "mock")
+	t.Setenv("ASSISTANT_MCP_CHECKPOINT_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("ORDER_INCIDENT_APPROVAL_EVIDENCE_KEY", "")
+	if _, err := bootstrap.LoadConfigFromEnvironment(); err == nil || !strings.Contains(err.Error(), "APPROVAL_EVIDENCE") {
+		t.Fatalf("missing ApprovalEvidence key was accepted: %v", err)
+	}
+	t.Setenv("ORDER_INCIDENT_APPROVAL_EVIDENCE_KEY", "0123456789abcdef0123456789abcdef")
+	config, err := bootstrap.LoadConfigFromEnvironment()
+	if err != nil || !config.RemediationEnabled || config.ExecutionAuditPath == "" {
+		t.Fatalf("remediation config=%#v err=%v", config, err)
+	}
+	t.Setenv("ASSISTANT_MCP_ORDER_DRIVER", "http")
+	t.Setenv("ASSISTANT_MCP_ORDER_READ_TOKEN", "read")
+	t.Setenv("ASSISTANT_MCP_ORDER_REMEDIATION_TOKEN", "")
+	if _, err := bootstrap.LoadConfigFromEnvironment(); err == nil || !strings.Contains(err.Error(), "REMEDIATION_TOKEN") {
+		t.Fatalf("missing target write token was accepted: %v", err)
+	}
+}

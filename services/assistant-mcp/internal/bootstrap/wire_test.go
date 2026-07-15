@@ -15,6 +15,7 @@ import (
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
+	approvalevidence "mini-torchbearing.local/packages/approval-evidence-go"
 	"mini-torchbearing.local/services/assistant-mcp/internal/bootstrap"
 )
 
@@ -105,6 +106,107 @@ func TestStreamableHTTPMCPTools(t *testing.T) {
 	if !unauthorized.IsError {
 		t.Fatal("request without datasources:query unexpectedly succeeded")
 	}
+}
+
+func TestRemediationProfileRequiresEvidenceUsesTypedWriteAndAudits(t *testing.T) {
+	now := time.Now().UTC()
+	auditPath := filepath.Join(t.TempDir(), "execution-audit.jsonl")
+	evidenceKey := "0123456789abcdef0123456789abcdef"
+	runtimeValue, err := bootstrap.Wire(bootstrap.Config{
+		FixtureDir: repositoryPath(t, "data/mock-scenarios/node_exporter_overview"), SchemaDir: repositoryPath(t, "contracts/tools/grafana"),
+		IncidentEnabled: true, RemediationEnabled: true, IncidentToolSchemaDir: repositoryPath(t, "contracts/tools/incident"), AssetDir: repositoryPath(t, "data/operational-assets"), AssetSchemaDir: repositoryPath(t, "contracts/schemas/assets"),
+		OrderDriver: "mock", OrderMockScenario: "worker-stopped", CheckpointKey: evidenceKey, ApprovalEvidenceKey: evidenceKey, ExecutionAuditPath: auditPath,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(runtimeValue.Handler)
+	t.Cleanup(server.Close)
+	ctx := context.Background()
+	clientValue := newClient(t, server.URL+"/mcp", remediationHeaders())
+	initialize(t, ctx, clientValue)
+	tools, err := clientValue.ListTools(ctx, mcp.ListToolsRequest{})
+	if err != nil || len(tools.Tools) != 17 {
+		t.Fatalf("tools=%#v err=%v", tools.Tools, err)
+	}
+	foundWrite := false
+	for _, tool := range tools.Tools {
+		if tool.Name == "order_service.restore_worker_concurrency" {
+			foundWrite = true
+			if tool.Annotations.ReadOnlyHint == nil || *tool.Annotations.ReadOnlyHint || tool.Annotations.IdempotentHint == nil || !*tool.Annotations.IdempotentHint || tool.Annotations.OpenWorldHint == nil || *tool.Annotations.OpenWorldHint {
+				t.Fatalf("write annotations=%#v", tool.Annotations)
+			}
+		}
+	}
+	if !foundWrite {
+		t.Fatal("typed write tool is missing")
+	}
+
+	digest := "sha256:" + strings.Repeat("a", 64)
+	codec, _ := approvalevidence.New([]byte(evidenceKey))
+	token, err := codec.Sign(approvalevidence.Claims{Version: approvalevidence.Version, TenantID: "org:1", OrgID: "1", TaskID: "task-1", ApprovalID: "approval-1", IntentDigest: digest, CapabilityID: "order_service.restore_worker_concurrency", ServiceRef: "order-demo", InstanceEpoch: "mock-epoch-1", ExpectedVersion: 2, OperationID: "operation-1", IssuedAt: now, ExpiresAt: now.Add(time.Minute)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	arguments := map[string]any{"operationId": "operation-1", "instanceEpoch": "mock-epoch-1", "expectedVersion": 2, "expectedConcurrency": 0, "newConcurrency": 2, "intentDigest": digest, "approvalId": "approval-1", "approvalEvidence": token}
+	tampered := mapsClone(arguments)
+	tampered["approvalEvidence"] = token + "tampered"
+	if result := call(t, ctx, clientValue, "order_service.restore_worker_concurrency", tampered); !result.IsError {
+		t.Fatal("tampered ApprovalEvidence was accepted")
+	}
+	workerBefore := call(t, ctx, clientValue, "order_service.get_worker_state", map[string]any{})
+	var before struct{ ConfiguredConcurrency int }
+	decodeStructured(t, workerBefore, &before)
+	if before.ConfiguredConcurrency != 0 {
+		t.Fatalf("invalid evidence changed worker: %#v", before)
+	}
+
+	executed := call(t, ctx, clientValue, "order_service.restore_worker_concurrency", arguments)
+	if executed.IsError {
+		t.Fatalf("execute failed: %#v", executed)
+	}
+	var receipt struct {
+		OperationId, IntentDigest, ApprovalId string
+		BeforeVersion, AfterVersion           int
+	}
+	decodeStructured(t, executed, &receipt)
+	if receipt.OperationId != "operation-1" || receipt.IntentDigest != digest || receipt.BeforeVersion != 2 || receipt.AfterVersion != 3 {
+		t.Fatalf("receipt=%#v", receipt)
+	}
+	retry := call(t, ctx, clientValue, "order_service.restore_worker_concurrency", arguments)
+	if retry.IsError {
+		t.Fatalf("idempotent retry failed: %#v", retry)
+	}
+	metrics := call(t, ctx, clientValue, "order_service.get_recovery_metrics", map[string]any{})
+	var metricsOutput struct {
+		WindowSeconds                             int
+		AcceptedDelta, CompletedDelta, QueueDepth float64
+	}
+	decodeStructured(t, metrics, &metricsOutput)
+	if metrics.IsError || metricsOutput.WindowSeconds != 30 || metricsOutput.CompletedDelta < metricsOutput.AcceptedDelta || metricsOutput.QueueDepth != 0 {
+		t.Fatalf("metrics=%#v result=%#v", metricsOutput, metrics)
+	}
+	probe := call(t, ctx, clientValue, "order_service.run_business_probe", map[string]any{"probeId": "probe-1"})
+	var probeOutput struct {
+		ProbeId, Result string
+		DurationMs      int
+	}
+	decodeStructured(t, probe, &probeOutput)
+	if probe.IsError || probeOutput.Result != "completed" || probeOutput.DurationMs > 5000 {
+		t.Fatalf("probe=%#v result=%#v", probeOutput, probe)
+	}
+	contents, err := os.ReadFile(auditPath)
+	if err != nil || strings.Count(string(contents), "\n") != 4 || strings.Contains(string(contents), "approvalEvidence") {
+		t.Fatalf("audit=%q err=%v", contents, err)
+	}
+}
+
+func mapsClone(value map[string]any) map[string]any {
+	result := make(map[string]any, len(value))
+	for key, item := range value {
+		result[key] = item
+	}
+	return result
 }
 
 func TestHTTPDriverReadinessAndInvalidConfiguration(t *testing.T) {
@@ -347,6 +449,12 @@ func incidentHeaders(withPermission bool) map[string]string {
 	if withPermission {
 		result["X-MTB-Permissions"] = "datasources:query,incidents:diagnose"
 	}
+	return result
+}
+
+func remediationHeaders() map[string]string {
+	result := headers(true)
+	result["X-MTB-Permissions"] = "incidents:diagnose,incidents:remediate"
 	return result
 }
 

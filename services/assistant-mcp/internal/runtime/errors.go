@@ -18,6 +18,8 @@ const (
 	ToolTimeout              ErrorCode = "tool_timeout"
 	SchemaValidationFailed   ErrorCode = "schema_validation_failed"
 	TargetPreconditionFailed ErrorCode = "target_precondition_failed"
+	ApprovalRequired         ErrorCode = "approval_required"
+	ApprovalExpired          ErrorCode = "approval_expired"
 	NotImplemented           ErrorCode = "not_implemented"
 	InternalError            ErrorCode = "internal_error"
 )

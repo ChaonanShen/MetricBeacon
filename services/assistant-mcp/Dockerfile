@@ -1,11 +1,12 @@
 FROM golang@sha256:18aedc16aa19b3fd7ded7245fc14b109e054d65d22ed53c355c899582bbb2113 AS build
 WORKDIR /src
 COPY go.work go.work.sum ./
+COPY packages/approval-evidence-go ./packages/approval-evidence-go
 COPY packages/generated-clients/go ./packages/generated-clients/go
 COPY packages/generated-contracts/go ./packages/generated-contracts/go
 COPY packages/request-context-go ./packages/request-context-go
 COPY services/assistant-mcp ./services/assistant-mcp
-RUN mv go.work go.work.full && go work init ./packages/generated-clients/go ./packages/generated-contracts/go ./packages/request-context-go ./services/assistant-mcp && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/assistant-mcp ./services/assistant-mcp/cmd/server
+RUN mv go.work go.work.full && go work init ./packages/approval-evidence-go ./packages/generated-clients/go ./packages/generated-contracts/go ./packages/request-context-go ./services/assistant-mcp && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/assistant-mcp ./services/assistant-mcp/cmd/server
 
 FROM golang@sha256:18aedc16aa19b3fd7ded7245fc14b109e054d65d22ed53c355c899582bbb2113
 COPY --from=build /out/assistant-mcp /usr/local/bin/assistant-mcp

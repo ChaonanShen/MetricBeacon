@@ -47,7 +47,10 @@ func TestLiveIncidentMCPDiagnostic(t *testing.T) {
 	}
 	var prepared struct {
 		Status      string
-		IntentDraft *struct{ InstanceEpoch string; ExpectedVersion, BeforeConcurrency, AfterConcurrency int }
+		IntentDraft *struct {
+			InstanceEpoch                                        string
+			ExpectedVersion, BeforeConcurrency, AfterConcurrency int
+		}
 	}
 	decodeStructured(t, resumed, &prepared)
 	if prepared.Status != "needs_approval" || prepared.IntentDraft == nil || prepared.IntentDraft.InstanceEpoch == "" || prepared.IntentDraft.ExpectedVersion != workerState.Version || prepared.IntentDraft.BeforeConcurrency != 0 || prepared.IntentDraft.AfterConcurrency != 2 {

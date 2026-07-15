@@ -19,15 +19,19 @@ type Config struct {
 	PrometheusDatasourceUID string
 	PrometheusTimeout       time.Duration
 	IncidentEnabled         bool
+	RemediationEnabled      bool
 	IncidentToolSchemaDir   string
 	AssetDir                string
 	AssetSchemaDir          string
 	OrderDriver             string
 	OrderURL                string
 	OrderReadToken          string
+	OrderRemediationToken   string
 	OrderTimeout            time.Duration
 	OrderMockScenario       string
 	CheckpointKey           string
+	ApprovalEvidenceKey     string
+	ExecutionAuditPath      string
 }
 
 func LoadConfigFromEnvironment() (Config, error) {
@@ -44,11 +48,18 @@ func LoadConfigFromEnvironment() (Config, error) {
 		OrderDriver:             valueOrDefault(os.Getenv("ASSISTANT_MCP_ORDER_DRIVER"), "http"),
 		OrderURL:                valueOrDefault(os.Getenv("ASSISTANT_MCP_ORDER_URL"), "http://order-service:8091"),
 		OrderReadToken:          os.Getenv("ASSISTANT_MCP_ORDER_READ_TOKEN"),
+		OrderRemediationToken:   os.Getenv("ASSISTANT_MCP_ORDER_REMEDIATION_TOKEN"),
 		OrderMockScenario:       valueOrDefault(os.Getenv("ASSISTANT_MCP_ORDER_MOCK_SCENARIO"), "healthy"),
 		CheckpointKey:           os.Getenv("ASSISTANT_MCP_CHECKPOINT_KEY"),
+		ApprovalEvidenceKey:     os.Getenv("ORDER_INCIDENT_APPROVAL_EVIDENCE_KEY"),
+		ExecutionAuditPath:      valueOrDefault(os.Getenv("ASSISTANT_MCP_EXECUTION_AUDIT_PATH"), "/var/lib/assistant-mcp/execution-audit.jsonl"),
 	}
 	var err error
 	config.IncidentEnabled, err = parseBoolean("ASSISTANT_MCP_INCIDENT_ENABLED", os.Getenv("ASSISTANT_MCP_INCIDENT_ENABLED"))
+	if err != nil {
+		return Config{}, err
+	}
+	config.RemediationEnabled, err = parseBoolean("ASSISTANT_MCP_REMEDIATION_ENABLED", os.Getenv("ASSISTANT_MCP_REMEDIATION_ENABLED"))
 	if err != nil {
 		return Config{}, err
 	}
@@ -108,6 +119,16 @@ func LoadConfigFromEnvironment() (Config, error) {
 		if len(config.CheckpointKey) < 32 {
 			return Config{}, fmt.Errorf("ASSISTANT_MCP_CHECKPOINT_KEY must contain at least 32 bytes")
 		}
+		if config.RemediationEnabled {
+			if len(config.ApprovalEvidenceKey) < 32 || strings.TrimSpace(config.ExecutionAuditPath) == "" {
+				return Config{}, fmt.Errorf("ORDER_INCIDENT_APPROVAL_EVIDENCE_KEY and execution audit path are required for remediation")
+			}
+			if config.OrderDriver == "http" && strings.TrimSpace(config.OrderRemediationToken) == "" {
+				return Config{}, fmt.Errorf("ASSISTANT_MCP_ORDER_REMEDIATION_TOKEN is required for HTTP remediation")
+			}
+		}
+	} else if config.RemediationEnabled {
+		return Config{}, fmt.Errorf("ASSISTANT_MCP_REMEDIATION_ENABLED requires the Incident profile")
 	}
 	return config, nil
 }

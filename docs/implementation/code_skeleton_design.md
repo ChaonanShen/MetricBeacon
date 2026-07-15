@@ -1085,6 +1085,12 @@ AI Core 的 Eino approval Middleware 负责发起和恢复 HITL；assistant-mcp 
 - 缺少或 scope 不匹配时返回 `approval_required`/`tool_permission_denied`。
 - MCP Server 不能因为“上游应该已经审批”而跳过校验。
 
+### 10.7 order-demo 处置能力的当前收窄实现
+
+订单 Incident 不使用通用 execute 或未来 Grafana 写能力。`orderdemo.Port` 只包含 runtime、queue、worker、policy、有限 outcomes 和 operation reconcile；独立 `orderdemo.RemediationPort` 只包含 worker concurrency `0 -> 2` CAS 与固定业务 probe。默认 profile 不注册这些能力；显式 remediation profile 才增加唯一写工具和 metrics/probe 两个验证工具，并要求 `incidents:remediate`、独立目标写 token、最长 60 秒且全 scope 匹配的 ApprovalEvidence，以及 assistant-mcp 自有的 append-only 执行边界 audit。写前 audit 不可用时禁止写入；写后 audit 不可用时返回可重试错误并要求通过只读 operation receipt reconcile。该 audit 不保存 evidence，也不取代 AI Core 的权威 Task/Approval/Audit 持久化。
+
+Prometheus 验证同样不是任意查询：`incidentmetrics.Port` 仅暴露固定 30 秒 recovery view，HTTP Adapter 内部只执行 accepted/completed 增量、queue depth、oldest age 四条注册 instant query。Fault Injection 仍只存在于隔离 Unix Socket 进程，任何 MCP Port 或工具 Schema 都不得引用它。
+
 ---
 
 ## 11. 核心 Port 接口

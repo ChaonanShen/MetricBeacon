@@ -109,10 +109,10 @@ func New(ctx context.Context, config Config) (*Application, error) {
 		if config.IncidentWebhookSecret != "" {
 			identity.TenantID, identity.OrgID, identity.UserID = config.IncidentTenantID, fmt.Sprint(config.IncidentOrgID), config.IncidentActorID
 			identity.Permissions = []string{"incidents:diagnose"}
-			for namespace, expected := range map[string]int{"knowledge": 1, "skill": 1, "playbook": 3, "order_service": 6} {
+			for namespace, expected := range map[string]int{"knowledge": 1, "skill": 1, "playbook": 3, "order_service": 9} {
 				profile, err := gateway.ListTools(checkCtx, identity, tools.Filter{Namespace: namespace})
 				if err != nil || len(profile) != expected {
-					return common.NewError(common.DependencyUnavailable, "assistant-mcp Incident diagnostic profile is incomplete", true)
+					return common.NewError(common.DependencyUnavailable, "assistant-mcp Incident remediation profile is incomplete", true)
 				}
 			}
 		}

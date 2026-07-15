@@ -2,16 +2,22 @@ services:
   assistant-mcp:
     environment:
       ASSISTANT_MCP_INCIDENT_ENABLED: "true"
+      ASSISTANT_MCP_REMEDIATION_ENABLED: "true"
       ASSISTANT_MCP_ORDER_DRIVER: http
       ASSISTANT_MCP_ORDER_URL: http://order-service:8091
       ASSISTANT_MCP_ORDER_READ_TOKEN: "incident-read-development-token"
+      ASSISTANT_MCP_ORDER_REMEDIATION_TOKEN: "incident-remediation-development-token"
       ASSISTANT_MCP_CHECKPOINT_KEY: "incident-checkpoint-development-key-v1"
+      ORDER_INCIDENT_APPROVAL_EVIDENCE_KEY: "incident-approval-evidence-development-key-v1"
+      ASSISTANT_MCP_EXECUTION_AUDIT_PATH: /var/lib/assistant-mcp/execution-audit.jsonl
+    volumes: [assistant-mcp-audit:/var/lib/assistant-mcp]
     depends_on: {order-service: {condition: service_healthy}}
     networks: [default, order-ops]
 
   ai-core:
     environment:
       ORDER_INCIDENT_WEBHOOK_SECRET: "incident-webhook-development-secret"
+      ORDER_INCIDENT_APPROVAL_EVIDENCE_KEY: "incident-approval-evidence-development-key-v1"
 
   grafana:
     environment:
@@ -64,6 +70,7 @@ services:
 
 volumes:
   order-fault-socket: {}
+  assistant-mcp-audit: {}
 
 networks:
   order-business: {internal: true}

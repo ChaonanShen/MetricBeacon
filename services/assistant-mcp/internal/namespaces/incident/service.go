@@ -3,23 +3,36 @@ package incident
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"time"
 
+	approvalevidence "mini-torchbearing.local/packages/approval-evidence-go"
 	generated "mini-torchbearing.local/packages/generated-contracts/go"
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	"mini-torchbearing.local/services/assistant-mcp/internal/playbook"
 	"mini-torchbearing.local/services/assistant-mcp/internal/ports/assets"
+	"mini-torchbearing.local/services/assistant-mcp/internal/ports/executionaudit"
+	"mini-torchbearing.local/services/assistant-mcp/internal/ports/incidentmetrics"
 	"mini-torchbearing.local/services/assistant-mcp/internal/ports/orderdemo"
 	"mini-torchbearing.local/services/assistant-mcp/internal/runtime"
 )
 
 type Service struct {
-	assets assets.Port
-	orders orderdemo.Port
-	engine *playbook.Engine
+	assets      assets.Port
+	orders      orderdemo.Port
+	engine      *playbook.Engine
+	remediation orderdemo.RemediationPort
+	metrics     incidentmetrics.Port
+	evidence    *approvalevidence.Codec
+	audit       executionaudit.Port
+	now         func() time.Time
 }
 
-func NewService(assetPort assets.Port, orderPort orderdemo.Port, engine *playbook.Engine) *Service {
-	return &Service{assets: assetPort, orders: orderPort, engine: engine}
+func NewService(assetPort assets.Port, orderPort orderdemo.Port, engine *playbook.Engine, remediation orderdemo.RemediationPort, metrics incidentmetrics.Port, evidence *approvalevidence.Codec, audit executionaudit.Port, now func() time.Time) *Service {
+	if now == nil {
+		now = time.Now
+	}
+	return &Service{assets: assetPort, orders: orderPort, engine: engine, remediation: remediation, metrics: metrics, evidence: evidence, audit: audit, now: now}
 }
 
 func (s *Service) KnowledgeGet(identity requestcontext.Context, input generated.AssetGetInput) (generated.AssetOutput, error) {
@@ -160,7 +173,7 @@ func (s *Service) GetRecentOutcomes(ctx context.Context, identity requestcontext
 }
 
 func (s *Service) GetOperation(ctx context.Context, identity requestcontext.Context, input generated.GetOperationInput) (generated.OperationOutput, error) {
-	if err := authorize(identity); err != nil {
+	if err := authorizeReadOrRemediate(identity); err != nil {
 		return generated.OperationOutput{}, err
 	}
 	value, err := s.orders.GetOperation(ctx, identity, input.OperationId)
@@ -170,8 +183,95 @@ func (s *Service) GetOperation(ctx context.Context, identity requestcontext.Cont
 	return generated.OperationOutput{OperationId: value.OperationID, InstanceEpoch: value.InstanceEpoch, BeforeVersion: value.BeforeVersion, AfterVersion: value.AfterVersion, BeforeConcurrency: value.BeforeConcurrency, AfterConcurrency: value.AfterConcurrency, IntentDigest: value.IntentDigest, ApprovalId: value.ApprovalID, ExecutedAt: value.ExecutedAt}, nil
 }
 
+func (s *Service) RestoreWorkerConcurrency(ctx context.Context, identity requestcontext.Context, input generated.RestoreWorkerInput) (generated.OperationOutput, error) {
+	if err := runtime.RequirePermission(identity, runtime.PermissionIncidentRemediate); err != nil {
+		return generated.OperationOutput{}, err
+	}
+	if s.remediation == nil || s.evidence == nil || s.audit == nil {
+		return generated.OperationOutput{}, runtime.NewError(runtime.AdapterNotConfigured, "Incident remediation is not configured", false)
+	}
+	expectedConcurrency, expectedOK := exactInteger(input.ExpectedConcurrency)
+	newConcurrency, newOK := exactInteger(input.NewConcurrency)
+	if !expectedOK || expectedConcurrency != 0 || !newOK || newConcurrency != 2 {
+		return generated.OperationOutput{}, invalidInput()
+	}
+	claims, err := s.evidence.Verify(input.ApprovalEvidence, approvalevidence.ExpectedScope{TenantID: identity.TenantID, OrgID: identity.OrgID, ApprovalID: input.ApprovalId, IntentDigest: input.IntentDigest, CapabilityID: "order_service.restore_worker_concurrency", ServiceRef: "order-demo", InstanceEpoch: input.InstanceEpoch, ExpectedVersion: input.ExpectedVersion, OperationID: input.OperationId}, s.now())
+	if err != nil {
+		code := runtime.ApprovalRequired
+		if errors.Is(err, approvalevidence.ErrExpired) {
+			code = runtime.ApprovalExpired
+		}
+		return generated.OperationOutput{}, runtime.NewError(code, "valid ApprovalEvidence is required", false)
+	}
+	record := executionaudit.Record{ID: input.OperationId + ":authorized", TenantID: claims.TenantID, OrgID: claims.OrgID, TaskID: claims.TaskID, ApprovalID: claims.ApprovalID, IntentDigest: claims.IntentDigest, OperationID: claims.OperationID, Phase: "execute", Outcome: "authorized", OccurredAt: s.now()}
+	if err := s.audit.Append(ctx, record); err != nil {
+		return generated.OperationOutput{}, runtime.NewError(runtime.DependencyUnavailable, "execution audit is unavailable", true)
+	}
+	value, err := s.remediation.RestoreWorkerConcurrency(ctx, identity, orderdemo.RemediationRequest{OperationID: input.OperationId, InstanceEpoch: input.InstanceEpoch, ExpectedVersion: input.ExpectedVersion, ExpectedConcurrency: expectedConcurrency, NewConcurrency: newConcurrency, IntentDigest: input.IntentDigest, ApprovalID: input.ApprovalId})
+	if err != nil {
+		record.ID, record.Outcome, record.OccurredAt = input.OperationId+":failed", "failed", s.now()
+		_ = s.audit.Append(context.Background(), record)
+		return generated.OperationOutput{}, err
+	}
+	record.ID, record.Outcome, record.OccurredAt = input.OperationId+":succeeded", "succeeded", s.now()
+	if err := s.audit.Append(ctx, record); err != nil {
+		return generated.OperationOutput{}, runtime.NewError(runtime.DependencyUnavailable, "execution result audit is unavailable; reconcile the operation", true)
+	}
+	return operationOutput(value), nil
+}
+
+func exactInteger(value any) (int, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return int(typed), typed == float64(int(typed))
+	case int:
+		return typed, true
+	default:
+		return 0, false
+	}
+}
+
+func (s *Service) GetRecoveryMetrics(ctx context.Context, identity requestcontext.Context) (generated.RecoveryMetricsOutput, error) {
+	if err := runtime.RequirePermission(identity, runtime.PermissionIncidentRemediate); err != nil {
+		return generated.RecoveryMetricsOutput{}, err
+	}
+	if s.metrics == nil {
+		return generated.RecoveryMetricsOutput{}, runtime.NewError(runtime.AdapterNotConfigured, "Incident metrics are not configured", false)
+	}
+	value, err := s.metrics.GetRecovery(ctx, identity)
+	if err != nil {
+		return generated.RecoveryMetricsOutput{}, err
+	}
+	return generated.RecoveryMetricsOutput{WindowSeconds: value.WindowSeconds, AcceptedDelta: float32(value.AcceptedDelta), CompletedDelta: float32(value.CompletedDelta), QueueDepth: float32(value.QueueDepth), OldestAgeSeconds: float32(value.OldestAgeSeconds), ObservedAt: value.ObservedAt}, nil
+}
+
+func (s *Service) RunBusinessProbe(ctx context.Context, identity requestcontext.Context, input generated.BusinessProbeInput) (generated.BusinessProbeOutput, error) {
+	if err := runtime.RequirePermission(identity, runtime.PermissionIncidentRemediate); err != nil {
+		return generated.BusinessProbeOutput{}, err
+	}
+	if s.remediation == nil {
+		return generated.BusinessProbeOutput{}, runtime.NewError(runtime.AdapterNotConfigured, "Incident business probe is not configured", false)
+	}
+	value, err := s.remediation.RunBusinessProbe(ctx, identity, input.ProbeId)
+	if err != nil {
+		return generated.BusinessProbeOutput{}, err
+	}
+	return generated.BusinessProbeOutput{ProbeId: value.ProbeID, Result: generated.BusinessProbeOutputResult(value.Result), DurationMs: value.DurationMS, CompletedAt: value.CompletedAt}, nil
+}
+
+func operationOutput(value orderdemo.Operation) generated.OperationOutput {
+	return generated.OperationOutput{OperationId: value.OperationID, InstanceEpoch: value.InstanceEpoch, BeforeVersion: value.BeforeVersion, AfterVersion: value.AfterVersion, BeforeConcurrency: value.BeforeConcurrency, AfterConcurrency: value.AfterConcurrency, IntentDigest: value.IntentDigest, ApprovalId: value.ApprovalID, ExecutedAt: value.ExecutedAt}
+}
+
 func authorize(identity requestcontext.Context) error {
 	return runtime.RequirePermission(identity, runtime.PermissionIncidentDiagnose)
+}
+
+func authorizeReadOrRemediate(identity requestcontext.Context) error {
+	if identity.HasPermission(runtime.PermissionIncidentDiagnose) || identity.HasPermission(runtime.PermissionIncidentRemediate) {
+		return nil
+	}
+	return runtime.NewError(runtime.PermissionDenied, "required permission is missing", false)
 }
 
 func invalidInput() error {

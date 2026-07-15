@@ -10,7 +10,11 @@ import (
 	"time"
 
 	"github.com/mark3labs/mcp-go/server"
+	approvalevidence "mini-torchbearing.local/packages/approval-evidence-go"
 	"mini-torchbearing.local/services/assistant-mcp/internal/adapters/assets/filesystem"
+	auditjsonl "mini-torchbearing.local/services/assistant-mcp/internal/adapters/executionaudit/jsonl"
+	incidentmetricshttp "mini-torchbearing.local/services/assistant-mcp/internal/adapters/incidentmetrics/http"
+	incidentmetricsmock "mini-torchbearing.local/services/assistant-mcp/internal/adapters/incidentmetrics/mock"
 	orderhttp "mini-torchbearing.local/services/assistant-mcp/internal/adapters/orderdemo/http"
 	ordermock "mini-torchbearing.local/services/assistant-mcp/internal/adapters/orderdemo/mock"
 	prometheushttp "mini-torchbearing.local/services/assistant-mcp/internal/adapters/prometheus/http"
@@ -19,6 +23,7 @@ import (
 	"mini-torchbearing.local/services/assistant-mcp/internal/namespaces/grafana"
 	"mini-torchbearing.local/services/assistant-mcp/internal/namespaces/incident"
 	"mini-torchbearing.local/services/assistant-mcp/internal/playbook"
+	"mini-torchbearing.local/services/assistant-mcp/internal/ports/incidentmetrics"
 	"mini-torchbearing.local/services/assistant-mcp/internal/ports/orderdemo"
 	"mini-torchbearing.local/services/assistant-mcp/internal/ports/prometheus"
 )
@@ -71,7 +76,7 @@ func wireIncident(config Config, mcpServer *server.MCPServer) error {
 	if err != nil {
 		return fmt.Errorf("load incident assets: %w", err)
 	}
-	orderPort, err := orderAdapter(config)
+	orderPort, remediationPort, err := orderAdapter(config)
 	if err != nil {
 		return err
 	}
@@ -83,17 +88,45 @@ func wireIncident(config Config, mcpServer *server.MCPServer) error {
 	if err != nil {
 		return err
 	}
-	return incident.Register(mcpServer, incident.NewHandler(incident.NewService(assetStore, orderPort, engine)), schemas)
+	var metricsPort incidentmetrics.Port
+	var evidence *approvalevidence.Codec
+	var auditStore *auditjsonl.Store
+	if config.RemediationEnabled {
+		if config.PrometheusDriver == "http" {
+			metricsPort, err = incidentmetricshttp.New(config.PrometheusURL, config.PrometheusTimeout)
+		} else {
+			metricsPort = incidentmetricsmock.New(nil)
+		}
+		if err != nil {
+			return err
+		}
+		evidence, err = approvalevidence.New([]byte(config.ApprovalEvidenceKey))
+		if err != nil {
+			return fmt.Errorf("configure ApprovalEvidence verifier: %w", err)
+		}
+		auditStore, err = auditjsonl.Open(config.ExecutionAuditPath)
+		if err != nil {
+			return fmt.Errorf("open execution audit: %w", err)
+		}
+	}
+	service := incident.NewService(assetStore, orderPort, engine, remediationPort, metricsPort, evidence, auditStore, nil)
+	return incident.Register(mcpServer, incident.NewHandler(service), schemas, config.RemediationEnabled)
 }
 
-func orderAdapter(config Config) (orderdemo.Port, error) {
+func orderAdapter(config Config) (orderdemo.Port, orderdemo.RemediationPort, error) {
 	if config.OrderDriver == "mock" {
-		return ordermock.New(ordermock.Scenario(config.OrderMockScenario), time.Now().UTC())
+		adapter, err := ordermock.New(ordermock.Scenario(config.OrderMockScenario), time.Now().UTC())
+		return adapter, adapter, err
 	}
 	if config.OrderDriver == "http" {
-		return orderhttp.New(config.OrderURL, config.OrderReadToken, config.OrderTimeout)
+		if config.RemediationEnabled {
+			adapter, err := orderhttp.NewWithRemediation(config.OrderURL, config.OrderReadToken, config.OrderRemediationToken, config.OrderTimeout)
+			return adapter, adapter, err
+		}
+		adapter, err := orderhttp.New(config.OrderURL, config.OrderReadToken, config.OrderTimeout)
+		return adapter, nil, err
 	}
-	return nil, fmt.Errorf("order driver must be mock or http")
+	return nil, nil, fmt.Errorf("order driver must be mock or http")
 }
 
 func prometheusAdapter(config Config) (prometheus.Port, func(context.Context) error, error) {
@@ -175,6 +208,11 @@ func loadIncidentToolSchemas(directory string) (incident.ToolSchemas, error) {
 		incident.GetPolicyTool:         {"EmptyInput", "PolicyOutput"},
 		incident.GetRecentOutcomesTool: {"RecentOutcomesInput", "RecentOutcomesOutput"},
 		incident.GetOperationTool:      {"GetOperationInput", "OperationOutput"},
+	}
+	if _, enabled := definitions[incident.RestoreWorkerTool]; !enabled {
+		definitions[incident.RestoreWorkerTool] = [2]string{"RestoreWorkerInput", "OperationOutput"}
+		definitions[incident.GetRecoveryMetricsTool] = [2]string{"EmptyInput", "RecoveryMetricsOutput"}
+		definitions[incident.RunBusinessProbeTool] = [2]string{"BusinessProbeInput", "BusinessProbeOutput"}
 	}
 	result := make(incident.ToolSchemas, len(definitions))
 	for tool, names := range definitions {

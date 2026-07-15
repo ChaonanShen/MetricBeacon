@@ -73,16 +73,20 @@ mini-torchbearing/
 │       ├── cmd/server/                    # Streamable HTTP MCP 入口
 │       ├── internal/
 │       │   ├── namespaces/grafana/        # grafana.* Tool 注册与处理
-│       │   ├── namespaces/incident/       # opt-in 资产、Playbook 与订单只读 MCP 工具
+│       │   ├── namespaces/incident/       # opt-in 资产、Playbook、订单诊断与审批证据约束的类型化处置工具
 │       │   ├── ports/prometheus/          # Prometheus 查询抽象
-│       │   ├── ports/orderdemo/           # 无 Fault/写入口的订单 Operational 只读抽象
+│       │   ├── ports/orderdemo/           # 隔离的只读诊断 Port 与唯一 0 -> 2 RemediationPort
+│       │   ├── ports/incidentmetrics/     # 固定恢复指标视图 Port
+│       │   ├── ports/executionaudit/      # assistant-mcp 边界执行审计 Port
 │       │   ├── adapters/prometheus/
 │       │   │   ├── mock/                  # 按请求范围/step 重采样的 fixture Adapter
 │       │   │   ├── registry/              # view/window -> PromQL 与 AST policy
 │       │   │   └── http/                  # 动态 step、受注册表约束的真实 HTTP Adapter
 │       │   ├── adapters/orderdemo/
 │       │   │   ├── mock/                  # 四类诊断证据一致的确定性 Adapter
-│       │   │   └── http/                  # 生成客户端、读 token 与响应边界
+│       │   │   └── http/                  # 生成客户端、独立读写 token、CAS/幂等与响应边界
+│       │   ├── adapters/incidentmetrics/  # 固定四条 PromQL 的 HTTP 与同形 Mock
+│       │   ├── adapters/executionaudit/   # append-only、同步落盘的 JSONL 边界审计
 │       │   ├── adapters/assets/filesystem/ # Schema、引用、能力和 SHA-256 固定的只读资产
 │       │   ├── playbook/                   # HMAC checkpoint 与确定性 prepare policy
 │       │   ├── ports/assets/               # 运行资产与精确 Alert Mapping 抽象
@@ -112,6 +116,7 @@ mini-torchbearing/
 │   └── examples/                          # 合约示例
 │
 ├── packages/                              # 可复用 Go 包及契约生成物
+│   ├── approval-evidence-go/              # 60 秒、全 scope HMAC ApprovalEvidence codec
 │   ├── generated-clients/                 # AI Core 与订单 API Client/类型
 │   ├── generated-contracts/               # MCP Tool 类型（Go / TypeScript）
 │   ├── request-context-go/                # 租户、用户、角色、请求上下文

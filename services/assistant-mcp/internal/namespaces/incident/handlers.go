@@ -61,6 +61,18 @@ func (h *Handler) GetOperation(ctx context.Context, request mcp.CallToolRequest)
 	return withContextInput(ctx, request, h.service.GetOperation)
 }
 
+func (h *Handler) RestoreWorkerConcurrency(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return withContextInput(ctx, request, h.service.RestoreWorkerConcurrency)
+}
+
+func (h *Handler) GetRecoveryMetrics(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return withoutInput(ctx, request, h.service.GetRecoveryMetrics)
+}
+
+func (h *Handler) RunBusinessProbe(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return withContextInput(ctx, request, h.service.RunBusinessProbe)
+}
+
 func withInput[I, O any](request mcp.CallToolRequest, operation func(requestcontext.Context, I) (O, error)) (*mcp.CallToolResult, error) {
 	identity, err := runtime.RequestContextFromHeaders(request.Header)
 	if err != nil {
