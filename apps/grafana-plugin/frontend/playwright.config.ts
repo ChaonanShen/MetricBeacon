@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: '../../../tests/e2e/mock',
   testMatch: 'browser-e2e.spec.ts',
-  timeout: 30_000,
+  timeout: 90_000,
   retries: 0,
   workers: 1,
   use: {

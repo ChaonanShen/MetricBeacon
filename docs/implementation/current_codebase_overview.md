@@ -53,6 +53,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 - 前端以 Session 级 Message/Task/runtimes 状态恢复工作台，历史事件重放至固定目标序列；只有非终态 Task 建立一个 SSE，收到终态事件后关闭。后台 history refresh 不会抢先把本地活跃 Task 标为终态，避免消息已恢复但图表事件未归并的竞态。重复事件会忽略，sequence 间隙会从最后连续序列重连。若 URL Session 在当前独立 AI Core volume 中明确不存在，前端会清除两个 workbench 路由 ID 和旧 reducer/replay/幂等状态；网络、权限与依赖错误不会触发该恢复，而会显示安全分类。
 - 用户新建或选择对话时清除当前 Workbench route/reducer、请求错误和 replay/幂等 refs，但不删除 AI Core 中的旧 Session；Session-aware reducer 拒绝旧 history/replay/SSE 的迟到结果。会话栏无限分页选择 creator 私有历史，下一次 Task 接受事务同步更新 Session `updatedAt/version` 并使它回到列表顶部；外用户访问统一返回不存在。
 - ChatPane 将 Session 选择、持久化消息、assistant draft、Task 状态/错误与自然语言 composer 收敛到同一右栏；Session 菜单展开高度有界。示例问题只填入输入框，单一 form submit 路径保证 Enter 与按钮不会形成双提交；fresh 页首次分析前仍不创建后端 Session。
+- Canvas 以真实 Task oldest-first 分组显示 durable Chart/Execution；其 container 达到约 736px 时最多两列，奇数尾图跨整行。卡片状态由 execution 纯映射，TimeSeries 仍消费 DataFrame 与真实范围/series，PromQL 只读且可复制；没有引入假 SVG、编辑、删除、排序或保存命令。
 - 同步 IntentPlanner 只接收当前 User Message 和最近最多 6 个 views 非空的持久化 User Message + QueryPlan 意图，按完整消息边界限制在 12,000 个 Unicode 字符内并保持时间正序；历史读取失败不静默降级。Assistant 事实回复、实际数值和时间戳不会进入模型输入。当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
 - Mock 与真实 Adapter 共用逻辑数据源 UID `prometheus-main`。Task、Chart 和 MCP Tool 契约均限制为该 UID；SQLite `0003` 会前移迁移历史 Task 及 Chart query JSON 中的旧 UID。Agent 只提交 view，查询验证结果返回 assistant-mcp 生成的规范 PromQL，AI Core 只将该返回值持久化到 Chart。

@@ -23,10 +23,10 @@ mini-torchbearing/
 │       │   │       ├── workbench-styles.ts # Grafana theme 到 scoped 产品 CSS variables 的映射
 │       │   │       ├── ChatPane.tsx       # 消息、assistant draft、状态、示例与单 form composer
 │       │   │       ├── SessionMenu.tsx    # owner Session 有界分页菜单、新建与选择
-│       │   │       ├── WorkbenchPane.tsx # Canvas 共用的 theme-aware Pane 壳
 │       │   │       ├── ChartCanvas.tsx    # Task 分组、最多两列画布与滚动控制
 │       │   │       ├── chart-groups.ts    # oldest-first 分组与 Task 滚动纯逻辑
 │       │   │       ├── ChartCard.tsx      # 时序卡片、图表状态与只读 PromQL
+│       │   │       ├── chart-view.ts      # Execution 到卡片状态的纯展示映射
 │       │   │       ├── mapper.ts          # Chart wire 数据 -> Grafana DataFrame
 │       │   │       ├── reducer.ts         # TaskEvent 前端状态归约
 │       │   │       ├── session-reducer.ts # Session 历史、Task runtimes 与活动流状态

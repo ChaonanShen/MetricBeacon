@@ -1,8 +1,9 @@
 import { FieldType, getDisplayProcessor, type DataFrame } from '@grafana/data';
-import { Badge, Box, LegendDisplayMode, Spinner, Stack, Text, TimeSeries, useTheme2, type BadgeColor } from '@grafana/ui';
+import { Badge, Box, LegendDisplayMode, Spinner, Text, TimeSeries, useTheme2, type BadgeColor } from '@grafana/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ChartWireToDataFrame } from './mapper';
+import { deriveChartStatus, type ChartStatusView } from './chart-view';
 import { chartTimeRange } from './time-range';
 import type { ChartWire, ExecutionWire } from './types';
 
@@ -19,27 +20,21 @@ export function ChartCard({ chart, execution }: Props) {
   const timeRange = useMemo(() => chartTimeRange(chart, execution), [chart, execution]);
   const frame = useMemo(() => execution ? ChartWireToDataFrame(execution.series, chart.unit) : undefined, [chart.unit, execution]);
   const displayFrame = useMemo(() => frame ? withDisplayProcessors(frame, theme) : undefined, [frame, theme]);
-  const status = chartStatus(execution);
+  const status = deriveChartStatus(execution);
 
-  return <Box data-testid="timeseries-panel" element="article" backgroundColor="secondary" borderColor="weak" borderStyle="solid" borderRadius="md" padding={3} minWidth={0}>
-    <Stack direction="column" gap={2}>
-      <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} minWidth={0}>
-        <Box grow={1} minWidth={0}>
-          <Text element="h3" variant="h4" weight="medium">{chart.title}</Text>
-        </Box>
-        <Stack direction="row" gap={1} alignItems="center">
-          <Badge color={status.color} text={status.text} />
-        </Stack>
-      </Box>
-      {chart.queries?.[0]?.expression && <details>
+  return <article data-testid="timeseries-panel" className="mtb-chart-card">
+      <header className="mtb-chart-card-header">
+        <h4>{chart.title}</h4>
+        <Badge color={badgeColor(status)} text={status.text} />
+      </header>
+      {chart.queries?.[0]?.expression && <details className="mtb-promql">
         <summary>PromQL</summary>
-        <pre style={{ margin: '8px 0 0', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{chart.queries[0].expression}</pre>
+        <pre>{chart.queries[0].expression}</pre>
       </details>}
       <div ref={plotRef} data-testid="timeseries-plot" style={{ height: plotHeight, minWidth: 0, overflow: 'hidden', width: '100%' }}>
         <ChartPlot execution={execution} frame={displayFrame} timeRange={timeRange} width={width} />
       </div>
-    </Stack>
-  </Box>;
+  </article>;
 }
 
 function ChartPlot({ execution, frame, timeRange, width }: { execution?: ExecutionWire; frame?: DataFrame; timeRange?: ReturnType<typeof chartTimeRange>; width: number }) {
@@ -68,17 +63,11 @@ function PlotMessage({ loading, message }: { loading?: string; message?: string 
   </Box>;
 }
 
-function chartStatus(execution?: ExecutionWire): { color: BadgeColor; text: string } {
-  if (!execution) {
-    return { color: 'blue', text: '查询中' };
-  }
-  if (execution.status === 'success') {
-    return { color: 'green', text: '已加载' };
-  }
-  if (execution.status === 'failed') {
-    return { color: 'red', text: '加载失败' };
-  }
-  return { color: 'darkgrey', text: '状态未知' };
+function badgeColor(status: ChartStatusView): BadgeColor {
+  if (status.tone === 'success') return 'green';
+  if (status.tone === 'error') return 'red';
+  if (status.tone === 'info') return 'blue';
+  return 'darkgrey';
 }
 
 function withDisplayProcessors(frame: DataFrame, theme: ReturnType<typeof useTheme2>): DataFrame {
