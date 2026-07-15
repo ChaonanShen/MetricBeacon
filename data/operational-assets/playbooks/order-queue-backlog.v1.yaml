@@ -1,0 +1,34 @@
+kind: playbook
+id: order-queue-backlog
+version: "1"
+serviceRef: order-demo
+knowledge:
+  id: order-service
+  version: "1"
+skill:
+  id: diagnose-order-backlog
+  version: "1"
+allowedCapabilities:
+  - order_service.get_runtime
+  - order_service.get_queue_snapshot
+  - order_service.get_worker_state
+  - order_service.get_worker_policy
+  - order_service.get_recent_outcomes
+  - order_service.get_operation
+steps:
+  - load_assets
+  - observe
+  - needs_agent
+  - prepare
+  - needs_approval
+  - execute
+  - verify_runtime
+  - verify_metrics
+  - verify_business
+preparePolicy:
+  candidateAction: restore_worker_concurrency
+  configuredConcurrency: 0
+  effectiveConcurrency: 0
+  activeWorkers: 0
+  healthyConcurrency: 2
+  maxObservationAgeSeconds: 60

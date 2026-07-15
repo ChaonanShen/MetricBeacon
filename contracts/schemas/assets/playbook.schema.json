@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/assets/playbook.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "serviceRef", "knowledge", "skill", "allowedCapabilities", "steps", "preparePolicy"],
+  "properties": {
+    "kind": {"const": "playbook"},
+    "id": {"const": "order-queue-backlog"},
+    "version": {"const": "1"},
+    "serviceRef": {"const": "order-demo"},
+    "knowledge": {"$ref": "#/$defs/assetRef"},
+    "skill": {"$ref": "#/$defs/assetRef"},
+    "allowedCapabilities": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {"enum": ["order_service.get_runtime", "order_service.get_queue_snapshot", "order_service.get_worker_state", "order_service.get_worker_policy", "order_service.get_recent_outcomes", "order_service.get_operation"]}
+    },
+    "steps": {
+      "const": ["load_assets", "observe", "needs_agent", "prepare", "needs_approval", "execute", "verify_runtime", "verify_metrics", "verify_business"]
+    },
+    "preparePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateAction", "configuredConcurrency", "effectiveConcurrency", "activeWorkers", "healthyConcurrency", "maxObservationAgeSeconds"],
+      "properties": {
+        "candidateAction": {"const": "restore_worker_concurrency"},
+        "configuredConcurrency": {"const": 0},
+        "effectiveConcurrency": {"const": 0},
+        "activeWorkers": {"const": 0},
+        "healthyConcurrency": {"const": 2},
+        "maxObservationAgeSeconds": {"type": "integer", "minimum": 1, "maximum": 60}
+      }
+    }
+  },
+  "$defs": {
+    "assetRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "version": {"type": "string", "pattern": "^[1-9][0-9]*$"}}
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/assets/skill.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "title", "serviceRef", "allowedCapabilities", "content"],
+  "properties": {
+    "kind": {"const": "skill"},
+    "id": {"const": "diagnose-order-backlog"},
+    "version": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+    "title": {"type": "string", "minLength": 1, "maxLength": 120},
+    "serviceRef": {"const": "order-demo"},
+    "allowedCapabilities": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "order_service.get_runtime",
+          "order_service.get_queue_snapshot",
+          "order_service.get_worker_state",
+          "order_service.get_worker_policy",
+          "order_service.get_recent_outcomes",
+          "order_service.get_operation"
+        ]
+      }
+    },
+    "content": {"type": "string", "minLength": 200, "maxLength": 12000}
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/assets/alert-mapping.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "version", "mappings"],
+  "properties": {
+    "kind": {"const": "alert-mapping-set"},
+    "version": {"const": "1"},
+    "mappings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "sourceId", "alertName", "requiredLabels", "playbook", "serviceRef"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "sourceId": {"type": "string", "minLength": 1},
+          "alertName": {"type": "string", "minLength": 1},
+          "requiredLabels": {"type": "object", "minProperties": 1, "maxProperties": 10, "additionalProperties": {"type": "string", "minLength": 1}},
+          "playbook": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"id": {"const": "order-queue-backlog"}, "version": {"const": "1"}}},
+          "serviceRef": {"const": "order-demo"}
+        }
+      }
+    }
+  }
+}

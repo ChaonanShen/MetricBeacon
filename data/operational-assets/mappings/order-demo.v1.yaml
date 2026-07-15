@@ -1,0 +1,12 @@
+kind: alert-mapping-set
+version: "1"
+mappings:
+  - id: demo-order-queue-backlog
+    sourceId: demo-grafana
+    alertName: OrderQueueBacklog
+    requiredLabels:
+      service_ref: order-demo
+    playbook:
+      id: order-queue-backlog
+      version: "1"
+    serviceRef: order-demo
