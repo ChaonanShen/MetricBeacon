@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 
 .PHONY: bootstrap-check generate generated-client-diff validate-contracts lint test \
-	test-adapters test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp \
+	test-adapters test-ai-core-domain test-sqlite test-assistant-mcp test-order-demo test-ai-mcp \
 	test-ai-agent test-plugin-backend test-frontend-unit test-frontend test-diagnostics smoke e2e-mock e2e-real-metrics \
 	diagnose-real-metrics diagnose-deepseek dev dev-verify dev-verify-full check boundary-check secret-scan
 
@@ -18,10 +18,10 @@ validate-contracts:
 	@./scripts/validate-contracts.sh
 
 lint:
-	@test -z "$$(gofmt -l services/ai-core services/assistant-mcp apps/grafana-plugin/backend packages)"
+	@test -z "$$(gofmt -l services/ai-core services/assistant-mcp services/order-demo apps/grafana-plugin/backend packages)"
 	@cd apps/grafana-plugin/frontend && npm run typecheck
 
-test: test-ai-core-domain test-sqlite test-assistant-mcp test-ai-mcp test-ai-agent test-plugin-backend test-frontend test-diagnostics
+test: test-ai-core-domain test-sqlite test-assistant-mcp test-order-demo test-ai-mcp test-ai-agent test-plugin-backend test-frontend test-diagnostics
 
 test-ai-core-domain:
 	@cd services/ai-core && go test ./internal/domain/... ./internal/application/... ./internal/ports/...
@@ -33,6 +33,9 @@ test-adapters: test-sqlite
 
 test-assistant-mcp:
 	@cd services/assistant-mcp && go test ./...
+
+test-order-demo:
+	@cd services/order-demo && go test ./...
 
 test-ai-mcp:
 	@cd services/ai-core && go test ./internal/adapters/outbound/tools/mcp ./internal/adapters/inbound/http ./internal/application/workflows

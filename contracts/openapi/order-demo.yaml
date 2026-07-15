@@ -1,0 +1,230 @@
+openapi: 3.1.1
+info:
+  title: Mini Torchbearing Order Demo API
+  version: v1
+  description: Business and typed operational API for the controllable order service.
+  license: {name: UNLICENSED, identifier: UNLICENSED}
+servers:
+  - url: http://order-service:8090
+security: []
+paths:
+  /api/v1/orders:
+    post:
+      operationId: createOrder
+      summary: Accept an order into the bounded in-memory queue
+      x-mtb-timeout-ms: 2000
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreateOrderRequest'}}}
+      responses:
+        '202': {description: Order accepted, content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/v1/orders/{orderId}:
+    get:
+      operationId: getOrder
+      summary: Read a bounded order status
+      x-mtb-timeout-ms: 2000
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200': {description: Order snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /ops/v1/runtime:
+    get:
+      operationId: getRuntime
+      summary: Read service instance identity and worker supervisor state
+      security: [{OperationalReadToken: []}]
+      x-mtb-timeout-ms: 2000
+      responses:
+        '200': {description: Runtime snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/RuntimeSnapshot'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /ops/v1/queue:
+    get:
+      operationId: getQueue
+      summary: Read bounded queue health
+      security: [{OperationalReadToken: []}]
+      x-mtb-timeout-ms: 2000
+      responses:
+        '200': {description: Queue snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/QueueSnapshot'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /ops/v1/config/worker:
+    get:
+      operationId: getWorkerConfig
+      summary: Read versioned worker configuration
+      security: [{OperationalReadToken: []}]
+      x-mtb-timeout-ms: 2000
+      responses:
+        '200': {description: Worker configuration, content: {application/json: {schema: {$ref: '#/components/schemas/WorkerConfig'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+    put:
+      operationId: updateWorkerConfig
+      summary: Execute the one typed compare-and-swap worker remediation
+      security: [{RemediationToken: []}]
+      x-mtb-timeout-ms: 5000
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/UpdateWorkerConfigRequest'}}}
+      responses:
+        '200': {description: Idempotent operation receipt, content: {application/json: {schema: {$ref: '#/components/schemas/OperationReceipt'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /ops/v1/policies/worker:
+    get:
+      operationId: getWorkerPolicy
+      summary: Read the immutable healthy worker policy
+      security: [{OperationalReadToken: []}]
+      x-mtb-timeout-ms: 2000
+      responses:
+        '200': {description: Worker policy, content: {application/json: {schema: {$ref: '#/components/schemas/WorkerPolicy'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /ops/v1/orders/recent:
+    get:
+      operationId: listRecentOrders
+      summary: Read bounded redacted recent outcomes
+      security: [{OperationalReadToken: []}]
+      x-mtb-timeout-ms: 2000
+      parameters:
+        - {name: status, in: query, required: false, schema: {$ref: '#/components/schemas/OrderStatus'}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 20, default: 10}}
+      responses:
+        '200': {description: Recent outcomes, content: {application/json: {schema: {type: object, additionalProperties: false, required: [orders], properties: {orders: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/Order'}}}}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /ops/v1/operations/{operationId}:
+    get:
+      operationId: getOperation
+      summary: Reconcile a typed remediation operation
+      security: [{OperationalReadToken: []}]
+      x-mtb-timeout-ms: 2000
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+      responses:
+        '200': {description: Operation receipt, content: {application/json: {schema: {$ref: '#/components/schemas/OperationReceipt'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /ops/v1/probes/order-processing:
+    post:
+      operationId: runOrderProcessingProbe
+      summary: Run a fixed bounded business probe
+      security: [{OperationalReadToken: []}]
+      x-mtb-timeout-ms: 6000
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, additionalProperties: false, required: [probeId], properties: {probeId: {type: string, minLength: 1, maxLength: 100}}}}}
+      responses:
+        '200': {description: Probe result, content: {application/json: {schema: {$ref: '#/components/schemas/ProbeResult'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+components:
+  parameters:
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 100}}
+    OrderId: {name: orderId, in: path, required: true, schema: {type: string, minLength: 1}}
+    OperationId: {name: operationId, in: path, required: true, schema: {type: string, minLength: 1}}
+  schemas:
+    OrderStatus: {type: string, enum: [queued, processing, completed, failed]}
+    CreateOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [sku, quantity]
+      properties:
+        sku: {type: string, pattern: '^[A-Z0-9_-]{1,32}$'}
+        quantity: {type: integer, minimum: 1, maximum: 10}
+    Order:
+      type: object
+      additionalProperties: false
+      required: [id, status, createdAt, updatedAt, failureReason]
+      properties:
+        id: {type: string, minLength: 1}
+        status: {$ref: '#/components/schemas/OrderStatus'}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        failureReason: {anyOf: [{type: string, enum: [dependency_unavailable, retry_exhausted]}, {type: 'null'}]}
+    RuntimeSnapshot:
+      type: object
+      additionalProperties: false
+      required: [serviceRef, instanceEpoch, startedAt, supervisorStatus]
+      properties:
+        serviceRef: {const: order-demo}
+        instanceEpoch: {type: string, minLength: 1}
+        startedAt: {type: string, format: date-time}
+        supervisorStatus: {type: string, enum: [running, degraded]}
+    QueueSnapshot:
+      type: object
+      additionalProperties: false
+      required: [depth, capacity, oldestAgeSeconds, observedAt]
+      properties:
+        depth: {type: integer, minimum: 0, maximum: 100}
+        capacity: {const: 100}
+        oldestAgeSeconds: {type: number, minimum: 0}
+        observedAt: {type: string, format: date-time}
+    WorkerConfig:
+      type: object
+      additionalProperties: false
+      required: [serviceRef, instanceEpoch, configuredConcurrency, effectiveConcurrency, activeWorkers, inflightOrders, version, observedAt]
+      properties:
+        serviceRef: {const: order-demo}
+        instanceEpoch: {type: string, minLength: 1}
+        configuredConcurrency: {type: integer, minimum: 0, maximum: 4}
+        effectiveConcurrency: {type: integer, minimum: 0, maximum: 4}
+        activeWorkers: {type: integer, minimum: 0, maximum: 4}
+        inflightOrders: {type: integer, minimum: 0, maximum: 4}
+        version: {type: integer, minimum: 1}
+        observedAt: {type: string, format: date-time}
+    WorkerPolicy:
+      type: object
+      additionalProperties: false
+      required: [serviceRef, expectedConcurrency, minConcurrency, maxConcurrency, version, digest]
+      properties:
+        serviceRef: {const: order-demo}
+        expectedConcurrency: {const: 2}
+        minConcurrency: {const: 1}
+        maxConcurrency: {const: 4}
+        version: {const: v1}
+        digest: {type: string, pattern: '^[a-f0-9]{64}$'}
+    UpdateWorkerConfigRequest:
+      type: object
+      additionalProperties: false
+      required: [operationId, instanceEpoch, expectedVersion, expectedConcurrency, newConcurrency, intentDigest, approvalId]
+      properties:
+        operationId: {type: string, minLength: 1, maxLength: 100}
+        instanceEpoch: {type: string, minLength: 1}
+        expectedVersion: {type: integer, minimum: 1}
+        expectedConcurrency: {const: 0}
+        newConcurrency: {const: 2}
+        intentDigest: {type: string, pattern: '^[a-f0-9]{64}$'}
+        approvalId: {type: string, minLength: 1, maxLength: 100}
+    OperationReceipt:
+      type: object
+      additionalProperties: false
+      required: [operationId, instanceEpoch, beforeVersion, afterVersion, beforeConcurrency, afterConcurrency, intentDigest, approvalId, executedAt]
+      properties:
+        operationId: {type: string, minLength: 1}
+        instanceEpoch: {type: string, minLength: 1}
+        beforeVersion: {type: integer, minimum: 1}
+        afterVersion: {type: integer, minimum: 2}
+        beforeConcurrency: {const: 0}
+        afterConcurrency: {const: 2}
+        intentDigest: {type: string, pattern: '^[a-f0-9]{64}$'}
+        approvalId: {type: string, minLength: 1}
+        executedAt: {type: string, format: date-time}
+    ProbeResult:
+      type: object
+      additionalProperties: false
+      required: [probeId, orderId, result, durationMs, completedAt]
+      properties:
+        probeId: {type: string, minLength: 1}
+        orderId: {type: string, minLength: 1}
+        result: {type: string, enum: [completed, timed_out, failed]}
+        durationMs: {type: integer, minimum: 0, maximum: 6000}
+        completedAt: {anyOf: [{type: string, format: date-time}, {type: 'null'}]}
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, retryable]
+      properties:
+        code: {type: string, enum: [invalid_argument, unauthenticated, resource_not_found, queue_full, idempotency_conflict, target_precondition_failed, operation_not_found, internal_error]}
+        message: {type: string}
+        retryable: {type: boolean}
+  responses:
+    ErrorResponse: {description: Typed order service error, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  securitySchemes:
+    OperationalReadToken: {type: http, scheme: bearer}
+    RemediationToken: {type: http, scheme: bearer}

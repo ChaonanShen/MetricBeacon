@@ -1,6 +1,6 @@
 # 当前骨架代码说明
 
-> 本文以 2026-07-15 的实际代码为准，说明已可工作的同步 Agent 规划与有界 node_exporter 查询闭环；长期设计请参照
+> 本文以 2026-07-16 的实际代码为准，说明已可工作的同步 Agent 规划与有界 node_exporter 查询闭环；长期设计请参照
 > [`code_skeleton_design.md`](code_skeleton_design.md)。
 
 ## 当前可演示的能力
@@ -43,6 +43,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |`services/ai-core/internal/bootstrap`|组装依赖：SQLite Store、Mock 或显式 opt-in Eino/DeepSeek Agent、MCP Gateway、工作流、HTTP API。|默认 `AI_CORE_AGENT_DRIVER=mock` 不读取 API key；`eino` 启动时必须有 Profile 与 key，固定模型/任务/MCP 限制，`/readyz` 只检查 SQLite 和 MCP 工具，不请求模型。|
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|查询工具只接受注册 view、可空 CPU window、范围和 step；工具先做权限和 Schema/点数预算校验，再调用 Prometheus Port。该服务不拥有 AI Core 的任务或数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码，并将 fixture 确定性重采样到请求范围/step；opt-in HTTP Adapter 只执行本地注册表生成的 CPU `[30s]/[1m]/[5m]`、内存和 load PromQL，并执行响应、时间范围、step、点数和基数上限。|
+|`services/order-demo`|可控订单业务系统的新 Go 模块。|当前只存在由 OpenAPI 生成的 Business/Operational 与测试 Fault 入站类型；业务 Domain、运行进程、指标和容器尚未实现。Fault 合同不生成产品客户端。|
 |`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`、`agent/localresult`|只读 node_exporter Profile、受限 Eino IntentPlanner 与本地结果 formatter。|Profile 继续在启动时校验并保留给执行侧代码，但 Planner 不再拼接其事实回复/工具说明；模型只接收注册 view 说明、当前消息和最近最多 6 个持久化结构化意图。DeepSeek 使用 JSON mode、non-thinking、可实际传输的 0.01 temperature 和 512 token 上限；四字段输出在本地严格校验，空/契约错误最多重试一次。完整时序留在本地，持久化事实回复由 formatter 根据 QueryPlan 与本地结果生成。|
 |`apps/grafana-plugin/frontend`|React/Grafana 产品化工作台：创建/分页列出/恢复/切换私有 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|常驻 controller 下由 scoped Grafana theme Shell 编排；宽屏为 `Canvas / Context / Chat`，中宽折叠 Context，窄屏按 `Chat / Context / Canvas` 纵排。Context 只派生真实 Session/Task/QueryPlan，不伪造 Folder/权限。Session 无限分页由服务端 token 驱动，reducer 以 Session ID 拒绝迟到 history/replay/event。图表按 Task oldest-first 分组、最多两列。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 owner-scoped Session page、单 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|

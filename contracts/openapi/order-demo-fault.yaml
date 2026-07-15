@@ -1,0 +1,56 @@
+openapi: 3.1.1
+info:
+  title: Mini Torchbearing Order Demo Fault API
+  version: v1
+  description: Test-only fault controller contract. Never generated into product clients.
+  license: {name: UNLICENSED, identifier: UNLICENSED}
+servers:
+  - url: http://fault-controller:8092
+security: []
+paths:
+  /faults/v1/scenarios/{scenario}/activate:
+    post:
+      operationId: activateFault
+      summary: Activate one fixed real processing fault through the private control socket
+      parameters:
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200': {description: Current test-only state, content: {application/json: {schema: {$ref: '#/components/schemas/FaultState'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /faults/v1/scenarios/{scenario}:
+    delete:
+      operationId: clearFault
+      summary: Clear one fixed fault
+      parameters:
+        - $ref: '#/components/parameters/Scenario'
+      responses:
+        '200': {description: Current test-only state, content: {application/json: {schema: {$ref: '#/components/schemas/FaultState'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /faults/v1/reset:
+    post:
+      operationId: resetFaults
+      summary: Restore all test controls to healthy defaults
+      responses:
+        '204': {description: Fault state reset}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+components:
+  parameters:
+    Scenario: {name: scenario, in: path, required: true, schema: {type: string, enum: [worker-stopped, slow-processing, dependency-errors]}}
+  schemas:
+    FaultState:
+      type: object
+      additionalProperties: false
+      required: [scenario, active, changedAt]
+      properties:
+        scenario: {type: string, enum: [worker-stopped, slow-processing, dependency-errors]}
+        active: {type: boolean}
+        changedAt: {type: string, format: date-time}
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: {type: string, enum: [invalid_scenario, control_unavailable, internal_error]}
+        message: {type: string}
+  responses:
+    ErrorResponse: {description: Test controller error, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}

@@ -8,4 +8,5 @@ use (
 	./packages/testkit-go
 	./services/ai-core
 	./services/assistant-mcp
+	./services/order-demo
 )

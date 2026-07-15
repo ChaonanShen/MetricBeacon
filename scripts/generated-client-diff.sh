@@ -15,7 +15,9 @@ snapshot() {
     "$root/packages/generated-clients/typescript" \
     "$root/packages/generated-contracts/go" \
     "$root/packages/generated-contracts/typescript" \
-    "$root/services/ai-core/internal/adapters/inbound/http/generated"
+    "$root/services/ai-core/internal/adapters/inbound/http/generated" \
+    "$root/services/order-demo/internal/adapters/inbound/http/generated" \
+    "$root/services/order-demo/internal/adapters/inbound/http/faultgenerated"
   do
     if [ -d "$directory" ]; then
       find "$directory" -type f ! -name '.gitkeep' -print | LC_ALL=C sort | while IFS= read -r file

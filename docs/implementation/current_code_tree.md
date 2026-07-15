@@ -1,6 +1,6 @@
 # 当前代码树（分享版）
 
-> 更新日期：2026-07-15。省略 `node_modules/`、`dist/`、`build/`、测试输出和 Go 模块缓存；
+> 更新日期：2026-07-16。省略 `node_modules/`、`dist/`、`build/`、测试输出和 Go 模块缓存；
 > 该树用于说明当前有界 node_exporter 查询闭环的代码归属，而非逐文件清单。
 
 ```text
@@ -68,7 +68,7 @@ mini-torchbearing/
 │   │   ├── migrations/sqlite/             # SQLite 迁移（含 QueryPlan 回填与 owner/activity Session history 索引）
 │   │   └── Dockerfile
 │   │
-│   └── assistant-mcp/                     # MCP 工具服务（Go）
+│   ├── assistant-mcp/                     # MCP 工具服务（Go）
 │       ├── cmd/server/                    # Streamable HTTP MCP 入口
 │       ├── internal/
 │       │   ├── namespaces/grafana/        # grafana.* Tool 注册与处理
@@ -80,9 +80,13 @@ mini-torchbearing/
 │       │   ├── runtime/                   # MCP 运行时与错误处理
 │       │   └── bootstrap/                 # 服务依赖组装
 │       └── Dockerfile
+│   └── order-demo/                        # 可控订单业务服务（Go，当前仅合同生成骨架）
+│       └── internal/adapters/inbound/http/
+│           ├── generated/                 # Business/Operational server 类型
+│           └── faultgenerated/            # 独立测试 Fault server 类型
 │
 ├── contracts/                             # 跨服务协议的单一来源
-│   ├── openapi/                           # Plugin Resource API、AI Core API
+│   ├── openapi/                           # Plugin/AI Core 与订单 Business/Operational/Fault API
 │   ├── tools/grafana/                     # MCP Tool OpenAPI/JSON Schema
 │   ├── schemas/                           # Session、Task、Chart、Event 等 Schema
 │   │   └── api/*-page.schema.json          # Message/Task keyset 页面及有限事件重放响应
@@ -91,7 +95,7 @@ mini-torchbearing/
 │   └── examples/                          # 合约示例
 │
 ├── packages/                              # 可复用 Go 包及契约生成物
-│   ├── generated-clients/                 # AI Core API Client（Go / TypeScript）
+│   ├── generated-clients/                 # AI Core 与订单 API Client/类型
 │   ├── generated-contracts/               # MCP Tool 类型（Go / TypeScript）
 │   ├── request-context-go/                # 租户、用户、角色、请求上下文
 │   └── testkit-go/                        # 确定性时钟与 ID 测试工具
