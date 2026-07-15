@@ -37,7 +37,7 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, Props>(function ChartCa
     scrollTaskIntoView: (taskId, behavior = 'smooth') => groupRefs.current[taskId]?.scrollIntoView({ block: 'nearest', behavior }),
   }), []);
 
-  return <Pane aria-label="分析画布" data-testid="chart-canvas" grow={1} basis="0" minWidth={0}>
+  return <Pane aria-label="分析画布" data-testid="chart-canvas" grow={3} basis="0" minWidth={0}>
     <style>{chartCanvasCSS}</style>
     <Stack direction="column" gap={2} height="100%" minHeight={0}>
       <Box padding={3} paddingBottom={0} display="flex" justifyContent="space-between" gap={2}>

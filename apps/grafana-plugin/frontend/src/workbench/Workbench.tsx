@@ -184,7 +184,7 @@ export function Workbench(_props: AppRootProps) {
   return <main style={{ padding: 16 }}>
     <h2>Mini Torchbearing Workbench</h2>
     <Stack direction={{ xs: 'column', xl: 'row' }} gap={2} height={{ xs: 'auto', xl: 'calc(100dvh - 112px)' }} alignItems="stretch">
-      <Box width={{ xs: '100%', xl: '280px' }} shrink={{ xs: 1, xl: 0 }}>
+      <Box width={{ xs: '100%', xl: 'auto' }} minWidth={{ xs: 0, xl: '320px' }} maxWidth={{ xs: 'none', xl: '420px' }} height={{ xs: 'auto', xl: '100%' }} grow={{ xs: 0, xl: 1 }} shrink={{ xs: 1, xl: 1 }} basis={{ xs: 'auto', xl: '0' }}>
         <ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={state.taskOrder.map((id) => state.tasksById[id])} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} newConversationDisabled={create.isPending || loadMore.isPending} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} onNewConversation={startNewConversation} />
       </Box>
       <ChartCanvas ref={chartCanvas} groups={groups} selectedChartId={selectedChartId} onSelectChart={setSelectedChartId} />

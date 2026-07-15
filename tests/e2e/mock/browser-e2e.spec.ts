@@ -75,6 +75,9 @@ test('submits, restores, and renders the complete mock workbench', async ({ page
   await expect(page.getByTestId('timeseries-panel').first().locator('pre')).toBeVisible();
   await expectPlotsWithinPanels(page);
 
+  await page.setViewportSize({ width: 1800, height: 560 });
+  await expectConversationScrollsIndependently(page);
+
   await page.setViewportSize({ width: 900, height: 900 });
   await expect(page.getByTestId('timeseries-plot').first()).toBeVisible();
   await expectThreePaneNarrowLayout(page);
@@ -167,6 +170,9 @@ async function expectThreePaneDesktopLayout(page: import('@playwright/test').Pag
   expect(canvas!.y).toBeCloseTo(context!.y, 0);
   expect(conversation!.x).toBeLessThan(canvas!.x);
   expect(canvas!.x).toBeLessThan(context!.x);
+  expect(conversation!.width / canvas!.width).toBeGreaterThan(0.28);
+  expect(conversation!.width / canvas!.width).toBeLessThan(0.42);
+  expect(context!.width).toBeCloseTo(280, 0);
 }
 
 async function expectThreePaneNarrowLayout(page: import('@playwright/test').Page) {
@@ -185,4 +191,19 @@ async function expectThreePaneNarrowLayout(page: import('@playwright/test').Page
 async function expectNoHorizontalOverflow(page: import('@playwright/test').Page) {
   const viewport = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
   expect(viewport.scrollWidth).toBeLessThanOrEqual(viewport.clientWidth);
+}
+
+async function expectConversationScrollsIndependently(page: import('@playwright/test').Page) {
+  const pane = page.getByTestId('conversation-pane');
+  const scroll = page.getByTestId('conversation-scroll-container');
+  const input = page.getByLabel('分析请求');
+  await expect(pane).toBeVisible();
+  await expect(input).toBeVisible();
+  await expect.poll(() => scroll.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true);
+  await scroll.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  const [paneBox, inputBox] = await Promise.all([pane.boundingBox(), input.boundingBox()]);
+  expect(paneBox).not.toBeNull();
+  expect(inputBox).not.toBeNull();
+  expect(inputBox!.y + inputBox!.height).toBeLessThanOrEqual(paneBox!.y + paneBox!.height + 1);
 }
