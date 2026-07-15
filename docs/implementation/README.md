@@ -41,6 +41,11 @@ The completed natural-language input refinement is
 with gate evidence in
 [`natural_language_query_input_progress.md`](natural_language_query_input_progress.md).
 
+The active IntentPlanner structured-output hardening slice is
+[`intent_planner_structured_output_hardening_execution_plan.md`](intent_planner_structured_output_hardening_execution_plan.md),
+with gate evidence in
+[`intent_planner_structured_output_hardening_progress.md`](intent_planner_structured_output_hardening_progress.md).
+
 The completed grouped chart-canvas refinement is
 [`grouped_chart_canvas_execution_plan.md`](grouped_chart_canvas_execution_plan.md),
 with gate evidence in
