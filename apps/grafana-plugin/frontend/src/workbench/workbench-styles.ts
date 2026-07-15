@@ -42,11 +42,44 @@ export function workbenchThemeCSS(theme: GrafanaTheme2): string {
 .mtb-product-nav-item:disabled { cursor: not-allowed; opacity: .48; }
 .mtb-product-nav-item:focus-visible, .mtb-context-toggle:focus-visible { outline: 2px solid var(--mtb-accent); outline-offset: 2px; }
 .mtb-workbench-layout { display: grid; grid-template-areas: 'chat' 'context' 'canvas'; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 16px; min-width: 0; }
-.mtb-workbench-chat-slot { grid-area: chat; display: grid; grid-template-rows: 280px minmax(420px, auto); gap: 16px; min-width: 0; min-height: 0; }
-.mtb-workbench-session-slot, .mtb-workbench-conversation-slot, .mtb-workbench-context-slot, .mtb-workbench-canvas-slot { min-width: 0; min-height: 0; }
-.mtb-workbench-session-slot > [data-testid='session-pane'], .mtb-workbench-conversation-slot > [data-testid='conversation-pane'] { height: 100%; min-height: 0; overflow: hidden; }
+.mtb-workbench-chat-slot { grid-area: chat; min-width: 0; min-height: 0; }
+.mtb-workbench-context-slot, .mtb-workbench-canvas-slot { min-width: 0; min-height: 0; }
 .mtb-workbench-context-slot { grid-area: context; }
 .mtb-workbench-canvas-slot { grid-area: canvas; display: flex; }
+.mtb-chat-pane { display: flex; flex-direction: column; height: 100%; min-width: 0; min-height: 620px; overflow: hidden; border: 1px solid var(--mtb-border); border-radius: 8px; background: var(--mtb-surface); }
+.mtb-chat-header { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 12px; border-bottom: 1px solid var(--mtb-border); }
+.mtb-pane-kicker { display: block; margin-bottom: 2px; color: var(--mtb-text-secondary); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.mtb-chat-header h2 { margin: 0; font-size: 18px; line-height: 1.25; }
+.mtb-chat-header p { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--mtb-text-secondary); font-size: 12px; }
+.mtb-session-menu { flex: 0 0 auto; border-bottom: 1px solid var(--mtb-border); }
+.mtb-session-menu-actions { display: flex; align-items: center; gap: 8px; padding: 10px 16px; }
+.mtb-session-menu-toggle { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; padding: 7px 9px; border: 1px solid var(--mtb-border); border-radius: 6px; background: var(--mtb-surface-raised); color: var(--mtb-text); cursor: pointer; font: inherit; text-align: left; }
+.mtb-session-menu-toggle:focus-visible, .mtb-session-item:focus-visible, .mtb-example-prompts button:focus-visible { outline: 2px solid var(--mtb-accent); outline-offset: 2px; }
+.mtb-session-menu-current { min-width: 0; overflow: hidden; color: var(--mtb-text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.mtb-session-list { display: grid; gap: 6px; max-height: 210px; overflow-y: auto; overflow-x: hidden; padding: 0 16px 12px; scrollbar-gutter: stable; }
+.mtb-session-item { display: flex; flex-direction: column; gap: 3px; width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.mtb-session-item:hover:not(:disabled) { background: var(--mtb-surface-raised); }
+.mtb-session-item.is-selected { border-color: var(--mtb-border-medium); background: color-mix(in srgb, var(--mtb-accent) 8%, var(--mtb-surface)); }
+.mtb-session-item:disabled { cursor: not-allowed; opacity: .65; }
+.mtb-session-title { display: -webkit-box; min-width: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; font-weight: 500; }
+.mtb-session-time { overflow: hidden; color: var(--mtb-text-secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.mtb-chat-timeline { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 16px; scrollbar-gutter: stable; }
+.mtb-chat-timeline > * + * { margin-top: 12px; }
+.mtb-chat-empty { padding: 16px; border: 1px dashed var(--mtb-border-medium); border-radius: 8px; background: color-mix(in srgb, var(--mtb-surface-raised) 65%, transparent); }
+.mtb-chat-empty p { margin: 6px 0 12px; color: var(--mtb-text-secondary); }
+.mtb-example-prompts { display: grid; gap: 7px; }
+.mtb-example-prompts button { padding: 8px 10px; border: 1px solid var(--mtb-border); border-radius: 6px; background: var(--mtb-surface); color: var(--mtb-text); cursor: pointer; font: inherit; text-align: left; }
+.mtb-example-prompts button:hover { border-color: var(--mtb-accent); }
+.mtb-message { margin: 0; padding: 10px 12px; border: 1px solid var(--mtb-border); border-radius: 8px; overflow-wrap: anywhere; white-space: pre-wrap; user-select: text; }
+.mtb-message.is-user { margin-left: 18px; border-color: color-mix(in srgb, var(--mtb-accent) 45%, var(--mtb-border)); background: color-mix(in srgb, var(--mtb-accent) 9%, var(--mtb-surface)); }
+.mtb-message.is-assistant { margin-right: 10px; background: var(--mtb-surface-raised); }
+.mtb-chat-composer { flex: 0 0 auto; padding: 12px 16px 16px; border-top: 1px solid var(--mtb-border); background: var(--mtb-surface); }
+.mtb-chat-composer > * + * { margin-top: 8px; }
+.mtb-composer-actions { display: flex; align-items: center; gap: 8px; }
+.mtb-inline-error, .mtb-inline-notice, .mtb-task-status, .mtb-muted { margin: 0; font-size: 12px; }
+.mtb-inline-error { color: var(--mtb-error); }
+.mtb-inline-notice { color: var(--mtb-info); }
+.mtb-task-status, .mtb-muted { color: var(--mtb-text-secondary); }
 .mtb-context-pane { height: 100%; min-width: 0; overflow: hidden; border: 1px solid var(--mtb-border); border-radius: 8px; background: var(--mtb-surface); }
 .mtb-context-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px; }
 .mtb-context-kicker { display: block; margin-bottom: 2px; color: var(--mtb-text-secondary); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
@@ -70,7 +103,8 @@ export function workbenchThemeCSS(theme: GrafanaTheme2): string {
 .mtb-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 @container mtb-workbench (min-width: 1024px) {
   .mtb-workbench-layout { grid-template-areas: 'canvas context chat'; grid-template-columns: minmax(0, 1fr) 40px minmax(320px, 360px); height: calc(100dvh - 128px); min-height: 480px; }
-  .mtb-workbench-chat-slot { grid-template-rows: minmax(160px, 210px) minmax(0, 1fr); overflow: hidden; }
+  .mtb-workbench-chat-slot { overflow: hidden; }
+  .mtb-chat-pane { min-height: 0; }
   .mtb-workbench-context-slot.is-expanded { width: 260px; }
   .mtb-workbench-layout:has(.mtb-workbench-context-slot.is-expanded) { grid-template-columns: minmax(0, 1fr) 260px minmax(320px, 360px); }
   .mtb-context-pane:not(.is-expanded) .mtb-context-heading, .mtb-context-pane:not(.is-expanded) .mtb-context-details { display: none; }
@@ -79,7 +113,8 @@ export function workbenchThemeCSS(theme: GrafanaTheme2): string {
 }
 @container mtb-workbench (min-width: 1366px) {
   .mtb-workbench-layout, .mtb-workbench-layout:has(.mtb-workbench-context-slot.is-expanded) { grid-template-columns: minmax(560px, 1fr) minmax(240px, 260px) minmax(340px, 360px); }
-  .mtb-context-pane .mtb-context-heading, .mtb-context-pane .mtb-context-details { display: block; }
+  .mtb-context-pane:not(.is-expanded) .mtb-context-heading, .mtb-context-pane:not(.is-expanded) .mtb-context-details { display: block; }
+  .mtb-context-pane:not(.is-expanded) .mtb-context-header { justify-content: space-between; padding: 16px; }
   .mtb-context-toggle { display: none; }
 }
 @container mtb-workbench (max-width: 900px) {

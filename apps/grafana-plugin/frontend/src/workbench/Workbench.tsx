@@ -6,12 +6,10 @@ import { resourceClient, type CreateTask, type GeneratedTaskEvent, type Task } f
 import { formatResourceError, isResourceNotFound } from '../api/resource-error';
 import { ChartCanvas, type ChartCanvasHandle } from './ChartCanvas';
 import { autoFocusTask, deriveChartGroups } from './chart-groups';
-import { ConversationPane } from './ConversationPane';
 import { createTaskInput } from './query-input';
 import { clearWorkbenchRoute, readWorkbenchRoute, replaceWorkbenchRoute, replaceWorkbenchSessionRoute } from './route';
 import { createInitialSessionWorkbenchState, isTerminal, sessionReducer } from './session-reducer';
 import { deriveSessionTitle, flattenSessionPages } from './session-list';
-import { SessionPane } from './SessionPane';
 import { subscribeTaskEvents } from './sse';
 import { deriveWorkbenchContext } from './workbench-view';
 import { WorkbenchShell } from './WorkbenchShell';
@@ -203,8 +201,8 @@ export function Workbench(_props: AppRootProps) {
 
   return <WorkbenchShell
     context={context}
-    sessionPane={<SessionPane sessions={listedSessions} selectedSessionId={sessionId} loading={sessionPages.isLoading} loadingMore={sessionPages.isFetchingNextPage} hasMore={Boolean(sessionPages.hasNextPage)} error={sessionPages.error ? formatResourceError(sessionPages.error) : undefined} switchingDisabled={switchingDisabled} onNewConversation={() => selectConversation()} onSelectSession={selectConversation} onLoadMore={() => { void sessionPages.fetchNextPage(); }} />}
-    conversationPane={<ConversationPane sessionTitle={session.data?.title} messages={messages} tasks={tasks} runtimeByTaskId={state.runtimeByTaskId} activeTask={activeTask} message={message} busy={create.isPending || session.isFetching || history.isFetching} canLoadMore={Boolean(state.messageNextPageToken || state.taskNextPageToken)} loadingMore={loadMore.isPending} notice={recoveryNotice} requestError={requestError ? formatResourceError(requestError) : undefined} onMessageChange={setMessage} onSubmit={submit} onLoadMore={() => loadMore.mutate()} />}
+    sessions={{ sessions: listedSessions, selectedSessionId: sessionId, loading: sessionPages.isLoading, loadingMore: sessionPages.isFetchingNextPage, hasMore: Boolean(sessionPages.hasNextPage), error: sessionPages.error ? formatResourceError(sessionPages.error) : undefined, switchingDisabled, onNewConversation: () => selectConversation(), onSelectSession: selectConversation, onLoadMore: () => { void sessionPages.fetchNextPage(); } }}
+    chat={{ sessionTitle: session.data?.title, messages, tasks, runtimeByTaskId: state.runtimeByTaskId, activeTask, message, busy: create.isPending || session.isFetching || history.isFetching, canLoadMore: Boolean(state.messageNextPageToken || state.taskNextPageToken), loadingMore: loadMore.isPending, notice: recoveryNotice, requestError: requestError ? formatResourceError(requestError) : undefined, onMessageChange: setMessage, onSubmit: submit, onLoadMore: () => loadMore.mutate() }}
     canvas={<ChartCanvas ref={chartCanvas} groups={groups} />}
   />;
 }

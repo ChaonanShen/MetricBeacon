@@ -21,9 +21,9 @@ mini-torchbearing/
 │       │   │       ├── ContextPane.tsx    # 真实 Session/Task/QueryPlan 只读上下文
 │       │   │       ├── workbench-view.ts  # Context、状态与示例问题的纯展示派生
 │       │   │       ├── workbench-styles.ts # Grafana theme 到 scoped 产品 CSS variables 的映射
-│       │   │       ├── SessionPane.tsx   # 新建入口、owner Session 分页列表与选择（迁移期间保留）
-│       │   │       ├── WorkbenchPane.tsx # 三栏共用的 theme-aware Pane 壳
-│       │   │       ├── ConversationPane.tsx # 当前对话、独立消息滚动、Task 状态与输入
+│       │   │       ├── ChatPane.tsx       # 消息、assistant draft、状态、示例与单 form composer
+│       │   │       ├── SessionMenu.tsx    # owner Session 有界分页菜单、新建与选择
+│       │   │       ├── WorkbenchPane.tsx # Canvas 共用的 theme-aware Pane 壳
 │       │   │       ├── ChartCanvas.tsx    # Task 分组、最多两列画布与滚动控制
 │       │   │       ├── chart-groups.ts    # oldest-first 分组与 Task 滚动纯逻辑
 │       │   │       ├── ChartCard.tsx      # 时序卡片、图表状态与只读 PromQL
