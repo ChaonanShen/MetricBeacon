@@ -59,10 +59,10 @@ mini-torchbearing/
 │   │   │   │   ├── approvals/             # Admin、幂等、双版本 CAS 的 Approval 决策与审计
 │   │   │   │   ├── workflows/             # 指标分析与可恢复 Incident 诊断/prepare/Approval 工作流
 │   │   │   │   └── dto/                   # 应用层数据传递对象
-│   │   │   ├── ports/                     # 存储、Agent、MCP、Incident 只读 Toolset、时钟等抽象接口
+│   │   │   ├── ports/                     # 存储、Agent、MCP、Incident 诊断/修复分离 Toolset、时钟等抽象接口
 │   │   │   ├── adapters/
 │   │   │   │   ├── inbound/http/          # AI Core API、SSE 与 source/HMAC/time-window Grafana ingress
-│   │   │   │   └── outbound/              # SQLite、MCP（指标 + Incident 只读分类）、Mock/Eino Agent、时钟/ID
+│   │   │   │   └── outbound/              # SQLite、MCP（指标 + Incident 诊断/受控修复）、Mock/Eino Agent、时钟/ID
 │   │   │   │       ├── agent/eino/         # JSON mode、结构化历史和一次重试的 IntentPlanner Adapter
 │   │   │   │       ├── agent/mock/         # 确定性意图解析与 persisted-view 执行器
 │   │   │   │       └── agent/localresult/  # Mock/Eino 共用的可信事实 formatter

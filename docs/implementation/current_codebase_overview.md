@@ -111,7 +111,7 @@ slot 不得与其他已初始化 worktree 重复：
 |确定性 Mock|`compose.mock-e2e.yaml`|Mock Agent，固定生成 CPU、内存、负载三视图|fixture|无外部服务或模型凭证|
 |真实指标|Mock 基础文件 + `compose.real-metrics-e2e.yaml`|Mock Agent，仍固定生成三视图|本地 Prometheus 抓取 node_exporter|Docker 可运行 Prometheus/node_exporter|
 |真实 Agent|上述两个文件 + `compose.real-agent-e2e.yaml`|受限 Eino/DeepSeek Agent|本地 Prometheus 抓取 node_exporter|`.env` 中配置 `DEEPSEEK_API_KEY`|
-|订单 Incident|Mock 基础 + real-metrics + `compose.incident-e2e.yaml`|当前仍为既有 Mock 分析 Agent|Prometheus 抓取 node_exporter 与真实 order-demo；Grafana Alert firing/resolved|Docker；Alert ingress/Incident workflow 属下一 Gate|
+|订单 Incident|Mock 基础 + real-metrics + `compose.incident-e2e.yaml`|既有指标 Agent + 确定性 Incident 诊断/prepare；独立 Remediation Toolset 尚未接入执行工作流|Prometheus 抓取 node_exporter 与真实 order-demo；Grafana Alert firing/resolved|Docker；Alert ingress、组织 Incident、Approval 持久化已完成，Execute/Verify 尚未接线|
 
 长期开发栈都由统一入口准备依赖、编译一次 Plugin 前端并执行 Compose build/up/wait：
 
