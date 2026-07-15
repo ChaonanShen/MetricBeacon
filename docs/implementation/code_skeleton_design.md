@@ -228,6 +228,12 @@ bootstrap 负责组装 adapter，domain/application 不反向依赖 bootstrap
 - v1 一个进程，四个 namespace：`grafana.*`、`knowledge.*`、`playbook.*`、`skills.*`
 - namespace 在代码中独立包、独立 Port、独立 Contract Test；以后可拆进程但工具名和 Schema 不变
 
+### 4.5 可控订单演示服务
+
+`services/order-demo` 是独立业务系统，不属于 AI Core 或 assistant-mcp。其领域层拥有订单状态机与 worker 配置策略，应用层拥有 bounded queue、动态 worker、处理故障、幂等订单、类型化 CAS 和固定业务 probe；协议、Prometheus 和进程实现只位于 Adapter。
+
+Business、Operational 和 Fault 接口使用不同监听边界。Fault HTTP 进程只能通过 Unix Domain Socket 到达 order-service，且不连接产品网络；它的 OpenAPI 只生成测试服务端类型，不生成产品客户端。AI Core 和 Agent 均不得依赖或发现 Fault 类型。
+
 ### 4.5 数据层
 
 - SQLite 是首个真实 Adapter，适合本地和单实例骨架
