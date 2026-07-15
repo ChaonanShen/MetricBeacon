@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -50,6 +51,8 @@ func TestApplicationStoreCRUDAndTenantIsolation(t *testing.T) {
 	if !reflect.DeepEqual(loadedTask.QueryPlan, data.task.QueryPlan) {
 		t.Fatalf("query plan = %#v, want %#v", loadedTask.QueryPlan, data.task.QueryPlan)
 	}
+	metricCheckpoint, _ := task.NewCheckpoint(data.task.ID, tenantID, task.PhaseNeedsAgent, "must-not-persist", data.now)
+	requireCode(t, store.TaskCheckpoints().Create(ctx, metricCheckpoint), common.ResourceNotFound)
 	if err := loadedTask.Transition(task.StatusPlanning, data.now.Add(time.Minute)); err != nil {
 		t.Fatal(err)
 	}
@@ -331,6 +334,177 @@ func TestMultiTurnMigrationRejectsAmbiguousActiveTasks(t *testing.T) {
 	requireCode(t, err, common.InvalidStateTransition)
 }
 
+func TestIncidentTaskAndCheckpointSurviveReopen(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "incident.sqlite")
+	store, err := storage.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := fixedNow()
+	incidentSession, err := session.NewIncident("session_incident", tenantID, "1", "Order backlog", "system:grafana", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trigger, err := session.NewMessage("message_trigger", tenantID, incidentSession.ID, "task_incident", session.RoleTrigger, "OrderQueueBacklog firing", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	incidentTask, err := task.NewIncident("task_incident", tenantID, incidentSession.ID, trigger.ID, storedIncidentPlan(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Sessions().Create(ctx, incidentSession); err != nil {
+			return err
+		}
+		if err := tx.Messages().Append(ctx, trigger); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(ctx, incidentTask)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	checkpoint, err := task.NewCheckpoint(incidentTask.ID, tenantID, task.PhaseNeedsAgent, "signed:checkpoint:one", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.TaskCheckpoints().Create(ctx, checkpoint); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.TaskEvents().Append(ctx, task.EventDraft{EventID: "event_alert", TenantID: tenantID, TaskID: incidentTask.ID, SessionID: incidentSession.ID, Type: task.EventAlertReceived, Timestamp: now, Payload: []byte(`{"sourceId":"demo-grafana","alertName":"OrderQueueBacklog","fingerprint":"fingerprint_1","serviceRef":"order-service:demo","status":"firing","startsAt":"2026-07-13T10:30:00Z"}`)}); err != nil {
+		t.Fatal(err)
+	}
+	stale := checkpoint
+	if err := stale.Replace(task.PhasePrepare, "signed:checkpoint:two", now.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.TaskCheckpoints().Update(ctx, stale, checkpoint.Version+1); err == nil {
+		t.Fatal("checkpoint update with wrong expected version unexpectedly succeeded")
+	}
+	if err := store.TaskCheckpoints().Update(ctx, stale, checkpoint.Version); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Sessions().GetOwned(ctx, tenantID, "system:grafana", incidentSession.ID); err == nil {
+		t.Fatal("org Incident leaked through private owner lookup")
+	}
+	duplicateSession, _ := session.NewIncident("session_duplicate", tenantID, "1", "Duplicate", "system:grafana", now)
+	duplicateTrigger, _ := session.NewMessage("message_duplicate", tenantID, duplicateSession.ID, "task_duplicate", session.RoleTrigger, "same alert", now)
+	duplicateTask, _ := task.NewIncident("task_duplicate", tenantID, duplicateSession.ID, duplicateTrigger.ID, storedIncidentPlan(), now)
+	err = store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Sessions().Create(ctx, duplicateSession); err != nil {
+			return err
+		}
+		if err := tx.Messages().Append(ctx, duplicateTrigger); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(ctx, duplicateTask)
+	})
+	requireCode(t, err, common.ResourceConflict)
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := storage.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	loaded, err := reopened.Tasks().Get(ctx, tenantID, incidentTask.ID)
+	if err != nil || loaded.Kind != task.KindIncidentRemediation || loaded.IncidentPlan == nil || loaded.IncidentPlan.AlertFingerprint != "fingerprint_1" || loaded.QueryPlan.Valid() || loaded.DatasourceUID != "" || loaded.LatestSequence != 1 {
+		t.Fatalf("reopened Incident Task = %#v, %v", loaded, err)
+	}
+	loadedCheckpoint, err := reopened.TaskCheckpoints().Get(ctx, tenantID, incidentTask.ID)
+	if err != nil || loadedCheckpoint.Version != 2 || loadedCheckpoint.OpaqueValue != "signed:checkpoint:two" {
+		t.Fatalf("reopened checkpoint = %#v, %v", loadedCheckpoint, err)
+	}
+	if _, err := reopened.TaskCheckpoints().Get(ctx, "org:other", incidentTask.ID); err == nil {
+		t.Fatal("checkpoint crossed tenant boundary")
+	}
+	events, err := reopened.TaskEvents().Replay(ctx, tenantID, incidentTask.ID, 0, 10)
+	if err != nil || len(events) != 1 || events[0].Type != task.EventAlertReceived {
+		t.Fatalf("reopened Incident events = %#v, %v", events, err)
+	}
+	rows, err := reopened.Tasks().ListNonTerminal(ctx)
+	if err != nil || len(rows) != 1 || rows[0].ID != incidentTask.ID {
+		t.Fatalf("nonterminal Incidents = %#v, %v", rows, err)
+	}
+	requireCode(t, reopened.TaskCheckpoints().Delete(ctx, tenantID, incidentTask.ID, loadedCheckpoint.Version-1), common.ResourceConflict)
+	if err := reopened.TaskCheckpoints().Delete(ctx, tenantID, incidentTask.ID, loadedCheckpoint.Version); err != nil {
+		t.Fatal(err)
+	}
+	_, err = reopened.TaskCheckpoints().Get(ctx, tenantID, incidentTask.ID)
+	requireCode(t, err, common.ResourceNotFound)
+}
+
+func TestIncidentMigrationPreservesLegacyGraphAndForeignKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-v1.sqlite")
+	seedV1Database(t, path, false)
+	store, err := storage.Open(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyTask, err := store.Tasks().Get(context.Background(), tenantID, "task_1")
+	if err != nil || legacyTask.Kind != task.KindMetricAnalysis || legacyTask.IncidentPlan != nil {
+		t.Fatalf("legacy Task = %#v, %v", legacyTask, err)
+	}
+	legacySession, err := store.Sessions().Get(context.Background(), tenantID, "session_1")
+	if err != nil || legacySession.Kind != session.KindPrivate || legacySession.OrgID != "1" {
+		t.Fatalf("legacy Session = %#v, %v", legacySession, err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var table string
+	if err := db.QueryRow(`SELECT "table" FROM pragma_foreign_key_check LIMIT 1`).Scan(&table); err != sql.ErrNoRows {
+		t.Fatalf("foreign_key_check = %q, %v", table, err)
+	}
+}
+
+func TestIncidentMigrationUpgradesVersionSixDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-v6.sqlite")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []string{migrations.Initial, migrations.MultiTurnAndToolCorrelation, migrations.DatasourceUID, migrations.BoundedQueryPlan, migrations.QueryPlanViews, migrations.SessionHistoryIndex} {
+		if _, err := db.Exec(source); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); INSERT INTO schema_migrations VALUES (1, '2026-07-16T00:00:00.000000000Z'), (2, '2026-07-16T00:00:00.000000000Z'), (3, '2026-07-16T00:00:00.000000000Z'), (4, '2026-07-16T00:00:00.000000000Z'), (5, '2026-07-16T00:00:00.000000000Z'), (6, '2026-07-16T00:00:00.000000000Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := storage.Open(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var version int
+	if err := db.QueryRow(`SELECT version FROM schema_migrations WHERE version = 7`).Scan(&version); err != nil || version != 7 {
+		t.Fatalf("migration version = %d, %v", version, err)
+	}
+	var kindColumn int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('tasks') WHERE name = 'kind' AND [notnull] = 1`).Scan(&kindColumn); err != nil || kindColumn != 1 {
+		t.Fatalf("Task kind column = %d, %v", kindColumn, err)
+	}
+}
+
 func TestOnlyOneConcurrentActiveTaskCanBeCreatedForSession(t *testing.T) {
 	ctx := context.Background()
 	store := openStore(t)
@@ -544,6 +718,17 @@ func openStore(t *testing.T) *storage.Store {
 }
 
 func fixedNow() time.Time { return time.Date(2026, 7, 13, 10, 30, 0, 0, time.UTC) }
+
+func storedIncidentPlan() task.IncidentPlan {
+	digest := func(char string) string { return "sha256:" + strings.Repeat(char, 64) }
+	return task.IncidentPlan{
+		SourceID: "demo-grafana", AlertName: "OrderQueueBacklog", AlertFingerprint: "fingerprint_1", ServiceRef: "order-service:demo",
+		Labels:  map[string]string{"alertname": "OrderQueueBacklog", "service_ref": "order-service:demo"},
+		Mapping: task.PinnedRef{ID: "order-demo", Digest: digest("a")}, Playbook: task.PinnedRef{ID: "order-queue-backlog", Version: "1", Digest: digest("b")},
+		AssetRefs: []task.AssetRef{{Kind: "alert_mapping", ID: "order-demo", Version: "1", Digest: digest("a")}, {Kind: "playbook", ID: "order-queue-backlog", Version: "1", Digest: digest("b")}, {Kind: "knowledge", ID: "order-service", Version: "1", Digest: digest("c")}, {Kind: "skill", ID: "diagnose-order-backlog", Version: "1", Digest: digest("d")}},
+		Phase:     task.PhaseNeedsAgent,
+	}
+}
 
 func requireCode(t *testing.T, err error, want common.ErrorCode) {
 	t.Helper()

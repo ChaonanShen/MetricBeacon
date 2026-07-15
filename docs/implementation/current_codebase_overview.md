@@ -57,8 +57,8 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 
 ## 关键数据与依赖边界
 
-- AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。`0004` 为 Task 回填并持久化有效 step/CPU rate window，为历史 Chart query 回填 step，并为 Execution 增加可空的实际样本范围。每条 Message 已持久化关联其 Task：User Message 与 `Task.inputMessageId` 双向一致，Assistant Message 也归属产生它的 Task；迁移会拒绝无法无歧义关联的旧数据。
-- 同一 tenant/Session 最多允许一个非终态 Task，SQLite partial unique index 是并发竞争的最终约束；进程内顶层写事务串行进入 SQLite，避免锁竞争掩盖该业务冲突。工具审计以内部稳定 source call ID 关联 start/completed/failed 记录，Mock Runtime 使用可重复的 source call ID。
+- AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。`0007` 在开启延迟外键校验的事务中重建受约束的 Task/Message/Event/Tool/Chart 图：旧行升级为 `metric_analysis/private`，Incident 的指标列必须为 NULL 且只能持久化 IncidentPlan；trigger Message、扩展状态、活跃 alert fingerprint 唯一索引、opaque checkpoint 和摘要 AlertEvent 分表落库。迁移后执行 `foreign_key_check`，V1 和 V6 升级均有回归测试。
+- 同一 tenant/Session 最多允许一个非终态 Task，SQLite partial unique index 是并发竞争的最终约束；同一 tenant/source/fingerprint 最多一个活跃 Incident。checkpoint 只允许关联 Incident Task，以 tenant + version CAS 更新，最多 16 KiB，且不进入公开 API/Event。进程内顶层写事务串行进入 SQLite，避免锁竞争掩盖业务冲突。
 - AI Core 与 Plugin Resource API 提供 creator-scoped、按 `updatedAt DESC,id DESC` 的非空 Session page，并提供按 `createdAt DESC,id DESC` 的 Session Message/Task keyset 分页及固定 `targetSequence` 的有限 JSON TaskEvent replay。page token 绑定资源、父级和 owner context，不能跨接口、资源或用户复用；Plugin 由 Grafana 身份上下文覆盖浏览器伪造的身份头。
 - 前端以 Session 级 Message/Task/runtimes 状态恢复工作台，历史事件重放至固定目标序列；只有非终态 Task 建立一个 SSE，收到终态事件后关闭。后台 history refresh 不会抢先把本地活跃 Task 标为终态，避免消息已恢复但图表事件未归并的竞态。重复事件会忽略，sequence 间隙会从最后连续序列重连。若 URL Session 在当前独立 AI Core volume 中明确不存在，前端会清除两个 workbench 路由 ID 和旧 reducer/replay/幂等状态；网络、权限与依赖错误不会触发该恢复，而会显示安全分类。
 - 用户新建或选择对话时清除当前 Workbench route/reducer、请求错误和 replay/幂等 refs，但不删除 AI Core 中的旧 Session；Session-aware reducer 拒绝旧 history/replay/SSE 的迟到结果。会话栏无限分页选择 creator 私有历史，下一次 Task 接受事务同步更新 Session `updatedAt/version` 并使它回到列表顶部；外用户访问统一返回不存在。

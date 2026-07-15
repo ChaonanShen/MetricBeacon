@@ -46,14 +46,16 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 		t.Fatalf("session response: %d", sessionResponse.StatusCode)
 	}
 	var sessionBody struct {
-		ID string `json:"id"`
+		ID    string `json:"id"`
+		OrgID string `json:"orgId"`
+		Kind  string `json:"kind"`
 	}
 	if err := json.NewDecoder(sessionResponse.Body).Decode(&sessionBody); err != nil {
 		t.Fatal(err)
 	}
 	sessionResponse.Body.Close()
-	if sessionBody.ID == "" {
-		t.Fatal("session id is missing")
+	if sessionBody.ID == "" || sessionBody.OrgID != "1" || sessionBody.Kind != "private" {
+		t.Fatalf("session discriminator is missing: %#v", sessionBody)
 	}
 	emptySessionsResponse := request(t, http.MethodGet, server.URL+"/v1/sessions?pageSize=20", "", "request-empty-sessions", "")
 	var emptySessionsPage struct {
@@ -74,6 +76,7 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 	}
 	var taskBody struct {
 		ID        string `json:"id"`
+		Kind      string `json:"kind"`
 		QueryPlan struct {
 			Views                []string `json:"views"`
 			StepSeconds          int      `json:"stepSeconds"`
@@ -84,7 +87,7 @@ func TestGeneratedHTTPHandlersCreateAndStreamTask(t *testing.T) {
 		t.Fatal(err)
 	}
 	taskResponse.Body.Close()
-	if taskBody.ID == "" || len(taskBody.QueryPlan.Views) != 1 || taskBody.QueryPlan.Views[0] != "cpu" || taskBody.QueryPlan.StepSeconds != 10 || taskBody.QueryPlan.CPURateWindowSeconds != 60 {
+	if taskBody.ID == "" || taskBody.Kind != "metric_analysis" || len(taskBody.QueryPlan.Views) != 1 || taskBody.QueryPlan.Views[0] != "cpu" || taskBody.QueryPlan.StepSeconds != 10 || taskBody.QueryPlan.CPURateWindowSeconds != 60 {
 		t.Fatalf("task id or resolved query plan is missing: %#v", taskBody)
 	}
 	touchedSessionResponse := request(t, http.MethodGet, server.URL+"/v1/sessions/"+sessionBody.ID, "", "request-touched-session", "")

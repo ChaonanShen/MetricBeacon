@@ -223,10 +223,7 @@ func canTransition(kind Kind, current, next Status) bool {
 	if next == StatusFailed || next == StatusCancelled {
 		return !terminal(current)
 	}
-	// Empty kind is accepted only for rows loaded by the pre-Incident SQLite
-	// adapter during the contract/domain migration sequence. Constructors never
-	// produce it; migration 0007 removes this compatibility path from storage.
-	if kind == KindMetricAnalysis || kind == "" {
+	if kind == KindMetricAnalysis {
 		switch current {
 		case StatusCreated:
 			return next == StatusPlanning

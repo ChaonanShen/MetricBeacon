@@ -42,9 +42,12 @@ type Store struct {
 	writeMu *sync.Mutex
 }
 
-func (s *Store) Sessions() repositories.SessionRepository   { return sessionRepository{store: s} }
-func (s *Store) Messages() repositories.MessageRepository   { return messageRepository{store: s} }
-func (s *Store) Tasks() repositories.TaskRepository         { return taskRepository{store: s} }
+func (s *Store) Sessions() repositories.SessionRepository { return sessionRepository{store: s} }
+func (s *Store) Messages() repositories.MessageRepository { return messageRepository{store: s} }
+func (s *Store) Tasks() repositories.TaskRepository       { return taskRepository{store: s} }
+func (s *Store) TaskCheckpoints() repositories.TaskCheckpointRepository {
+	return taskCheckpointRepository{store: s}
+}
 func (s *Store) ToolCalls() repositories.ToolCallRepository { return toolCallRepository{store: s} }
 func (s *Store) Charts() repositories.ChartRepository       { return chartRepository{store: s} }
 func (s *Store) ChartExecutions() repositories.ChartExecutionRepository {
@@ -101,6 +104,21 @@ func (r taskRepository) ListPageBySession(ctx context.Context, tenantID, session
 }
 func (r taskRepository) Update(ctx context.Context, value task.AnalysisTask, expectedVersion int64) error {
 	return r.store.updateTask(ctx, value, expectedVersion)
+}
+
+type taskCheckpointRepository struct{ store *Store }
+
+func (r taskCheckpointRepository) Create(ctx context.Context, value task.Checkpoint) error {
+	return r.store.createTaskCheckpoint(ctx, value)
+}
+func (r taskCheckpointRepository) Get(ctx context.Context, tenantID, taskID string) (task.Checkpoint, error) {
+	return r.store.getTaskCheckpoint(ctx, tenantID, taskID)
+}
+func (r taskCheckpointRepository) Update(ctx context.Context, value task.Checkpoint, expectedVersion int64) error {
+	return r.store.updateTaskCheckpoint(ctx, value, expectedVersion)
+}
+func (r taskCheckpointRepository) Delete(ctx context.Context, tenantID, taskID string, expectedVersion int64) error {
+	return r.store.deleteTaskCheckpoint(ctx, tenantID, taskID, expectedVersion)
 }
 
 type toolCallRepository struct{ store *Store }
@@ -221,10 +239,10 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) createSession(ctx context.Context, value session.AnalysisSession) error {
-	if value.ID == "" || value.TenantID == "" || value.CreatedBy == "" || strings.TrimSpace(value.Title) == "" || value.Status != session.StatusActive || value.Version < 1 {
+	if value.ID == "" || value.TenantID == "" || value.OrgID == "" || value.CreatedBy == "" || strings.TrimSpace(value.Title) == "" || value.Status != session.StatusActive || (value.Kind != session.KindPrivate && value.Kind != session.KindOrgIncident) || value.Version < 1 {
 		return common.NewError(common.InvalidArgument, "session is invalid", false)
 	}
-	_, err := s.executor().ExecContext(ctx, `INSERT INTO sessions (id, tenant_id, title, status, created_by, created_at, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.Title, value.Status, value.CreatedBy, storageTimestamp(value.CreatedAt), storageTimestamp(value.UpdatedAt), value.Version)
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO sessions (id, tenant_id, org_id, kind, title, status, created_by, created_at, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.OrgID, value.Kind, value.Title, value.Status, value.CreatedBy, storageTimestamp(value.CreatedAt), storageTimestamp(value.UpdatedAt), value.Version)
 	return mapError(err)
 }
 
@@ -232,7 +250,7 @@ func (s *Store) getSession(ctx context.Context, tenantID, sessionID string) (ses
 	if tenantID == "" || sessionID == "" {
 		return session.AnalysisSession{}, common.NewError(common.InvalidArgument, "tenant and session are required", false)
 	}
-	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, title, status, created_by, created_at, updated_at, version FROM sessions WHERE tenant_id = ? AND id = ?`, tenantID, sessionID)
+	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, org_id, kind, title, status, created_by, created_at, updated_at, version FROM sessions WHERE tenant_id = ? AND id = ?`, tenantID, sessionID)
 	return scanSession(row)
 }
 
@@ -240,7 +258,7 @@ func (s *Store) getOwnedSession(ctx context.Context, tenantID, userID, sessionID
 	if tenantID == "" || userID == "" || sessionID == "" {
 		return session.AnalysisSession{}, common.NewError(common.InvalidArgument, "tenant, user and session are required", false)
 	}
-	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, title, status, created_by, created_at, updated_at, version FROM sessions WHERE tenant_id = ? AND created_by = ? AND id = ?`, tenantID, userID, sessionID)
+	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, org_id, kind, title, status, created_by, created_at, updated_at, version FROM sessions WHERE tenant_id = ? AND kind = 'private' AND created_by = ? AND id = ?`, tenantID, userID, sessionID)
 	return scanSession(row)
 }
 
@@ -248,7 +266,7 @@ func (s *Store) listSessionPageByOwner(ctx context.Context, tenantID, userID str
 	if tenantID == "" || userID == "" || page.Limit < 1 || page.Limit > 50 || (page.BeforeUpdatedAt == nil && page.BeforeID != "") || (page.BeforeUpdatedAt != nil && page.BeforeID == "") {
 		return repositories.SessionListPage{}, common.NewError(common.InvalidArgument, "session page request is invalid", false)
 	}
-	query := `SELECT s.id, s.tenant_id, s.title, s.status, s.created_by, s.created_at, s.updated_at, s.version FROM sessions s WHERE s.tenant_id = ? AND s.created_by = ? AND EXISTS (SELECT 1 FROM tasks t WHERE t.tenant_id = s.tenant_id AND t.session_id = s.id)`
+	query := `SELECT s.id, s.tenant_id, s.org_id, s.kind, s.title, s.status, s.created_by, s.created_at, s.updated_at, s.version FROM sessions s WHERE s.tenant_id = ? AND s.kind = 'private' AND s.created_by = ? AND EXISTS (SELECT 1 FROM tasks t WHERE t.tenant_id = s.tenant_id AND t.session_id = s.id)`
 	args := []any{tenantID, userID}
 	if page.BeforeUpdatedAt != nil {
 		query += ` AND (s.updated_at < ? OR (s.updated_at = ? AND s.id < ?))`
@@ -283,7 +301,7 @@ func (s *Store) listSessionPageByOwner(ctx context.Context, tenantID, userID str
 }
 
 func (s *Store) updateSession(ctx context.Context, value session.AnalysisSession, expectedVersion int64) error {
-	if value.ID == "" || value.TenantID == "" || expectedVersion < 1 || value.Version != expectedVersion+1 || value.Status != session.StatusActive {
+	if value.ID == "" || value.TenantID == "" || value.OrgID == "" || expectedVersion < 1 || value.Version != expectedVersion+1 || value.Status != session.StatusActive || (value.Kind != session.KindPrivate && value.Kind != session.KindOrgIncident) {
 		return common.NewError(common.InvalidArgument, "session update is invalid", false)
 	}
 	result, err := s.executor().ExecContext(ctx, `UPDATE sessions SET title = ?, status = ?, updated_at = ?, version = ? WHERE tenant_id = ? AND id = ? AND version = ?`, value.Title, value.Status, storageTimestamp(value.UpdatedAt), value.Version, value.TenantID, value.ID, expectedVersion)
@@ -294,7 +312,7 @@ func (s *Store) updateSession(ctx context.Context, value session.AnalysisSession
 }
 
 func (s *Store) appendMessage(ctx context.Context, value session.Message) error {
-	if value.ID == "" || value.TenantID == "" || value.SessionID == "" || value.TaskID == "" || strings.TrimSpace(value.Content) == "" || (value.Role != session.RoleUser && value.Role != session.RoleAssistant) {
+	if value.ID == "" || value.TenantID == "" || value.SessionID == "" || value.TaskID == "" || strings.TrimSpace(value.Content) == "" || (value.Role != session.RoleUser && value.Role != session.RoleAssistant && value.Role != session.RoleTrigger) {
 		return common.NewError(common.InvalidArgument, "message is invalid", false)
 	}
 	if err := s.ensureSession(ctx, value.TenantID, value.SessionID); err != nil {
@@ -387,7 +405,11 @@ func (s *Store) createTask(ctx context.Context, value task.AnalysisTask) error {
 	if value.Error != nil {
 		errorCode, errorMessage = string(value.Error.Code), value.Error.Message
 	}
-	_, err := s.executor().ExecContext(ctx, `INSERT INTO tasks (id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.SessionID, value.Status, value.InputMessageID, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), stringSliceJSON(value.QueryPlan.Views), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, value.LatestSequence, errorCode, errorMessage, storageTimestamp(value.CreatedAt), nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version)
+	datasource, from, to, views, step, window, incident, err := taskPlanStorage(value)
+	if err != nil {
+		return err
+	}
+	_, err = s.executor().ExecContext(ctx, `INSERT INTO tasks (id, tenant_id, kind, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, incident_plan_json, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.TenantID, value.Kind, value.SessionID, value.Status, value.InputMessageID, datasource, from, to, views, step, window, incident, value.LatestSequence, errorCode, errorMessage, storageTimestamp(value.CreatedAt), nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version)
 	return mapError(err)
 }
 
@@ -395,12 +417,12 @@ func (s *Store) getTask(ctx context.Context, tenantID, taskID string) (task.Anal
 	if tenantID == "" || taskID == "" {
 		return task.AnalysisTask{}, common.NewError(common.InvalidArgument, "tenant and task are required", false)
 	}
-	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND id = ?`, tenantID, taskID)
+	row := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, kind, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, incident_plan_json, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND id = ?`, tenantID, taskID)
 	return scanTask(row)
 }
 
 func (s *Store) listNonTerminalTasks(ctx context.Context) ([]task.AnalysisTask, error) {
-	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE status NOT IN (?, ?) ORDER BY created_at, id`, task.StatusCompleted, task.StatusFailed)
+	rows, err := s.executor().QueryContext(ctx, `SELECT id, tenant_id, kind, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, incident_plan_json, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE status NOT IN (?, ?, ?) ORDER BY created_at, id`, task.StatusCompleted, task.StatusFailed, task.StatusCancelled)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -427,7 +449,7 @@ func (s *Store) listTaskPageBySession(ctx context.Context, tenantID, sessionID s
 	if err := s.ensureSession(ctx, tenantID, sessionID); err != nil {
 		return repositories.Page[task.AnalysisTask]{}, err
 	}
-	query := `SELECT id, tenant_id, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND session_id = ?`
+	query := `SELECT id, tenant_id, kind, session_id, status, input_message_id, datasource_uid, time_from, time_to, views_json, step_seconds, cpu_rate_window_seconds, incident_plan_json, latest_sequence, error_code, error_message, created_at, started_at, completed_at, updated_at, version FROM tasks WHERE tenant_id = ? AND session_id = ?`
 	args := []any{tenantID, sessionID}
 	if page.CreatedAt != nil {
 		query += ` AND (created_at < ? OR (created_at = ? AND id < ?))`
@@ -466,11 +488,67 @@ func (s *Store) updateTask(ctx context.Context, value task.AnalysisTask, expecte
 	if value.Error != nil {
 		errorCode, errorMessage = string(value.Error.Code), value.Error.Message
 	}
-	result, err := s.executor().ExecContext(ctx, `UPDATE tasks SET status = ?, datasource_uid = ?, time_from = ?, time_to = ?, views_json = ?, step_seconds = ?, cpu_rate_window_seconds = ?, latest_sequence = ?, error_code = ?, error_message = ?, started_at = ?, completed_at = ?, updated_at = ?, version = ? WHERE tenant_id = ? AND id = ? AND version = ?`, value.Status, value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), stringSliceJSON(value.QueryPlan.Views), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, value.LatestSequence, errorCode, errorMessage, nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version, value.TenantID, value.ID, expectedVersion)
+	datasource, from, to, views, step, window, incident, err := taskPlanStorage(value)
+	if err != nil {
+		return err
+	}
+	result, err := s.executor().ExecContext(ctx, `UPDATE tasks SET status = ?, datasource_uid = ?, time_from = ?, time_to = ?, views_json = ?, step_seconds = ?, cpu_rate_window_seconds = ?, incident_plan_json = ?, latest_sequence = ?, error_code = ?, error_message = ?, started_at = ?, completed_at = ?, updated_at = ?, version = ? WHERE tenant_id = ? AND id = ? AND kind = ? AND version = ?`, value.Status, datasource, from, to, views, step, window, incident, value.LatestSequence, errorCode, errorMessage, nullableTimestamp(value.StartedAt), nullableTimestamp(value.CompletedAt), storageTimestamp(value.UpdatedAt), value.Version, value.TenantID, value.ID, value.Kind, expectedVersion)
 	if err != nil {
 		return mapError(err)
 	}
 	return requireUpdated(result, "task")
+}
+
+func (s *Store) createTaskCheckpoint(ctx context.Context, value task.Checkpoint) error {
+	if err := validateTaskCheckpoint(value); err != nil {
+		return err
+	}
+	if err := s.ensureIncidentTask(ctx, value.TenantID, value.TaskID); err != nil {
+		return err
+	}
+	_, err := s.executor().ExecContext(ctx, `INSERT INTO task_checkpoints (task_id, tenant_id, phase, opaque_value, updated_at, version) VALUES (?, ?, ?, ?, ?, ?)`, value.TaskID, value.TenantID, value.Phase, value.OpaqueValue, storageTimestamp(value.UpdatedAt), value.Version)
+	return mapError(err)
+}
+
+func (s *Store) getTaskCheckpoint(ctx context.Context, tenantID, taskID string) (task.Checkpoint, error) {
+	if tenantID == "" || taskID == "" {
+		return task.Checkpoint{}, common.NewError(common.InvalidArgument, "tenant and task are required", false)
+	}
+	var value task.Checkpoint
+	var updatedAt string
+	err := s.executor().QueryRowContext(ctx, `SELECT task_id, tenant_id, phase, opaque_value, updated_at, version FROM task_checkpoints WHERE tenant_id = ? AND task_id = ?`, tenantID, taskID).Scan(&value.TaskID, &value.TenantID, &value.Phase, &value.OpaqueValue, &updatedAt, &value.Version)
+	if err != nil {
+		return task.Checkpoint{}, mapError(err)
+	}
+	if value.UpdatedAt, err = parseTimestamp(updatedAt); err != nil {
+		return task.Checkpoint{}, err
+	}
+	return value, nil
+}
+
+func (s *Store) updateTaskCheckpoint(ctx context.Context, value task.Checkpoint, expectedVersion int64) error {
+	if err := validateTaskCheckpoint(value); err != nil {
+		return err
+	}
+	if expectedVersion < 1 || value.Version != expectedVersion+1 {
+		return common.NewError(common.InvalidArgument, "task checkpoint version update is invalid", false)
+	}
+	result, err := s.executor().ExecContext(ctx, `UPDATE task_checkpoints SET phase = ?, opaque_value = ?, updated_at = ?, version = ? WHERE tenant_id = ? AND task_id = ? AND version = ?`, value.Phase, value.OpaqueValue, storageTimestamp(value.UpdatedAt), value.Version, value.TenantID, value.TaskID, expectedVersion)
+	if err != nil {
+		return mapError(err)
+	}
+	return requireUpdated(result, "task checkpoint")
+}
+
+func (s *Store) deleteTaskCheckpoint(ctx context.Context, tenantID, taskID string, expectedVersion int64) error {
+	if tenantID == "" || taskID == "" || expectedVersion < 1 {
+		return common.NewError(common.InvalidArgument, "task checkpoint delete is invalid", false)
+	}
+	result, err := s.executor().ExecContext(ctx, `DELETE FROM task_checkpoints WHERE tenant_id = ? AND task_id = ? AND version = ?`, tenantID, taskID, expectedVersion)
+	if err != nil {
+		return mapError(err)
+	}
+	return requireUpdated(result, "task checkpoint")
 }
 
 func (s *Store) createToolCall(ctx context.Context, value task.ToolCallRecord) error {
@@ -842,6 +920,12 @@ func (s *Store) ensureTask(ctx context.Context, tenantID, taskID string) error {
 	return mapError(err)
 }
 
+func (s *Store) ensureIncidentTask(ctx context.Context, tenantID, taskID string) error {
+	var found int
+	err := s.executor().QueryRowContext(ctx, `SELECT 1 FROM tasks WHERE tenant_id = ? AND id = ? AND kind = 'incident_remediation'`, tenantID, taskID).Scan(&found)
+	return mapError(err)
+}
+
 func (s *Store) ensureTaskForSession(ctx context.Context, tenantID, sessionID, taskID string) error {
 	var found int
 	err := s.executor().QueryRowContext(ctx, `SELECT 1 FROM tasks WHERE tenant_id = ? AND session_id = ? AND id = ?`, tenantID, sessionID, taskID).Scan(&found)
@@ -888,7 +972,7 @@ func (s *Store) getIdempotency(ctx context.Context, key repositories.Idempotency
 func scanSession(scanner interface{ Scan(...any) error }) (session.AnalysisSession, error) {
 	var value session.AnalysisSession
 	var createdAt, updatedAt string
-	if err := scanner.Scan(&value.ID, &value.TenantID, &value.Title, &value.Status, &value.CreatedBy, &createdAt, &updatedAt, &value.Version); err != nil {
+	if err := scanner.Scan(&value.ID, &value.TenantID, &value.OrgID, &value.Kind, &value.Title, &value.Status, &value.CreatedBy, &createdAt, &updatedAt, &value.Version); err != nil {
 		return session.AnalysisSession{}, mapError(err)
 	}
 	var err error
@@ -903,21 +987,40 @@ func scanSession(scanner interface{ Scan(...any) error }) (session.AnalysisSessi
 
 func scanTask(scanner interface{ Scan(...any) error }) (task.AnalysisTask, error) {
 	var value task.AnalysisTask
-	var from, to, createdAt, updatedAt string
-	var viewsJSON string
+	var createdAt, updatedAt string
+	var datasource, from, to, viewsJSON, incidentJSON sql.NullString
+	var step, window sql.NullInt64
 	var errorCode, errorMessage, startedAt, completedAt sql.NullString
-	if err := scanner.Scan(&value.ID, &value.TenantID, &value.SessionID, &value.Status, &value.InputMessageID, &value.DatasourceUID, &from, &to, &viewsJSON, &value.QueryPlan.StepSeconds, &value.QueryPlan.CPURateWindowSeconds, &value.LatestSequence, &errorCode, &errorMessage, &createdAt, &startedAt, &completedAt, &updatedAt, &value.Version); err != nil {
+	if err := scanner.Scan(&value.ID, &value.TenantID, &value.Kind, &value.SessionID, &value.Status, &value.InputMessageID, &datasource, &from, &to, &viewsJSON, &step, &window, &incidentJSON, &value.LatestSequence, &errorCode, &errorMessage, &createdAt, &startedAt, &completedAt, &updatedAt, &value.Version); err != nil {
 		return task.AnalysisTask{}, mapError(err)
 	}
-	if err := json.Unmarshal([]byte(viewsJSON), &value.QueryPlan.Views); err != nil {
-		return task.AnalysisTask{}, common.NewError(common.InternalError, "stored task views are invalid", false)
-	}
 	var err error
-	if value.TimeRange.From, err = parseTimestamp(from); err != nil {
-		return task.AnalysisTask{}, err
-	}
-	if value.TimeRange.To, err = parseTimestamp(to); err != nil {
-		return task.AnalysisTask{}, err
+	if value.Kind == task.KindMetricAnalysis {
+		if !datasource.Valid || !from.Valid || !to.Valid || !viewsJSON.Valid || !step.Valid || !window.Valid {
+			return task.AnalysisTask{}, common.NewError(common.InternalError, "stored metric task plan is incomplete", false)
+		}
+		value.DatasourceUID = datasource.String
+		value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds = int(step.Int64), int(window.Int64)
+		if err := json.Unmarshal([]byte(viewsJSON.String), &value.QueryPlan.Views); err != nil {
+			return task.AnalysisTask{}, common.NewError(common.InternalError, "stored task views are invalid", false)
+		}
+		if value.TimeRange.From, err = parseTimestamp(from.String); err != nil {
+			return task.AnalysisTask{}, err
+		}
+		if value.TimeRange.To, err = parseTimestamp(to.String); err != nil {
+			return task.AnalysisTask{}, err
+		}
+	} else if value.Kind == task.KindIncidentRemediation {
+		if !incidentJSON.Valid || datasource.Valid || from.Valid || to.Valid || viewsJSON.Valid || step.Valid || window.Valid {
+			return task.AnalysisTask{}, common.NewError(common.InternalError, "stored incident task plan is invalid", false)
+		}
+		var plan task.IncidentPlan
+		if err := json.Unmarshal([]byte(incidentJSON.String), &plan); err != nil {
+			return task.AnalysisTask{}, common.NewError(common.InternalError, "stored incident task plan is invalid", false)
+		}
+		value.IncidentPlan = &plan
+	} else {
+		return task.AnalysisTask{}, common.NewError(common.InternalError, "stored task kind is invalid", false)
 	}
 	if value.CreatedAt, err = parseTimestamp(createdAt); err != nil {
 		return task.AnalysisTask{}, err
@@ -1033,10 +1136,37 @@ func scanExecution(scanner interface{ Scan(...any) error }) (chart.Execution, er
 }
 
 func validateTask(value task.AnalysisTask) error {
-	if value.ID == "" || value.TenantID == "" || value.SessionID == "" || value.InputMessageID == "" || value.DatasourceUID == "" || !value.TimeRange.From.Before(value.TimeRange.To) || !value.QueryPlan.Valid() || value.LatestSequence < 0 || value.Version < 1 || !isTaskStatus(value.Status) {
+	if value.ID == "" || value.TenantID == "" || value.SessionID == "" || value.InputMessageID == "" || value.LatestSequence < 0 || value.Version < 1 || !isTaskStatus(value.Status) {
 		return common.NewError(common.InvalidArgument, "task is invalid", false)
 	}
+	switch value.Kind {
+	case task.KindMetricAnalysis:
+		if value.DatasourceUID == "" || !value.TimeRange.From.Before(value.TimeRange.To) || !value.QueryPlan.Valid() || value.IncidentPlan != nil {
+			return common.NewError(common.InvalidArgument, "metric task plan is invalid", false)
+		}
+	case task.KindIncidentRemediation:
+		if value.IncidentPlan == nil || value.DatasourceUID != "" || !value.TimeRange.From.IsZero() || !value.TimeRange.To.IsZero() || value.QueryPlan.Valid() {
+			return common.NewError(common.InvalidArgument, "incident task plan is invalid", false)
+		}
+		encoded, err := json.Marshal(value.IncidentPlan)
+		if err != nil || !isJSONObject(encoded) {
+			return common.NewError(common.InvalidArgument, "incident task plan is invalid", false)
+		}
+	default:
+		return common.NewError(common.InvalidArgument, "task kind is invalid", false)
+	}
 	return nil
+}
+
+func taskPlanStorage(value task.AnalysisTask) (datasource, from, to, views, step, window, incident any, err error) {
+	if value.Kind == task.KindMetricAnalysis {
+		return value.DatasourceUID, storageTimestamp(value.TimeRange.From), storageTimestamp(value.TimeRange.To), stringSliceJSON(value.QueryPlan.Views), value.QueryPlan.StepSeconds, value.QueryPlan.CPURateWindowSeconds, nil, nil
+	}
+	encoded, marshalErr := json.Marshal(value.IncidentPlan)
+	if marshalErr != nil {
+		return nil, nil, nil, nil, nil, nil, nil, mapError(marshalErr)
+	}
+	return nil, nil, nil, nil, nil, nil, string(encoded), nil
 }
 
 func validatePageRequest(value repositories.PageRequest, maximum int) (int, error) {
@@ -1044,6 +1174,22 @@ func validatePageRequest(value repositories.PageRequest, maximum int) (int, erro
 		return 0, common.NewError(common.InvalidArgument, "page request is invalid", false)
 	}
 	return value.Limit, nil
+}
+
+func validateTaskCheckpoint(value task.Checkpoint) error {
+	if value.TaskID == "" || value.TenantID == "" || value.OpaqueValue == "" || len(value.OpaqueValue) > 16*1024 || value.UpdatedAt.IsZero() || value.Version < 1 || !isIncidentPhase(value.Phase) {
+		return common.NewError(common.InvalidArgument, "task checkpoint is invalid", false)
+	}
+	return nil
+}
+
+func isIncidentPhase(phase task.IncidentPhase) bool {
+	switch phase {
+	case task.PhaseLoadAssets, task.PhaseObserve, task.PhaseNeedsAgent, task.PhasePrepare, task.PhaseNeedsApproval, task.PhaseExecute, task.PhaseVerifyRuntime, task.PhaseVerifyMetrics, task.PhaseVerifyBusiness, task.PhaseCompleted, task.PhaseNoAction:
+		return true
+	default:
+		return false
+	}
 }
 
 func pageMessages(items []session.Message, limit int) repositories.Page[session.Message] {
@@ -1125,7 +1271,7 @@ func validateEventDraft(value task.EventDraft) error {
 }
 
 func isTaskStatus(status task.Status) bool {
-	return status == task.StatusCreated || status == task.StatusPlanning || status == task.StatusRunningTools || status == task.StatusValidating || status == task.StatusCompleted || status == task.StatusFailed
+	return status == task.StatusCreated || status == task.StatusPlanning || status == task.StatusRunningTools || status == task.StatusWaitingApproval || status == task.StatusExecuting || status == task.StatusReconciling || status == task.StatusValidating || status == task.StatusCompleted || status == task.StatusFailed || status == task.StatusCancelled
 }
 
 func isToolCallStatus(status task.ToolCallStatus) bool {
@@ -1134,7 +1280,7 @@ func isToolCallStatus(status task.ToolCallStatus) bool {
 
 func isEventType(eventType task.EventType) bool {
 	switch eventType {
-	case task.EventTaskCreated, task.EventTaskStatusChanged, task.EventAssistantMessageStarted, task.EventAssistantMessageDelta, task.EventAssistantMessageDone, task.EventToolStarted, task.EventToolCompleted, task.EventToolFailed, task.EventMetricCandidatesCreated, task.EventChartCreated, task.EventChartExecutionDone, task.EventTaskCompleted, task.EventTaskFailed:
+	case task.EventTaskCreated, task.EventTaskStatusChanged, task.EventAssistantMessageStarted, task.EventAssistantMessageDelta, task.EventAssistantMessageDone, task.EventToolStarted, task.EventToolCompleted, task.EventToolFailed, task.EventMetricCandidatesCreated, task.EventChartCreated, task.EventChartExecutionDone, task.EventTaskCompleted, task.EventTaskFailed, task.EventAlertReceived, task.EventPlaybookResolved, task.EventAssetsPinned, task.EventDiagnosisCompleted, task.EventIntentPrepared, task.EventApprovalRequested, task.EventApprovalDecided, task.EventRemediationStarted, task.EventRemediationReconciled, task.EventVerificationRuntime, task.EventVerificationMetrics, task.EventVerificationBusiness, task.EventAuditRecorded:
 		return true
 	default:
 		return false

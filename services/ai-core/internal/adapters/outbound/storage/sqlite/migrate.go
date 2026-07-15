@@ -23,6 +23,7 @@ var allMigrations = []migration{
 	{version: 4, sql: migrations.BoundedQueryPlan},
 	{version: 5, sql: migrations.QueryPlanViews},
 	{version: 6, sql: migrations.SessionHistoryIndex},
+	{version: 7, sql: migrations.IncidentTaskUnion, after: validateIncidentTaskUnion},
 }
 
 func (s *Store) migrate(ctx context.Context) error {
@@ -113,6 +114,27 @@ func validateMultiTurnPostconditions(ctx context.Context, tx *sql.Tx) error {
 			return mapError(err)
 		}
 		return common.NewError(common.InternalError, "multi-turn migration validation failed", false)
+	}
+	return nil
+}
+
+func validateIncidentTaskUnion(ctx context.Context, tx *sql.Tx) error {
+	checks := []string{
+		`SELECT 1 FROM sessions WHERE org_id = '' OR kind NOT IN ('private', 'org_incident') LIMIT 1`,
+		`SELECT 1 FROM tasks WHERE kind != 'metric_analysis' OR incident_plan_json IS NOT NULL LIMIT 1`,
+		`SELECT 1 FROM messages WHERE role NOT IN ('user', 'assistant', 'trigger') LIMIT 1`,
+		`SELECT 1 FROM pragma_foreign_key_check LIMIT 1`,
+	}
+	for _, query := range checks {
+		var found any
+		err := tx.QueryRowContext(ctx, query).Scan(&found)
+		if err == sql.ErrNoRows {
+			continue
+		}
+		if err != nil {
+			return mapError(err)
+		}
+		return common.NewError(common.InternalError, "incident task migration validation failed", false)
 	}
 	return nil
 }

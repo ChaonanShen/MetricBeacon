@@ -42,6 +42,12 @@ type TaskRepository interface {
 	ListPageBySession(context.Context, string, string, PageRequest) (Page[task.AnalysisTask], error)
 	Update(context.Context, task.AnalysisTask, int64) error
 }
+type TaskCheckpointRepository interface {
+	Create(context.Context, task.Checkpoint) error
+	Get(context.Context, string, string) (task.Checkpoint, error)
+	Update(context.Context, task.Checkpoint, int64) error
+	Delete(context.Context, string, string, int64) error
+}
 type PageRequest struct {
 	Limit     int
 	CreatedAt *time.Time
@@ -87,6 +93,7 @@ type ApplicationStore interface {
 	Sessions() SessionRepository
 	Messages() MessageRepository
 	Tasks() TaskRepository
+	TaskCheckpoints() TaskCheckpointRepository
 	ToolCalls() ToolCallRepository
 	Charts() ChartRepository
 	ChartExecutions() ChartExecutionRepository

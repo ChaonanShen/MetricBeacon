@@ -448,7 +448,7 @@ func normalizePayload(value any) map[string]any {
 }
 
 func taskSnapshot(value task.AnalysisTask) map[string]any {
-	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"views": value.QueryPlan.Views, "stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}}
+	return map[string]any{"id": value.ID, "kind": value.Kind, "sessionId": value.SessionID, "status": value.Status, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"views": value.QueryPlan.Views, "stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}}
 }
 
 func executionWire(value chart.Execution) map[string]any {

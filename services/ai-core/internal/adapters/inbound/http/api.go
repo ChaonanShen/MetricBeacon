@@ -544,14 +544,22 @@ func split(value string) []string {
 }
 
 func sessionResponse(value session.AnalysisSession) any {
-	return map[string]any{"id": value.ID, "tenantId": value.TenantID, "title": value.Title, "status": value.Status, "createdBy": value.CreatedBy, "createdAt": value.CreatedAt, "updatedAt": value.UpdatedAt, "version": value.Version}
+	return map[string]any{"id": value.ID, "tenantId": value.TenantID, "orgId": value.OrgID, "kind": value.Kind, "title": value.Title, "status": value.Status, "createdBy": value.CreatedBy, "createdAt": value.CreatedAt, "updatedAt": value.UpdatedAt, "version": value.Version}
 }
 func taskResponse(value task.AnalysisTask) any {
 	var failure any
 	if value.Error != nil {
 		failure = map[string]any{"code": value.Error.Code, "message": value.Error.Message, "retryable": value.Error.Retryable, "requestId": ""}
 	}
-	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "status": value.Status, "inputMessageId": value.InputMessageID, "datasourceUid": value.DatasourceUID, "timeRange": map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}, "queryPlan": map[string]any{"views": value.QueryPlan.Views, "stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}, "latestSequence": value.LatestSequence, "error": failure, "createdAt": value.CreatedAt, "startedAt": value.StartedAt, "completedAt": value.CompletedAt, "updatedAt": value.UpdatedAt, "version": value.Version}
+	response := map[string]any{"id": value.ID, "kind": value.Kind, "sessionId": value.SessionID, "status": value.Status, "inputMessageId": value.InputMessageID, "latestSequence": value.LatestSequence, "error": failure, "createdAt": value.CreatedAt, "startedAt": value.StartedAt, "completedAt": value.CompletedAt, "updatedAt": value.UpdatedAt, "version": value.Version}
+	if value.Kind == task.KindMetricAnalysis {
+		response["datasourceUid"] = value.DatasourceUID
+		response["timeRange"] = map[string]any{"from": value.TimeRange.From, "to": value.TimeRange.To}
+		response["queryPlan"] = map[string]any{"views": value.QueryPlan.Views, "stepSeconds": value.QueryPlan.StepSeconds, "cpuRateWindowSeconds": value.QueryPlan.CPURateWindowSeconds}
+	} else {
+		response["incidentPlan"] = value.IncidentPlan
+	}
+	return response
 }
 func messageResponse(value session.Message) any {
 	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "taskId": value.TaskID, "role": value.Role, "content": value.Content, "createdAt": value.CreatedAt}
