@@ -5,6 +5,7 @@ import { taskEventReducer } from './reducer';
 type Event = Omit<GeneratedTaskEvent, 'payload'> & { payload: Record<string, unknown> };
 
 export type SessionWorkbenchState = {
+  sessionId?: string;
   messagesById: Record<string, Message>;
   messageOrder: string[];
   tasksById: Record<string, Task>;
@@ -16,22 +17,25 @@ export type SessionWorkbenchState = {
   taskNextPageToken: string | null;
 };
 
-export const initialSessionWorkbenchState: SessionWorkbenchState = {
-  messagesById: {}, messageOrder: [], tasksById: {}, taskOrder: [], runtimeByTaskId: {}, replayedTaskIds: {}, messageNextPageToken: null, taskNextPageToken: null,
-};
+export function createInitialSessionWorkbenchState(sessionId?: string): SessionWorkbenchState {
+  return { sessionId, messagesById: {}, messageOrder: [], tasksById: {}, taskOrder: [], runtimeByTaskId: {}, replayedTaskIds: {}, messageNextPageToken: null, taskNextPageToken: null };
+}
+
+export const initialSessionWorkbenchState = createInitialSessionWorkbenchState();
 
 export type SessionAction =
-  | { type: 'session.cleared' }
-  | { type: 'history.loaded'; messages: Message[]; tasks: Task[]; messageNextPageToken: string | null; taskNextPageToken: string | null }
-  | { type: 'task.created'; task: Task }
-  | { type: 'task.replayed'; taskId: string; targetSequence: number }
+  | { type: 'session.selected'; sessionId?: string }
+  | { type: 'history.loaded'; sessionId: string; messages: Message[]; tasks: Task[]; messageNextPageToken: string | null; taskNextPageToken: string | null }
+  | { type: 'task.created'; sessionId: string; task: Task }
+  | { type: 'task.replayed'; sessionId: string; taskId: string; targetSequence: number }
   | { type: 'task.event'; event: Event };
 
 export function sessionReducer(state: SessionWorkbenchState, action: SessionAction): SessionWorkbenchState {
   switch (action.type) {
-    case 'session.cleared':
-      return initialSessionWorkbenchState;
+    case 'session.selected':
+      return createInitialSessionWorkbenchState(action.sessionId);
     case 'history.loaded': {
+      if (action.sessionId !== state.sessionId) return state;
       const messagesById = { ...state.messagesById };
       for (const message of action.messages) messagesById[message.id] = message;
       const tasksById = { ...state.tasksById };
@@ -50,15 +54,18 @@ export function sessionReducer(state: SessionWorkbenchState, action: SessionActi
       };
     }
     case 'task.created': {
+      if (action.sessionId !== state.sessionId || action.task.sessionId !== state.sessionId) return state;
       const tasksById = { ...state.tasksById, [action.task.id]: action.task };
       const taskOrder = orderTasks(tasksById);
       return { ...state, tasksById, taskOrder, runtimeByTaskId: initializeRuntimes(state.runtimeByTaskId, taskOrder), activeTaskId: action.task.id };
     }
     case 'task.replayed': {
+      if (action.sessionId !== state.sessionId) return state;
       if (state.replayedTaskIds[action.taskId]) return state;
       return { ...state, replayedTaskIds: { ...state.replayedTaskIds, [action.taskId]: true } };
     }
     case 'task.event': {
+      if (action.event.sessionId !== state.sessionId) return state;
       const task = state.tasksById[action.event.taskId];
       if (!task) return state;
       const current = state.runtimeByTaskId[action.event.taskId] ?? initialWorkbenchState;

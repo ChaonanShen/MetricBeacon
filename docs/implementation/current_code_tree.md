@@ -26,6 +26,7 @@ mini-torchbearing/
 │       │   │       ├── session-reducer.ts # Session 历史、Task runtimes 与活动流状态
 │       │   │       ├── sse.ts             # SSE 订阅、重连与 sequence 处理
 │       │   │       ├── route.ts           # Session/Task URL 恢复与旧 ID 清理
+│       │   │       ├── session-list.ts    # Session page 去重与首消息标题纯逻辑
 │       │   │       ├── time-range.ts      # 图表时间范围转换
 │       │   │       ├── query-input.ts     # 自然语言与固定 datasource 请求映射
 │       │   │       └── *.test.ts          # 前端单元测试

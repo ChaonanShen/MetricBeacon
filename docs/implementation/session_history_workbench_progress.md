@@ -12,7 +12,7 @@
 |G1：契约与生成物|已完成|SessionPage、两层 GET Session list、20/50 分页参数与响应示例已定义；Go/TypeScript Client、AI Core Server 和 Plugin types 已重新生成，`make validate-contracts`、`make generated-client-diff` 与 `git diff --check` 通过。|
 |G2：AI Core|已完成|`Session.Touch`、owner-scoped/non-empty SQLite keyset page、`0006` 索引、CreateTask 原子 activity update、GET Session list 和 Session/Task/Event 全入口 creator 校验已实现；domain/application/SQLite/HTTP 测试覆盖空 Session、稳定游标、迁移、幂等/Planner 失败不 touch、跨用户 list/token/direct/SSE 访问。|
 |G3：Plugin Backend|已完成|GET Session list route、20/50 分页参数和 generated Client 代理已实现；测试验证 Grafana identity 覆盖伪造头、query 原样转发、51 拒绝，`make test-plugin-backend` 与 `make generated-client-diff` 通过。|
-|G4：Frontend|待开始|待实现会话栏、切换和三栏重排。|
+|G4：Frontend|进行中|Resource list client、Unicode 首消息标题、Session page 去重、Session-only route 和 Session-aware reducer 已实现；10 个文件 29 个单测与 TypeScript 通过，待接 SessionPane、无限分页和三栏重排。|
 |G5：纵向验收与收口|待开始|待完成 API/browser E2E、全量检查和文档快照。|
 
 ## 当前边界

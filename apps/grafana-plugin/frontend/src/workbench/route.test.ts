@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { clearWorkbenchRoute, readWorkbenchRoute, replaceWorkbenchRoute } from './route';
+import { clearWorkbenchRoute, readWorkbenchRoute, replaceWorkbenchRoute, replaceWorkbenchSessionRoute } from './route';
 
 describe('workbench route', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -36,5 +36,18 @@ describe('workbench route', () => {
     const [, , next] = replaceState.mock.calls[0];
     expect(next.toString()).toBe('http://grafana.local/a/mini-torchbearing-app/workbench?theme=dark');
     expect(replaceState).toHaveBeenCalledWith({ from: 'grafana' }, '', next);
+  });
+
+  it('selects a Session while removing the previous Task and preserving Grafana parameters', () => {
+    const replaceState = vi.fn();
+    vi.stubGlobal('window', {
+      location: { href: 'http://grafana.local/a/mini-torchbearing-app/workbench?theme=dark&sessionId=old&taskId=old-task' },
+      history: { state: { from: 'grafana' }, replaceState },
+    });
+
+    replaceWorkbenchSessionRoute('session-2');
+
+    const [, , next] = replaceState.mock.calls[0];
+    expect(next.toString()).toBe('http://grafana.local/a/mini-torchbearing-app/workbench?theme=dark&sessionId=session-2');
   });
 });

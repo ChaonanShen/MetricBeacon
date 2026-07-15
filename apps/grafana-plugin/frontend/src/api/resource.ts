@@ -3,6 +3,7 @@ import { getBackendSrv } from '@grafana/runtime';
 import type { components } from './generated/plugin-resource';
 
 export type Session = components['schemas']['session.schema'];
+export type SessionPage = components['schemas']['session-page.schema'];
 export type Message = components['schemas']['message.schema'];
 export type Task = components['schemas']['task.schema'];
 export type CreateTask = components['schemas']['create-task-request.schema'];
@@ -22,6 +23,9 @@ function queryString(values: Record<string, string | number | undefined>): strin
 }
 
 export const resourceClient = {
+  listSessions(pageToken?: string): Promise<SessionPage> {
+    return getBackendSrv().get<SessionPage>(`${resourceBase}/sessions${queryString({ pageSize: 20, pageToken })}`);
+  },
   createSession(title: string): Promise<Session> {
     return getBackendSrv().post<Session>(`${resourceBase}/sessions`, { title });
   },

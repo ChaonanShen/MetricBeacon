@@ -11,7 +11,8 @@ import { ContextPane } from './ContextPane';
 import { ConversationPane } from './ConversationPane';
 import { createTaskInput } from './query-input';
 import { clearWorkbenchRoute, readWorkbenchRoute, replaceWorkbenchRoute } from './route';
-import { initialSessionWorkbenchState, isTerminal, sessionReducer } from './session-reducer';
+import { createInitialSessionWorkbenchState, isTerminal, sessionReducer } from './session-reducer';
+import { deriveSessionTitle } from './session-list';
 import { subscribeTaskEvents } from './sse';
 
 type Event = Omit<GeneratedTaskEvent, 'payload'> & { payload: Record<string, unknown> };
@@ -23,7 +24,7 @@ export function Workbench(_props: AppRootProps) {
   const [sessionId, setSessionId] = useState<string | undefined>(initialRoute.sessionId);
   const [selectedChartId, setSelectedChartId] = useState<string>();
   const [recoveryNotice, setRecoveryNotice] = useState<string>();
-  const [state, dispatch] = useReducer(sessionReducer, initialSessionWorkbenchState);
+  const [state, dispatch] = useReducer(sessionReducer, initialRoute.sessionId, createInitialSessionWorkbenchState);
   const sequenceByTask = useRef<Record<string, number>>({});
   const replayedTasks = useRef(new Set<string>());
   const idempotencyKey = useRef<string>();
@@ -52,15 +53,15 @@ export function Workbench(_props: AppRootProps) {
     replayedTasks.current = new Set<string>();
     idempotencyKey.current = undefined;
     pendingTask.current = undefined;
-    dispatch({ type: 'session.cleared' });
+    dispatch({ type: 'session.selected' });
     clearWorkbenchRoute();
   }, [session.error, session.isError, sessionId]);
 
   useEffect(() => {
     if (!history.data) return;
     const [messages, tasks] = history.data;
-    dispatch({ type: 'history.loaded', messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken });
-  }, [history.data]);
+    if (sessionId) dispatch({ type: 'history.loaded', sessionId, messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken });
+  }, [history.data, sessionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +82,7 @@ export function Workbench(_props: AppRootProps) {
       if (!cancelled) {
         sequenceByTask.current[task.id] = targetSequence;
         replayedTasks.current.add(task.id);
-        dispatch({ type: 'task.replayed', taskId: task.id, targetSequence });
+        dispatch({ type: 'task.replayed', sessionId: task.sessionId, taskId: task.id, targetSequence });
       }
     };
     void Promise.all(state.taskOrder.map((id) => replay(state.tasksById[id])));
@@ -108,9 +109,12 @@ export function Workbench(_props: AppRootProps) {
   const create = useMutation({
     mutationFn: async () => {
       if (!pendingTask.current) {
-        const activeSession = sessionId ? { id: sessionId } : await resourceClient.createSession('Node exporter mock analysis');
+        const activeSession = sessionId ? { id: sessionId } : await resourceClient.createSession(deriveSessionTitle(message));
         pendingTask.current = createTaskInput(activeSession.id, message);
-        if (!sessionId) setSessionId(activeSession.id);
+        if (!sessionId) {
+          dispatch({ type: 'session.selected', sessionId: activeSession.id });
+          setSessionId(activeSession.id);
+        }
       }
       idempotencyKey.current ??= crypto.randomUUID();
       const task = await resourceClient.createTask(pendingTask.current, idempotencyKey.current);
@@ -121,7 +125,7 @@ export function Workbench(_props: AppRootProps) {
       pendingTask.current = undefined;
       setSessionId(created.sessionId);
       setRecoveryNotice(undefined);
-      dispatch({ type: 'task.created', task: created.task });
+      dispatch({ type: 'task.created', sessionId: created.sessionId, task: created.task });
       replaceWorkbenchRoute(created.sessionId, created.task.id);
       client.setQueryData(['mini-torchbearing-session', created.sessionId], session.data);
       client.invalidateQueries({ queryKey: ['mini-torchbearing-session-history', created.sessionId] });
@@ -137,7 +141,7 @@ export function Workbench(_props: AppRootProps) {
       return { messages, tasks };
     },
     onSuccess: ({ messages, tasks }) => {
-      dispatch({ type: 'history.loaded', messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken });
+      dispatch({ type: 'history.loaded', sessionId: sessionId!, messages: messages.items, tasks: tasks.items, messageNextPageToken: messages.nextPageToken, taskNextPageToken: tasks.nextPageToken });
       requestAnimationFrame(() => requestAnimationFrame(() => chartCanvas.current?.restoreAfterPrepend()));
     },
   });
@@ -158,7 +162,7 @@ export function Workbench(_props: AppRootProps) {
     autoFocusedTask.current = undefined;
     create.reset();
     loadMore.reset();
-    dispatch({ type: 'session.cleared' });
+    dispatch({ type: 'session.selected' });
     clearWorkbenchRoute();
   };
   const submit = () => { if (message.trim() && !activeTask) create.mutate(); };
