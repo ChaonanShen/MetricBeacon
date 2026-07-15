@@ -14,6 +14,7 @@ contactPoints:
           headers:
             X-MTB-Alert-Source: demo-grafana
             X-Request-ID: grafana-order-incident-webhook
+            X-Trace-ID: grafana-order-incident-alert
           hmacConfig:
             secret: $ORDER_INCIDENT_WEBHOOK_SECRET
             header: X-Grafana-Alerting-Signature
