@@ -62,9 +62,12 @@ go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.2 \
   -o "$root/packages/generated-contracts/go/grafana_tools.gen.go" \
   "$generated_openapi/grafana-tools.codegen.yaml"
 go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.2 \
-  -generate types -package grafanatools \
+  -generate types,skip-prune -package grafanatools \
   -o "$root/packages/generated-contracts/go/incident_tools.gen.go" \
   "$generated_openapi/incident-tools.codegen.yaml"
+
+rg -q '^type ResumeRunInput struct' "$root/packages/generated-contracts/go/incident_tools.gen.go"
+rg -q '^type WorkerOutput struct' "$root/packages/generated-contracts/go/incident_tools.gen.go"
 go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.7.2 \
   -generate types,client -package orderdemo \
   -o "$root/packages/generated-clients/go/orderdemo/order_demo.gen.go" \
