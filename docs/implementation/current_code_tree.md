@@ -57,10 +57,10 @@ mini-torchbearing/
 │   │   │   │   ├── commands/              # Session/Task 命令、Planner 合并与 QueryPlan 冻结
 │   │   │   │   ├── workflows/             # 分析工作流与事件持久化
 │   │   │   │   └── dto/                   # 应用层数据传递对象
-│   │   │   ├── ports/                     # 存储、Agent、MCP、时钟等抽象接口
+│   │   │   ├── ports/                     # 存储、Agent、MCP、Incident 只读 Toolset、时钟等抽象接口
 │   │   │   ├── adapters/
 │   │   │   │   ├── inbound/http/          # AI Core HTTP API 与 SSE
-│   │   │   │   └── outbound/              # SQLite、MCP、Mock Agent、Eino Agent、时钟/ID
+│   │   │   │   └── outbound/              # SQLite、MCP（指标 + Incident 只读分类）、Mock/Eino Agent、时钟/ID
 │   │   │   │       ├── agent/eino/         # JSON mode、结构化历史和一次重试的 IntentPlanner Adapter
 │   │   │   │       ├── agent/mock/         # 确定性意图解析与 persisted-view 执行器
 │   │   │   │       └── agent/localresult/  # Mock/Eino 共用的可信事实 formatter
