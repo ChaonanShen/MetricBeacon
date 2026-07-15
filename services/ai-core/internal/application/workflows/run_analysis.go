@@ -43,6 +43,9 @@ func (w RunAnalysisWorkflow) RecoverInterrupted(ctx context.Context) error {
 	interrupted := common.NewError(common.ExecutionInterrupted, "analysis execution was interrupted by process restart", true)
 	for index := range items {
 		item := &items[index]
+		if item.Kind != task.KindMetricAnalysis {
+			continue
+		}
 		calls, err := w.Store.ToolCalls().ListByTask(ctx, item.TenantID, item.ID)
 		if err != nil {
 			return err
