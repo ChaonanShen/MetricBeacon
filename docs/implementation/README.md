@@ -66,5 +66,10 @@ The completed developer-infrastructure slice is
 with gate evidence in
 [`worktree_isolated_development_progress.md`](worktree_isolated_development_progress.md).
 
+The active product Workbench UI migration is
+[`workbench_product_ui_migration_execution_plan.md`](workbench_product_ui_migration_execution_plan.md),
+with gate evidence in
+[`workbench_product_ui_migration_progress.md`](workbench_product_ui_migration_progress.md).
+
 The related stable product and architecture material is in
 [`../design/README.md`](../design/README.md); ADRs remain in [`../adr/`](../adr/).

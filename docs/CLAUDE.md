@@ -94,6 +94,11 @@ The completed developer-infrastructure slice is
 It isolates Compose resources, host ports and local runtime data per Git worktree and adds one unified build/start/verify entrypoint. Progress is tracked in
 [`implementation/worktree_isolated_development_progress.md`](implementation/worktree_isolated_development_progress.md).
 
+The active product Workbench UI migration is
+[`implementation/workbench_product_ui_migration_execution_plan.md`](implementation/workbench_product_ui_migration_execution_plan.md).
+It ports the reviewed prototype's Canvas / Context / Chat information architecture onto the existing real Session, SSE and Grafana TimeSeries behavior without adding prototype Mock state or future product capabilities. Progress is tracked in
+[`implementation/workbench_product_ui_migration_progress.md`](implementation/workbench_product_ui_migration_progress.md).
+
 ## Reading and conflict rules
 
 | Question | Read first | Authority when documents disagree |
@@ -139,6 +144,8 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/session_history_workbench_progress.md` | Completed progress record | Gate status and verification evidence for Session history. |
 | `implementation/worktree_isolated_development_execution_plan.md` | Completed execution plan | Per-worktree runtime isolation and the unified build/start/verify entrypoint. |
 | `implementation/worktree_isolated_development_progress.md` | Completed progress record | Gate status and verification evidence for worktree isolation. |
+| `implementation/workbench_product_ui_migration_execution_plan.md` | Active execution plan | Prototype-inspired production Workbench shell over the existing real Session/SSE/Chart behavior. |
+| `implementation/workbench_product_ui_migration_progress.md` | Active progress record | Gate status and verification evidence for the Workbench UI migration. |
 | `implementation/real_backend_test_matrix.md` | Current runbook | Code-agent command order, expected result shapes and layered failure localization. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |
