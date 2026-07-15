@@ -4,6 +4,7 @@ use (
 	./apps/grafana-plugin/backend
 	./packages/generated-clients/go
 	./packages/generated-contracts/go
+	./packages/approval-evidence-go
 	./packages/request-context-go
 	./packages/testkit-go
 	./services/ai-core
