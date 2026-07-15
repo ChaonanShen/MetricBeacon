@@ -112,7 +112,9 @@ mini-torchbearing/
 │   ├── e2e/mock/                          # 六种有界输入的 Mock API 与 Playwright E2E
 │   │   ├── api-e2e.mjs
 │   │   ├── api-e2e.sh
-│   │   └── browser-e2e.spec.ts
+│   │   ├── browser-e2e.spec.ts            # 真实多轮、Session、replay 与图表纵向链
+│   │   ├── browser-shell.spec.ts          # 主题、响应式、a11y 与请求/存储边界
+│   │   └── browser-errors.spec.ts         # Task 依赖错误与同幂等键重试
 │   └── e2e/real-agent/api-smoke.mjs        # view-only Eino、8 轮重复规划、本地回复、replay 与泄漏检查
 │
 ├── scripts/

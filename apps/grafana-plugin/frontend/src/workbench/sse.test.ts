@@ -103,4 +103,37 @@ describe('subscribeTaskEvents', () => {
     expect(FakeEventSource.instances).toHaveLength(1);
     subscription.close();
   });
+
+  it('cancels a scheduled reconnect when the owning Session closes the subscription', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', { setTimeout, clearTimeout });
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const subscription = subscribeTaskEvents(() => '/events', () => 0, vi.fn(), vi.fn());
+
+    FakeEventSource.instances[0].emit('task.status_changed', event(2));
+    subscription.close();
+    vi.advanceTimersByTime(5_000);
+
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(FakeEventSource.instances[0].closed).toBe(true);
+  });
+
+  it('reports malformed event data and reconnects without advancing the cursor', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', { setTimeout, clearTimeout });
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const urls: number[] = [];
+    const onError = vi.fn();
+    const subscription = subscribeTaskEvents((after) => {
+      urls.push(after);
+      return `/events?afterSequence=${after}`;
+    }, () => 7, vi.fn(), onError);
+
+    FakeEventSource.instances[0].onmessage?.(new MessageEvent('message', { data: '{not-json' }));
+    vi.advanceTimersByTime(500);
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(urls).toEqual([7, 7]);
+    subscription.close();
+  });
 });

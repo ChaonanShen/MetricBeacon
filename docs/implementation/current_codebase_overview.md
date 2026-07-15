@@ -201,7 +201,7 @@ Backend 由 Grafana 承载。
 |`make lint`|Go 格式检查和前端 typecheck。|通过。|
 |`make boundary-check`、`make secret-scan`|AI Core 依赖边界和常见私钥/AKIA 模式扫描。|通过。|
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
-|`make e2e-mock`|构建前端与三个容器；API E2E 覆盖六种有界输入和 owner Session page/activity；Playwright 验证 A/B 会话创建、切换恢复、继续旧会话置顶、刷新、stale Session、产品导航、真实 Context 与响应式布局。|当前 UI 迁移 G2 已通过 API 链和 Playwright 1/1；全切片收口时再执行连续两轮，临时资源均由脚本清理。|
+|`make e2e-mock`|构建前端与三个容器；API E2E 覆盖六种有界输入和 owner Session page/activity；3 个 Playwright 场景验证真实多轮/A-B/replay、503 同幂等键重试、产品导航、真实 Context、dark/light、响应式布局和请求/存储防泄漏。|UI 迁移 G5 连续两轮均通过 API 全链与 Playwright 3/3；临时资源均由脚本清理。|
 |`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后执行相同 API 与会话历史浏览器 E2E。|通过；六种输入均返回非空有限且按有效 step 对齐的真实 series，A/B 历史恢复与继续对话也在真实 metrics Adapter 下通过。|
 |`make diagnose-real-metrics`|绕过 Grafana 与 AI Core，分阶段检查原始 Prometheus 与 assistant-mcp 的真实返回及指标语义。|通过：三条 vector/matrix 各 1 series/1 sample；CPU 约 98.2..98.7，内存约 64.64，load 3.25，均通过语义校验。|
 |`make diagnose-deepseek`|绕过 Agent/MCP，验证配置 model 出现在 `/models` 并返回固定严格 JSON。|通过：`deepseek-v4-flash` 在 539 ms 返回 `{"status":"ok","answer":"pong"}`；未输出 key。|
