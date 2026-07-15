@@ -249,7 +249,7 @@ export interface components {
             /** @enum {string} */
             status: "needs_approval" | "completed";
             checkpoint: string;
-            intentDraft: components["schemas"]["IntentDraft"] | null;
+            intentDraft?: components["schemas"]["IntentDraft"];
         };
         RuntimeOutput: {
             /** @constant */
@@ -331,6 +331,12 @@ export interface components {
             capabilityId: "order_service.restore_worker_concurrency";
             /** @constant */
             serviceRef: "order-demo";
+            instanceEpoch: string;
+            expectedVersion: number;
+            /** Format: date-time */
+            observedAt: string;
+            policyDigest: string;
+            playbookDigest: string;
             /** @constant */
             beforeConcurrency: 0;
             /** @constant */

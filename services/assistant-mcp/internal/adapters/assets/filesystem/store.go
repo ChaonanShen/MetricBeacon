@@ -13,6 +13,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"gopkg.in/yaml.v3"
+	"mini-torchbearing.local/services/assistant-mcp/internal/ports/assets"
 	"mini-torchbearing.local/services/assistant-mcp/internal/runtime"
 )
 
@@ -39,6 +40,8 @@ type Store struct {
 	playbooks map[string]Playbook
 	mappings  []alertMapping
 }
+
+var _ assets.Port = (*Store)(nil)
 
 func New(assetDirectory, schemaDirectory string) (*Store, error) {
 	if strings.TrimSpace(assetDirectory) == "" || strings.TrimSpace(schemaDirectory) == "" {

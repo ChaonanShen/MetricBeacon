@@ -186,6 +186,11 @@ type IntentDraft struct {
 	AfterConcurrency  interface{} `json:"afterConcurrency"`
 	BeforeConcurrency interface{} `json:"beforeConcurrency"`
 	CapabilityId      interface{} `json:"capabilityId"`
+	ExpectedVersion   int         `json:"expectedVersion"`
+	InstanceEpoch     string      `json:"instanceEpoch"`
+	ObservedAt        time.Time   `json:"observedAt"`
+	PlaybookDigest    string      `json:"playbookDigest"`
+	PolicyDigest      string      `json:"policyDigest"`
 	Risk              string      `json:"risk"`
 	ServiceRef        interface{} `json:"serviceRef"`
 }
@@ -282,7 +287,7 @@ type ResumeRunInputDiagnosisCandidateAction string
 // ResumeRunOutput defines model for ResumeRunOutput.
 type ResumeRunOutput struct {
 	Checkpoint  string                `json:"checkpoint"`
-	IntentDraft IntentDraft           `json:"intentDraft"`
+	IntentDraft *IntentDraft          `json:"intentDraft,omitempty"`
 	Status      ResumeRunOutputStatus `json:"status"`
 }
 

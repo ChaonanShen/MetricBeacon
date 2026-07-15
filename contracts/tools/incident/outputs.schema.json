@@ -19,10 +19,10 @@
       }
     },
     "ResumeRunOutput": {
-      "type": "object", "additionalProperties": false, "required": ["status", "checkpoint", "intentDraft"],
+      "type": "object", "additionalProperties": false, "required": ["status", "checkpoint"],
       "properties": {
         "status": {"type": "string", "enum": ["needs_approval", "completed"]}, "checkpoint": {"type": "string", "minLength": 1, "maxLength": 4096},
-        "intentDraft": {"anyOf": [{"$ref": "#/$defs/IntentDraft"}, {"type": "null"}]}
+        "intentDraft": {"$ref": "#/$defs/IntentDraft"}
       }
     },
     "AssetRef": {
@@ -30,8 +30,8 @@
       "properties": {"kind": {"type": "string", "enum": ["knowledge", "skill", "playbook"]}, "id": {"type": "string"}, "version": {"type": "string"}, "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
     },
     "IntentDraft": {
-      "type": "object", "additionalProperties": false, "required": ["capabilityId", "serviceRef", "beforeConcurrency", "afterConcurrency", "risk"],
-      "properties": {"capabilityId": {"const": "order_service.restore_worker_concurrency"}, "serviceRef": {"const": "order-demo"}, "beforeConcurrency": {"const": 0}, "afterConcurrency": {"const": 2}, "risk": {"type": "string", "minLength": 1, "maxLength": 500}}
+      "type": "object", "additionalProperties": false, "required": ["capabilityId", "serviceRef", "instanceEpoch", "expectedVersion", "observedAt", "policyDigest", "playbookDigest", "beforeConcurrency", "afterConcurrency", "risk"],
+      "properties": {"capabilityId": {"const": "order_service.restore_worker_concurrency"}, "serviceRef": {"const": "order-demo"}, "instanceEpoch": {"type": "string", "minLength": 1}, "expectedVersion": {"type": "integer", "minimum": 1}, "observedAt": {"type": "string", "format": "date-time"}, "policyDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "playbookDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "beforeConcurrency": {"const": 0}, "afterConcurrency": {"const": 2}, "risk": {"type": "string", "minLength": 1, "maxLength": 500}}
     },
     "RuntimeOutput": {
       "type": "object", "additionalProperties": false, "required": ["serviceRef", "instanceEpoch", "startedAt", "supervisorStatus"],
@@ -59,4 +59,3 @@
     }
   }
 }
-
