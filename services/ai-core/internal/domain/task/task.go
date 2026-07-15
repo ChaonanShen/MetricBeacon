@@ -186,12 +186,11 @@ func (t *AnalysisTask) RecordIntent(value RemediationIntent, now time.Time) erro
 	t.IncidentPlan.Intent = &copyValue
 	t.IncidentPlan.Phase = PhaseNeedsApproval
 	t.UpdatedAt = now.UTC()
-	t.Version++
 	return nil
 }
 
 func (t *AnalysisTask) CompleteNoAction(now time.Time) error {
-	if t.Kind != KindIncidentRemediation || t.Status != StatusRunningTools || t.IncidentPlan == nil || t.IncidentPlan.Diagnosis == nil || t.IncidentPlan.Diagnosis.CandidateAction != "no_action" || t.IncidentPlan.Intent != nil {
+	if t.Kind != KindIncidentRemediation || t.Status != StatusRunningTools || t.IncidentPlan == nil || t.IncidentPlan.Diagnosis == nil || t.IncidentPlan.Intent != nil {
 		return common.NewError(common.InvalidStateTransition, "incident is not eligible for no-action completion", false)
 	}
 	t.IncidentPlan.Phase = PhaseNoAction

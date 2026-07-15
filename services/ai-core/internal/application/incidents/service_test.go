@@ -36,7 +36,7 @@ func TestIngestCreatesOrgIncidentBeforeNotificationAndDiagnosesAsynchronously(t 
 		t.Fatalf("ingest result: %#v, %v", result, err)
 	}
 	item := waitForDiagnosis(t, store, result.TaskID)
-	if item.Kind != task.KindIncidentRemediation || item.IncidentPlan == nil || item.IncidentPlan.Diagnosis == nil || item.IncidentPlan.Intent != nil || item.Status != task.StatusRunningTools {
+	if item.Kind != task.KindIncidentRemediation || item.IncidentPlan == nil || item.IncidentPlan.Diagnosis == nil || item.IncidentPlan.Intent == nil || item.Status != task.StatusWaitingApproval {
 		t.Fatalf("incident task: %#v", item)
 	}
 	incidentSession, err := store.Sessions().Get(ctx, "org:1", item.SessionID)
@@ -53,7 +53,11 @@ func TestIngestCreatesOrgIncidentBeforeNotificationAndDiagnosesAsynchronously(t 
 	if err := notifier.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if notifier.Count() < 15 {
+	deadline := time.Now().Add(time.Second)
+	for notifier.Count() < 18 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if notifier.Count() < 18 {
 		t.Fatalf("notification count = %d", notifier.Count())
 	}
 
@@ -199,7 +203,7 @@ func (f *serviceToolset) Observe(context.Context, requestcontext.Context, string
 
 func (f *serviceToolset) Prepare(context.Context, requestcontext.Context, string, task.Diagnosis) (incidentport.PreparedRun, error) {
 	digest := strings.Repeat("a", 64)
-	return incidentport.PreparedRun{Status: "needs_approval", Checkpoint: "prepared-checkpoint", Intent: &incidentport.PreparedIntent{CapabilityID: "order_service.restore_worker_concurrency", ServiceRef: "order-demo", InstanceEpoch: "epoch-1", ExpectedVersion: 2, ObservedAt: time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC), PolicyDigest: digest, PlaybookDigest: digest, BeforeConcurrency: 0, AfterConcurrency: 2, RiskSummary: "bounded restore"}}, nil
+	return incidentport.PreparedRun{Status: "needs_approval", Checkpoint: "prepared-checkpoint", Intent: &incidentport.PreparedIntent{CapabilityID: "order_service.restore_worker_concurrency", ServiceRef: "order-demo", InstanceEpoch: "epoch-1", ExpectedVersion: 2, ObservedAt: time.Date(2026, 7, 16, 11, 0, 0, 0, time.UTC), PolicyDigest: digest, PlaybookDigest: digest, BeforeConcurrency: 0, AfterConcurrency: 2, RiskSummary: "bounded restore"}}, nil
 }
 
 func (f *serviceToolset) ResolveCalls() int64 { return f.resolveCalls.Load() }
@@ -279,7 +283,7 @@ func waitForDiagnosis(t *testing.T, store *storage.Store, taskID string) task.An
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		item, err := store.Tasks().Get(context.Background(), "org:1", taskID)
-		if err == nil && item.IncidentPlan != nil && item.IncidentPlan.Diagnosis != nil {
+		if err == nil && item.IncidentPlan != nil && item.IncidentPlan.Diagnosis != nil && (item.IncidentPlan.Intent != nil || item.Status == task.StatusCompleted || item.Status == task.StatusFailed) {
 			return item
 		}
 		time.Sleep(5 * time.Millisecond)

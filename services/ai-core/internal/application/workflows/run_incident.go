@@ -2,12 +2,16 @@ package workflows
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/remediation"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/clocks"
 	"mini-torchbearing.local/services/ai-core/internal/ports/events"
@@ -45,8 +49,11 @@ func (w RunIncidentWorkflow) Run(ctx context.Context, identity requestcontext.Co
 			return err
 		}
 	}
-	if item.Status != task.StatusRunningTools || item.IncidentPlan.Diagnosis != nil {
+	if item.Status != task.StatusRunningTools {
 		return nil
+	}
+	if item.IncidentPlan.Diagnosis != nil {
+		return w.prepare(ctx, identity, item)
 	}
 	observation, err := w.Toolset.Observe(ctx, identity, item.IncidentPlan.ServiceRef)
 	if err != nil {
@@ -94,7 +101,172 @@ func (w RunIncidentWorkflow) Run(ctx context.Context, identity requestcontext.Co
 		return err
 	}
 	w.notifyIncident(ctx, event)
+	item.LatestSequence = event.Sequence
+	return w.prepare(ctx, identity, item)
+}
+
+func (w RunIncidentWorkflow) prepare(ctx context.Context, identity requestcontext.Context, item task.AnalysisTask) error {
+	if item.Status != task.StatusRunningTools || item.IncidentPlan == nil || item.IncidentPlan.Diagnosis == nil || item.IncidentPlan.Intent != nil {
+		return nil
+	}
+	checkpoint, err := w.Store.TaskCheckpoints().Get(ctx, identity.TenantID, item.ID)
+	if err != nil {
+		return w.fail(ctx, item, err)
+	}
+	prepared, err := w.Toolset.Prepare(ctx, identity, checkpoint.OpaqueValue, *item.IncidentPlan.Diagnosis)
+	if err != nil {
+		return w.fail(ctx, item, err)
+	}
+	if prepared.Checkpoint == "" {
+		return w.fail(ctx, item, common.NewError(common.SchemaValidationFailed, "Playbook prepare checkpoint is missing", false))
+	}
+	if prepared.Status == "completed" {
+		if prepared.Intent != nil {
+			return w.fail(ctx, item, common.NewError(common.SchemaValidationFailed, "completed Playbook returned an Intent", false))
+		}
+		return w.completeNoAction(ctx, item, checkpoint, prepared.Checkpoint)
+	}
+	if prepared.Status != "needs_approval" || prepared.Intent == nil {
+		return w.fail(ctx, item, common.NewError(common.SchemaValidationFailed, "Playbook prepare result is invalid", false))
+	}
+	return w.requestApproval(ctx, identity.OrgID, item, checkpoint, prepared.Checkpoint, *prepared.Intent)
+}
+
+func (w RunIncidentWorkflow) requestApproval(ctx context.Context, orgID string, item task.AnalysisTask, checkpoint task.Checkpoint, opaqueCheckpoint string, draft incidentport.PreparedIntent) error {
+	now := w.Clock.Now().UTC()
+	draft.RiskSummary = strings.TrimSpace(draft.RiskSummary)
+	if orgID == "" {
+		return w.fail(ctx, item, common.NewError(common.InvalidArgument, "Incident organization is missing", false))
+	}
+	if err := validatePreparedIntent(item, draft, now); err != nil {
+		return w.fail(ctx, item, err)
+	}
+	expectedTaskVersion := item.Version
+	intentID := w.IDs.NewID("intent")
+	digest, err := preparedIntentDigest(intentID, draft)
+	if err != nil {
+		return w.fail(ctx, item, err)
+	}
+	intent := remediation.Intent{ID: intentID, Digest: digest, CapabilityID: draft.CapabilityID, ServiceRef: draft.ServiceRef, InstanceEpoch: draft.InstanceEpoch, ExpectedVersion: draft.ExpectedVersion, BeforeConcurrency: draft.BeforeConcurrency, AfterConcurrency: draft.AfterConcurrency, Risk: "low", CreatedAt: now}
+	if err := item.RecordIntent(intent, now); err != nil {
+		return w.fail(ctx, item, err)
+	}
+	if err := item.Transition(task.StatusWaitingApproval, now); err != nil {
+		return w.fail(ctx, item, err)
+	}
+	intentRecord, err := remediation.NewIntentRecord(item.TenantID, orgID, item.ID, intent)
+	if err != nil {
+		return w.fail(ctx, item, err)
+	}
+	approval, err := remediation.NewApproval(w.IDs.NewID("approval"), item.TenantID, intentRecord.OrgID, item.ID, intent.ID, intent.Digest, now)
+	if err != nil {
+		return w.fail(ctx, item, err)
+	}
+	if err := checkpoint.Replace(task.PhaseNeedsApproval, opaqueCheckpoint, now); err != nil {
+		return w.fail(ctx, item, err)
+	}
+	var persisted []task.TaskEvent
+	err = w.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Tasks().Update(ctx, item, expectedTaskVersion); err != nil {
+			return err
+		}
+		if err := tx.RemediationIntents().Create(ctx, intentRecord); err != nil {
+			return err
+		}
+		if err := tx.Approvals().Create(ctx, approval); err != nil {
+			return err
+		}
+		if err := tx.TaskCheckpoints().Update(ctx, checkpoint, checkpoint.Version-1); err != nil {
+			return err
+		}
+		intentEvent, err := w.appendIncidentEvent(ctx, tx, item, task.EventIntentPrepared, map[string]any{"intentId": intent.ID, "intentDigest": intent.Digest, "capabilityId": intent.CapabilityID, "serviceRef": intent.ServiceRef, "instanceEpoch": intent.InstanceEpoch, "expectedVersion": intent.ExpectedVersion, "beforeConcurrency": 0, "afterConcurrency": 2, "risk": "low"})
+		if err != nil {
+			return err
+		}
+		approvalEvent, err := w.appendIncidentEvent(ctx, tx, item, task.EventApprovalRequested, map[string]any{"approvalId": approval.ID, "intentDigest": approval.IntentDigest, "expiresAt": approval.ExpiresAt, "version": approval.Version})
+		if err != nil {
+			return err
+		}
+		statusEvent, err := w.appendIncidentEvent(ctx, tx, item, task.EventTaskStatusChanged, map[string]any{"previousStatus": task.StatusRunningTools, "status": task.StatusWaitingApproval})
+		if err != nil {
+			return err
+		}
+		persisted = []task.TaskEvent{intentEvent, approvalEvent, statusEvent}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for _, event := range persisted {
+		w.notifyIncident(ctx, event)
+	}
 	return nil
+}
+
+func (w RunIncidentWorkflow) completeNoAction(ctx context.Context, item task.AnalysisTask, checkpoint task.Checkpoint, opaqueCheckpoint string) error {
+	previous := item.Status
+	if err := item.CompleteNoAction(w.Clock.Now()); err != nil {
+		return w.fail(ctx, item, err)
+	}
+	if err := checkpoint.Replace(task.PhaseNoAction, opaqueCheckpoint, w.Clock.Now()); err != nil {
+		return w.fail(ctx, item, err)
+	}
+	var persisted []task.TaskEvent
+	err := w.Store.WithinTransaction(ctx, func(tx repositories.ApplicationStore) error {
+		if err := tx.Tasks().Update(ctx, item, item.Version-1); err != nil {
+			return err
+		}
+		if err := tx.TaskCheckpoints().Update(ctx, checkpoint, checkpoint.Version-1); err != nil {
+			return err
+		}
+		changed, err := w.appendIncidentEvent(ctx, tx, item, task.EventTaskStatusChanged, map[string]any{"previousStatus": previous, "status": task.StatusCompleted})
+		if err != nil {
+			return err
+		}
+		completed, err := w.appendIncidentEvent(ctx, tx, item, task.EventTaskCompleted, map[string]any{"task": incidentTaskSnapshot(item)})
+		if err != nil {
+			return err
+		}
+		persisted = []task.TaskEvent{changed, completed}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for _, event := range persisted {
+		w.notifyIncident(ctx, event)
+	}
+	return nil
+}
+
+func validatePreparedIntent(item task.AnalysisTask, value incidentport.PreparedIntent, now time.Time) error {
+	if item.IncidentPlan == nil || value.CapabilityID != "order_service.restore_worker_concurrency" || value.ServiceRef != item.IncidentPlan.ServiceRef || value.InstanceEpoch == "" || value.ExpectedVersion < 1 || value.BeforeConcurrency != 0 || value.AfterConcurrency != 2 || value.ObservedAt.IsZero() || value.ObservedAt.After(now.Add(5*time.Second)) || now.Sub(value.ObservedAt) > time.Minute || !remediation.ValidDigest("sha256:"+value.PolicyDigest) || "sha256:"+value.PlaybookDigest != item.IncidentPlan.Playbook.Digest || value.RiskSummary == "" || len(value.RiskSummary) > 500 {
+		return common.NewError(common.SchemaValidationFailed, "Playbook prepared an invalid remediation Intent", false)
+	}
+	return nil
+}
+
+func preparedIntentDigest(intentID string, value incidentport.PreparedIntent) (string, error) {
+	canonical := struct {
+		Version           string `json:"version"`
+		IntentID          string `json:"intentId"`
+		CapabilityID      string `json:"capabilityId"`
+		ServiceRef        string `json:"serviceRef"`
+		InstanceEpoch     string `json:"instanceEpoch"`
+		ExpectedVersion   int64  `json:"expectedVersion"`
+		ObservedAt        string `json:"observedAt"`
+		PolicyDigest      string `json:"policyDigest"`
+		PlaybookDigest    string `json:"playbookDigest"`
+		BeforeConcurrency int    `json:"beforeConcurrency"`
+		AfterConcurrency  int    `json:"afterConcurrency"`
+		RiskSummary       string `json:"riskSummary"`
+	}{Version: "v1", IntentID: intentID, CapabilityID: value.CapabilityID, ServiceRef: value.ServiceRef, InstanceEpoch: value.InstanceEpoch, ObservedAt: value.ObservedAt.UTC().Format(time.RFC3339Nano), PolicyDigest: "sha256:" + value.PolicyDigest, PlaybookDigest: "sha256:" + value.PlaybookDigest, RiskSummary: value.RiskSummary, ExpectedVersion: value.ExpectedVersion, BeforeConcurrency: value.BeforeConcurrency, AfterConcurrency: value.AfterConcurrency}
+	encoded, err := json.Marshal(canonical)
+	if err != nil {
+		return "", common.NewError(common.InternalError, "cannot encode remediation Intent", false)
+	}
+	digest := sha256.Sum256(encoded)
+	return "sha256:" + fmt.Sprintf("%x", digest[:]), nil
 }
 
 func validateDiagnosticEvidence(evidence []incidentport.ToolEvidence) error {
@@ -123,7 +295,7 @@ func (w RunIncidentWorkflow) Recover(ctx context.Context, identityFor func(task.
 		return err
 	}
 	for _, item := range items {
-		if item.Kind != task.KindIncidentRemediation || item.IncidentPlan == nil || item.IncidentPlan.Diagnosis != nil {
+		if item.Kind != task.KindIncidentRemediation || item.IncidentPlan == nil {
 			continue
 		}
 		if err := w.Run(ctx, identityFor(item), item.ID); err != nil {
