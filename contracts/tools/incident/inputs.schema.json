@@ -42,7 +42,24 @@
     "GetOperationInput": {
       "type": "object", "additionalProperties": false, "required": ["operationId"],
       "properties": {"operationId": {"type": "string", "minLength": 1, "maxLength": 100}}
+    },
+    "RestoreWorkerInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operationId", "instanceEpoch", "expectedVersion", "expectedConcurrency", "newConcurrency", "intentDigest", "approvalId", "approvalEvidence"],
+      "properties": {
+        "operationId": {"type": "string", "minLength": 1, "maxLength": 100},
+        "instanceEpoch": {"type": "string", "minLength": 1, "maxLength": 200},
+        "expectedVersion": {"type": "integer", "minimum": 1},
+        "expectedConcurrency": {"const": 0},
+        "newConcurrency": {"const": 2},
+        "intentDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+        "approvalId": {"type": "string", "minLength": 1, "maxLength": 100},
+        "approvalEvidence": {"type": "string", "minLength": 1, "maxLength": 4096}
+      }
+    },
+    "BusinessProbeInput": {
+      "type": "object", "additionalProperties": false, "required": ["probeId"],
+      "properties": {"probeId": {"type": "string", "minLength": 1, "maxLength": 100}}
     }
   }
 }
-

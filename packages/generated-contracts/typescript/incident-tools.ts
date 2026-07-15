@@ -180,6 +180,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/order_service.restore_worker_concurrency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: components["x-operations"]["restoreWorkerConcurrency"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/order_service.get_recovery_metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: components["x-operations"]["getRecoveryMetrics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/order_service.run_business_probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: components["x-operations"]["runBusinessProbe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -222,6 +270,21 @@ export interface components {
         };
         GetOperationInput: {
             operationId: string;
+        };
+        RestoreWorkerInput: {
+            operationId: string;
+            instanceEpoch: string;
+            expectedVersion: number;
+            /** @constant */
+            expectedConcurrency: 0;
+            /** @constant */
+            newConcurrency: 2;
+            intentDigest: string;
+            approvalId: string;
+            approvalEvidence: string;
+        };
+        BusinessProbeInput: {
+            probeId: string;
         };
         AssetOutput: {
             id: string;
@@ -318,6 +381,23 @@ export interface components {
             approvalId: string;
             /** Format: date-time */
             executedAt: string;
+        };
+        RecoveryMetricsOutput: {
+            /** @constant */
+            windowSeconds: 30;
+            acceptedDelta: number;
+            completedDelta: number;
+            queueDepth: number;
+            oldestAgeSeconds: number;
+            /** Format: date-time */
+            observedAt: string;
+        };
+        BusinessProbeOutput: {
+            probeId: string;
+            /** @enum {string} */
+            result: "completed" | "timed_out" | "failed";
+            durationMs: number;
+            completedAt: string | null;
         };
         AssetRef: {
             /** @enum {string} */

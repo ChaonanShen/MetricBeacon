@@ -28,6 +28,27 @@ func (e AssetRefKind) Valid() bool {
 	}
 }
 
+// Defines values for BusinessProbeOutputResult.
+const (
+	BusinessProbeOutputResultCompleted BusinessProbeOutputResult = "completed"
+	BusinessProbeOutputResultFailed    BusinessProbeOutputResult = "failed"
+	BusinessProbeOutputResultTimedOut  BusinessProbeOutputResult = "timed_out"
+)
+
+// Valid indicates whether the value is a known member of the BusinessProbeOutputResult enum.
+func (e BusinessProbeOutputResult) Valid() bool {
+	switch e {
+	case BusinessProbeOutputResultCompleted:
+		return true
+	case BusinessProbeOutputResultFailed:
+		return true
+	case BusinessProbeOutputResultTimedOut:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RecentOutcomesInputStatus.
 const (
 	RecentOutcomesInputStatusCompleted  RecentOutcomesInputStatus = "completed"
@@ -114,16 +135,16 @@ func (e ResumeRunInputDiagnosisCandidateAction) Valid() bool {
 
 // Defines values for ResumeRunOutputStatus.
 const (
-	Completed     ResumeRunOutputStatus = "completed"
-	NeedsApproval ResumeRunOutputStatus = "needs_approval"
+	ResumeRunOutputStatusCompleted     ResumeRunOutputStatus = "completed"
+	ResumeRunOutputStatusNeedsApproval ResumeRunOutputStatus = "needs_approval"
 )
 
 // Valid indicates whether the value is a known member of the ResumeRunOutputStatus enum.
 func (e ResumeRunOutputStatus) Valid() bool {
 	switch e {
-	case Completed:
+	case ResumeRunOutputStatusCompleted:
 		return true
-	case NeedsApproval:
+	case ResumeRunOutputStatusNeedsApproval:
 		return true
 	default:
 		return false
@@ -172,6 +193,22 @@ type AssetRef struct {
 
 // AssetRefKind defines model for AssetRef.Kind.
 type AssetRefKind string
+
+// BusinessProbeInput defines model for BusinessProbeInput.
+type BusinessProbeInput struct {
+	ProbeId string `json:"probeId"`
+}
+
+// BusinessProbeOutput defines model for BusinessProbeOutput.
+type BusinessProbeOutput struct {
+	CompletedAt *time.Time                `json:"completedAt"`
+	DurationMs  int                       `json:"durationMs"`
+	ProbeId     string                    `json:"probeId"`
+	Result      BusinessProbeOutputResult `json:"result"`
+}
+
+// BusinessProbeOutputResult defines model for BusinessProbeOutput.Result.
+type BusinessProbeOutputResult string
 
 // EmptyInput defines model for EmptyInput.
 type EmptyInput = map[string]interface{}
@@ -252,6 +289,16 @@ type RecentOutcomesOutputOrdersFailureReason string
 // RecentOutcomesOutputOrdersStatus defines model for RecentOutcomesOutput.Orders.Status.
 type RecentOutcomesOutputOrdersStatus string
 
+// RecoveryMetricsOutput defines model for RecoveryMetricsOutput.
+type RecoveryMetricsOutput struct {
+	AcceptedDelta    float32     `json:"acceptedDelta"`
+	CompletedDelta   float32     `json:"completedDelta"`
+	ObservedAt       time.Time   `json:"observedAt"`
+	OldestAgeSeconds float32     `json:"oldestAgeSeconds"`
+	QueueDepth       float32     `json:"queueDepth"`
+	WindowSeconds    interface{} `json:"windowSeconds"`
+}
+
 // ResolveAlertInput defines model for ResolveAlertInput.
 type ResolveAlertInput struct {
 	AlertName string            `json:"alertName"`
@@ -267,6 +314,18 @@ type ResolveAlertOutput struct {
 	PlaybookId      string      `json:"playbookId"`
 	PlaybookVersion string      `json:"playbookVersion"`
 	ServiceRef      interface{} `json:"serviceRef"`
+}
+
+// RestoreWorkerInput defines model for RestoreWorkerInput.
+type RestoreWorkerInput struct {
+	ApprovalEvidence    string      `json:"approvalEvidence"`
+	ApprovalId          string      `json:"approvalId"`
+	ExpectedConcurrency interface{} `json:"expectedConcurrency"`
+	ExpectedVersion     int         `json:"expectedVersion"`
+	InstanceEpoch       string      `json:"instanceEpoch"`
+	IntentDigest        string      `json:"intentDigest"`
+	NewConcurrency      interface{} `json:"newConcurrency"`
+	OperationId         string      `json:"operationId"`
 }
 
 // ResumeRunInput defines model for ResumeRunInput.

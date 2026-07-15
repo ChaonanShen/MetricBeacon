@@ -55,7 +55,29 @@
     },
     "OperationOutput": {
       "type": "object", "additionalProperties": false, "required": ["operationId", "instanceEpoch", "beforeVersion", "afterVersion", "beforeConcurrency", "afterConcurrency", "intentDigest", "approvalId", "executedAt"],
-      "properties": {"operationId": {"type": "string"}, "instanceEpoch": {"type": "string"}, "beforeVersion": {"type": "integer"}, "afterVersion": {"type": "integer"}, "beforeConcurrency": {"const": 0}, "afterConcurrency": {"const": 2}, "intentDigest": {"type": "string"}, "approvalId": {"type": "string"}, "executedAt": {"type": "string", "format": "date-time"}}
+      "properties": {"operationId": {"type": "string"}, "instanceEpoch": {"type": "string"}, "beforeVersion": {"type": "integer", "minimum": 1}, "afterVersion": {"type": "integer", "minimum": 2}, "beforeConcurrency": {"const": 0}, "afterConcurrency": {"const": 2}, "intentDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}, "approvalId": {"type": "string"}, "executedAt": {"type": "string", "format": "date-time"}}
+    },
+    "RecoveryMetricsOutput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["windowSeconds", "acceptedDelta", "completedDelta", "queueDepth", "oldestAgeSeconds", "observedAt"],
+      "properties": {
+        "windowSeconds": {"const": 30},
+        "acceptedDelta": {"type": "number", "minimum": 0},
+        "completedDelta": {"type": "number", "minimum": 0},
+        "queueDepth": {"type": "number", "minimum": 0, "maximum": 100},
+        "oldestAgeSeconds": {"type": "number", "minimum": 0},
+        "observedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "BusinessProbeOutput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["probeId", "result", "durationMs", "completedAt"],
+      "properties": {
+        "probeId": {"type": "string", "minLength": 1},
+        "result": {"type": "string", "enum": ["completed", "timed_out", "failed"]},
+        "durationMs": {"type": "integer", "minimum": 0, "maximum": 6000},
+        "completedAt": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]}
+      }
     }
   }
 }

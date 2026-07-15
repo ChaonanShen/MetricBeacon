@@ -28,6 +28,12 @@ paths:
     post: {$ref: '#/components/x-operations/getRecent'}
   /order_service.get_operation:
     post: {$ref: '#/components/x-operations/getOperation'}
+  /order_service.restore_worker_concurrency:
+    post: {$ref: '#/components/x-operations/restoreWorkerConcurrency'}
+  /order_service.get_recovery_metrics:
+    post: {$ref: '#/components/x-operations/getRecoveryMetrics'}
+  /order_service.run_business_probe:
+    post: {$ref: '#/components/x-operations/runBusinessProbe'}
 components:
   schemas:
     AssetGetInput: {$ref: './inputs.schema.json#/$defs/AssetGetInput'}
@@ -37,6 +43,8 @@ components:
     EmptyInput: {$ref: './inputs.schema.json#/$defs/EmptyInput'}
     RecentOutcomesInput: {$ref: './inputs.schema.json#/$defs/RecentOutcomesInput'}
     GetOperationInput: {$ref: './inputs.schema.json#/$defs/GetOperationInput'}
+    RestoreWorkerInput: {$ref: './inputs.schema.json#/$defs/RestoreWorkerInput'}
+    BusinessProbeInput: {$ref: './inputs.schema.json#/$defs/BusinessProbeInput'}
     AssetOutput: {$ref: './outputs.schema.json#/$defs/AssetOutput'}
     ResolveAlertOutput: {$ref: './outputs.schema.json#/$defs/ResolveAlertOutput'}
     StartRunOutput: {$ref: './outputs.schema.json#/$defs/StartRunOutput'}
@@ -47,6 +55,8 @@ components:
     PolicyOutput: {$ref: './outputs.schema.json#/$defs/PolicyOutput'}
     RecentOutcomesOutput: {$ref: './outputs.schema.json#/$defs/RecentOutcomesOutput'}
     OperationOutput: {$ref: './outputs.schema.json#/$defs/OperationOutput'}
+    RecoveryMetricsOutput: {$ref: './outputs.schema.json#/$defs/RecoveryMetricsOutput'}
+    BusinessProbeOutput: {$ref: './outputs.schema.json#/$defs/BusinessProbeOutput'}
   x-operations:
     knowledgeGet: {operationId: knowledgeGetDocument, summary: Load a pinned Knowledge document, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AssetGetInput'}}}}, responses: {'200': {description: Asset, content: {application/json: {schema: {$ref: '#/components/schemas/AssetOutput'}}}}}}
     skillGet: {operationId: skillsGetSkill, summary: Load a pinned diagnostic Skill, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AssetGetInput'}}}}, responses: {'200': {description: Asset, content: {application/json: {schema: {$ref: '#/components/schemas/AssetOutput'}}}}}}
@@ -59,4 +69,6 @@ components:
     getPolicy: {operationId: orderServiceGetWorkerPolicy, summary: Read the pinned healthy worker policy, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/EmptyInput'}}}}, responses: {'200': {description: Policy, content: {application/json: {schema: {$ref: '#/components/schemas/PolicyOutput'}}}}}}
     getRecent: {operationId: orderServiceGetRecentOutcomes, summary: Read bounded recent outcomes, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RecentOutcomesInput'}}}}, responses: {'200': {description: Outcomes, content: {application/json: {schema: {$ref: '#/components/schemas/RecentOutcomesOutput'}}}}}}
     getOperation: {operationId: orderServiceGetOperation, summary: Reconcile a typed operation, x-mtb-timeout-ms: 2000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GetOperationInput'}}}}, responses: {'200': {description: Receipt, content: {application/json: {schema: {$ref: '#/components/schemas/OperationOutput'}}}}}}
-
+    restoreWorkerConcurrency: {operationId: orderServiceRestoreWorkerConcurrency, summary: Execute only the approved typed worker restore, x-mtb-timeout-ms: 3000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RestoreWorkerInput'}}}}, responses: {'200': {description: Idempotent receipt, content: {application/json: {schema: {$ref: '#/components/schemas/OperationOutput'}}}}}}
+    getRecoveryMetrics: {operationId: orderServiceGetRecoveryMetrics, summary: Read the fixed registered Prometheus recovery view, x-mtb-timeout-ms: 3000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/EmptyInput'}}}}, responses: {'200': {description: Bounded recovery metrics, content: {application/json: {schema: {$ref: '#/components/schemas/RecoveryMetricsOutput'}}}}}}
+    runBusinessProbe: {operationId: orderServiceRunBusinessProbe, summary: Run one fixed bounded real order-processing probe, x-mtb-timeout-ms: 6000, requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BusinessProbeInput'}}}}, responses: {'200': {description: Probe outcome, content: {application/json: {schema: {$ref: '#/components/schemas/BusinessProbeOutput'}}}}}}
