@@ -71,5 +71,14 @@ The completed product Workbench UI migration is
 with gate evidence in
 [`workbench_product_ui_migration_progress.md`](workbench_product_ui_migration_progress.md).
 
+The active slice is
+[`order_service_incident_remediation_execution_plan.md`](order_service_incident_remediation_execution_plan.md).
+It adds a controllable Docker order service and the complete alert, bounded
+diagnosis, Admin approval, typed remediation, recovery verification and audit
+loop. Gate evidence is tracked in
+[`order_service_incident_remediation_progress.md`](order_service_incident_remediation_progress.md).
+The PostgreSQL plan is preserved as a superseded-before-implementation future
+external-system candidate.
+
 The related stable product and architecture material is in
 [`../design/README.md`](../design/README.md); ADRs remain in [`../adr/`](../adr/).

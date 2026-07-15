@@ -1,6 +1,6 @@
 # Documentation guide and status
 
-> Last reviewed: 2026-07-15
+> Last reviewed: 2026-07-16
 > Scope: documentation ownership, reading routes, and lifecycle status.
 
 This file is the documentation counterpart to the repository-wide
@@ -99,6 +99,16 @@ The completed product Workbench UI migration is
 It ports the reviewed prototype's Canvas / Context / Chat information architecture onto the existing real Session, SSE and Grafana TimeSeries behavior without adding prototype Mock state or future product capabilities. Progress is tracked in
 [`implementation/workbench_product_ui_migration_progress.md`](implementation/workbench_product_ui_migration_progress.md).
 
+The active next slice is
+[`implementation/order_service_incident_remediation_execution_plan.md`](implementation/order_service_incident_remediation_execution_plan.md).
+It implements a Docker-hosted order queue whose real worker failure is detected
+by Prometheus/Grafana and handled through versioned Knowledge/Skill/Playbook,
+bounded read-only diagnosis, Admin-approved typed remediation, three-part
+recovery verification and persistent audit. Progress is tracked in
+[`implementation/order_service_incident_remediation_progress.md`](implementation/order_service_incident_remediation_progress.md).
+The earlier PostgreSQL plan was superseded before implementation and remains a
+future real-external-system candidate.
+
 ## Reading and conflict rules
 
 | Question | Read first | Authority when documents disagree |
@@ -146,6 +156,9 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/worktree_isolated_development_progress.md` | Completed progress record | Gate status and verification evidence for worktree isolation. |
 | `implementation/workbench_product_ui_migration_execution_plan.md` | Completed execution plan | Prototype-inspired production Workbench shell over the existing real Session/SSE/Chart behavior. |
 | `implementation/workbench_product_ui_migration_progress.md` | Completed progress record | Gate status and verification evidence for the Workbench UI migration. |
+| `implementation/order_service_incident_remediation_execution_plan.md` | Active execution plan | Controllable order-service incident diagnosis, approval, typed remediation, recovery and audit slice. |
+| `implementation/order_service_incident_remediation_progress.md` | Active progress record | Gate status and verification evidence for the order-service incident slice. |
+| `implementation/postgresql_incident_remediation_execution_plan.md` | Superseded before implementation | Preserved PostgreSQL-specific follow-on candidate. |
 | `implementation/real_backend_test_matrix.md` | Current runbook | Code-agent command order, expected result shapes and layered failure localization. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |

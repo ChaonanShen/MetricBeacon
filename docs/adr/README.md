@@ -20,5 +20,8 @@
 |[ADR-020](ADR-020-natural-language-only-workbench-query-intent.md)|Superseded|Workbench 只提交自然语言，原本由 AI Core 本地解析时间意图|
 |[ADR-021](ADR-021-agent-planned-bounded-query-intent.md)|Accepted|同步 Agent 规划受限 view/range/step，本地验证并冻结 QueryPlan|
 |[ADR-022](ADR-022-private-session-history.md)|Accepted|当前用户私有的 Session 历史、活跃时间排序与 Workbench 恢复边界|
+|[ADR-023](ADR-023-org-incident-workflow-ownership.md)|Accepted|组织事件会话、Incident Task、Checkpoint、Approval 和审计的 AI Core 所有权|
+|[ADR-024](ADR-024-versioned-operational-assets-and-capabilities.md)|Accepted|assistant-mcp 版本化 Knowledge/Skill/Playbook 与有界能力注册表|
+|[ADR-025](ADR-025-typed-business-remediation-boundary.md)|Accepted|类型化业务修复、Fault Injection 隔离、ApprovalEvidence 和三层审计|
 
 新增 ADR 时应至少包含：背景、决策、备选方案、影响、开放问题、复审条件和关联文档。

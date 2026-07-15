@@ -1,0 +1,23 @@
+# 可控订单业务系统事件处置闭环进度记录
+
+> status: active
+> createdAt: 2026-07-16
+> plan: [`order_service_incident_remediation_execution_plan.md`](order_service_incident_remediation_execution_plan.md)
+
+## 执行状态
+
+|Gate|状态|证据|
+|-|-|-|
+|G0：计划、ADR、文档路由|已完成|ADR-023/024/025 固定所有权、资产能力与类型化修复边界；新计划和文档路由建立；`git diff --check` 与 `make validate-contracts` 通过。|
+|G1：Contracts-first|未开始|—|
+|G2：order-demo|未开始|—|
+|G3：可观测性与隔离拓扑|未开始|—|
+|G4：assistant-mcp 资产与能力|未开始|—|
+|G5：AI Core 只读 Incident|未开始|—|
+|G6：审批、执行、验证与审计|未开始|—|
+|G7：Plugin 与 Workbench|未开始|—|
+|G8：E2E 与收口|未开始|—|
+
+## 当前边界
+
+G0 已完成。代码、合同、数据库和运行拓扑尚未改变，下一步从跨进程合同开始。
