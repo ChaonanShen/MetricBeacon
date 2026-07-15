@@ -21,6 +21,19 @@ const (
 	EventChartExecutionDone      EventType = "chart.execution_completed"
 	EventTaskCompleted           EventType = "task.completed"
 	EventTaskFailed              EventType = "task.failed"
+	EventAlertReceived           EventType = "alert.received"
+	EventPlaybookResolved        EventType = "playbook.resolved"
+	EventAssetsPinned            EventType = "assets.pinned"
+	EventDiagnosisCompleted      EventType = "diagnosis.completed"
+	EventIntentPrepared          EventType = "intent.prepared"
+	EventApprovalRequested       EventType = "approval.requested"
+	EventApprovalDecided         EventType = "approval.decided"
+	EventRemediationStarted      EventType = "remediation.started"
+	EventRemediationReconciled   EventType = "remediation.reconciled"
+	EventVerificationRuntime     EventType = "verification.runtime"
+	EventVerificationMetrics     EventType = "verification.metrics"
+	EventVerificationBusiness    EventType = "verification.business"
+	EventAuditRecorded           EventType = "audit.recorded"
 )
 
 type EventDraft struct {

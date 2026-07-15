@@ -144,7 +144,7 @@ func TestApplicationStoreRollbackAndIdempotencyContract(t *testing.T) {
 	ctx := context.Background()
 	store := openStore(t)
 	now := fixedNow()
-	rolledBack, err := session.New("session_rollback", tenantID, "rolled back", "user:1", now)
+	rolledBack, err := session.NewPrivate("session_rollback", tenantID, "1", "rolled back", "user:1", now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,7 +335,7 @@ func TestOnlyOneConcurrentActiveTaskCanBeCreatedForSession(t *testing.T) {
 	ctx := context.Background()
 	store := openStore(t)
 	now := fixedNow()
-	analysisSession, err := session.New("session_concurrent", tenantID, "Concurrent", "user:1", now)
+	analysisSession, err := session.NewPrivate("session_concurrent", tenantID, "1", "Concurrent", "user:1", now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -449,7 +449,7 @@ func createTaskFixture(t *testing.T, ctx context.Context, store repositories.App
 	if err != nil {
 		t.Fatal(err)
 	}
-	analysisSession, err := session.New("session_1", tenantID, "Node exporter analysis", "user:1", now)
+	analysisSession, err := session.NewPrivate("session_1", tenantID, "1", "Node exporter analysis", "user:1", now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,7 +482,7 @@ func createTaskFixture(t *testing.T, ctx context.Context, store repositories.App
 func createSessionHistoryFixture(t *testing.T, ctx context.Context, store repositories.ApplicationStore, tenant, owner, id string, updatedAt time.Time, withTask bool) {
 	t.Helper()
 	createdAt := fixedNow().Add(-time.Hour)
-	value, err := session.New(id, tenant, id, owner, createdAt)
+	value, err := session.NewPrivate(id, tenant, "1", id, owner, createdAt)
 	if err != nil {
 		t.Fatal(err)
 	}

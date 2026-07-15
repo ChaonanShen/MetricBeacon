@@ -68,7 +68,7 @@ func (s *Service) CreateSession(ctx context.Context, identity requestcontext.Con
 			result, err = tx.Sessions().GetOwned(ctx, identity.TenantID, identity.UserID, record.ResourceID)
 			return err
 		}
-		result, err = session.New(s.IDs.NewID("session"), identity.TenantID, input.Title, identity.UserID, s.Clock.Now())
+		result, err = session.NewPrivate(s.IDs.NewID("session"), identity.TenantID, identity.OrgID, input.Title, identity.UserID, s.Clock.Now())
 		if err != nil {
 			return err
 		}

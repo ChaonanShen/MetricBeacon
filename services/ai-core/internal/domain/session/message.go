@@ -12,6 +12,7 @@ type Role string
 const (
 	RoleUser      Role = "user"
 	RoleAssistant Role = "assistant"
+	RoleTrigger   Role = "trigger"
 )
 
 type Message struct {
@@ -28,7 +29,7 @@ func NewMessage(id, tenantID, sessionID, taskID string, role Role, content strin
 	if id == "" || tenantID == "" || sessionID == "" || taskID == "" || strings.TrimSpace(content) == "" {
 		return Message{}, common.NewError(common.InvalidArgument, "message id, tenant, session, task and content are required", false)
 	}
-	if role != RoleUser && role != RoleAssistant {
+	if role != RoleUser && role != RoleAssistant && role != RoleTrigger {
 		return Message{}, common.NewError(common.InvalidArgument, "message role is invalid", false)
 	}
 	return Message{ID: id, TenantID: tenantID, SessionID: sessionID, TaskID: taskID, Role: role, Content: content, CreatedAt: now.UTC()}, nil

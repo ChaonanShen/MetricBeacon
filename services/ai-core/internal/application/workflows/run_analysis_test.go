@@ -31,7 +31,7 @@ func TestRunPersistsOrderedEventsToolCallsAndCharts(t *testing.T) {
 	defer store.Close()
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
-	sessionValue, _ := session.New("session_1", "org:1", "Overview", "user:1", now)
+	sessionValue, _ := session.NewPrivate("session_1", "org:1", "1", "Overview", "user:1", now)
 	if err := store.Sessions().Create(ctx, sessionValue); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestRunUsesLiveCleanupContextAndPersistsFailureOrder(t *testing.T) {
 	defer store.Close()
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
-	sessionValue, _ := session.New("session_1", "org:1", "Overview", "user:1", now)
+	sessionValue, _ := session.NewPrivate("session_1", "org:1", "1", "Overview", "user:1", now)
 	if err := store.Sessions().Create(context.Background(), sessionValue); err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestRecoverInterruptedFailsPersistedWorkWithoutRerun(t *testing.T) {
 	defer store.Close()
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
-	sessionValue, _ := session.New("session_1", "org:1", "Overview", "user:1", now)
+	sessionValue, _ := session.NewPrivate("session_1", "org:1", "1", "Overview", "user:1", now)
 	if err := store.Sessions().Create(ctx, sessionValue); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestTransitionRollsBackWhenEventAppendFails(t *testing.T) {
 	defer store.Close()
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
-	sessionValue, _ := session.New("session_1", "org:1", "Overview", "user:1", now)
+	sessionValue, _ := session.NewPrivate("session_1", "org:1", "1", "Overview", "user:1", now)
 	if err := store.Sessions().Create(ctx, sessionValue); err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestConversationContextUsesPreviousTwelveMessagesInChronologicalOrder(t *te
 	defer store.Close()
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	timeRange, _ := common.NewAbsoluteTimeRange(now.Add(-30*time.Minute), now)
-	analysisSession, _ := session.New("session_context", "org:1", "Overview", "user:1", now)
+	analysisSession, _ := session.NewPrivate("session_context", "org:1", "1", "Overview", "user:1", now)
 	if err := store.Sessions().Create(ctx, analysisSession); err != nil {
 		t.Fatal(err)
 	}
