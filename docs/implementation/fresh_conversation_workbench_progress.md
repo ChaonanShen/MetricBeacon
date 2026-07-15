@@ -11,7 +11,7 @@
 |G0：计划激活|已完成|用户已确认懒创建 Session，并允许从运行中的 Task 立即切换；执行计划和文档路由已提交。|
 |G1：新建对话|已完成|Conversation header 已增加入口；Workbench 清理 Session/UI/route/ref/mutation 状态，旧 Task 迟到事件由 reducer 忽略；Mock browser E2E 验证新旧 Session 隔离。|
 |G2：对话栏布局|已完成|桌面左栏/画布使用约 1:3 flex 比例，左栏限制 320..420px；消息区独立纵向滚动，header 和输入保持固定；宽屏、矮视口和窄屏几何 E2E 通过。|
-|G3：全量验收|未开始|待运行 Mock、真实指标、真实 Agent 与全量门禁。|
+|G3：全量验收|受外部模型阻断|Mock、真实指标、DeepSeek 连通与 `make check` 通过；配置的 `deepseek-v4-flash` 在真实 Agent 多轮规划中重复返回非预期参数或无效 JSON，未扩大本 UI 切片修复 Planner。|
 
 ## 当前边界
 
@@ -32,3 +32,14 @@
 
 - `make test-frontend`：9 个测试文件、26 个用例和 TypeScript typecheck 通过。
 - `make e2e-mock`：frontend build、API E2E 和 Playwright 通过。Grafana 桌面壳内左栏/画布实测比例保持在约三分之一容差内，右栏维持 280px；560px 高视口中消息区产生真实 overflow 且 `scrollTop` 可改变，输入仍位于 Pane 内；900px 窄屏纵向排列和无水平溢出继续通过。
+
+## G3 验证证据
+
+- `make check`：生成物 diff、OpenAPI/JSON Schema、Go domain/application/adapters/backend、26 个前端单测、35 个诊断单测、TypeScript 和依赖边界全部通过。
+- `make e2e-real-metrics`：真实 Prometheus/node_exporter 的五种 API 输入与同一套 Playwright 新对话、栏宽、滚动、恢复和无溢出验收通过。
+- 加载 `.env` 后 `make diagnose-deepseek` 通过，配置模型返回严格 pong，证明 key、base URL 和模型可用。
+- `make e2e-real-agent` 已实际运行三次但未通过：两次概览正确选择 `cpu|memory|load`，却把未显式指定的计划生成为 `step=30s/window=30s`，与门禁要求的本地默认 `10s/60s` 不同；一次显式 `30m/10s` 请求的首轮三视图、真实查询和 durable events 通过，但后续 Planner 持续返回无效 JSON 并被安全映射为 retryable `dependency_unavailable`。试验性测试修改已全部撤回，未放宽 QueryPlan、工具、泄漏或持久化断言。
+
+## 收口状态
+
+新建对话、宽度和滚动功能本身已完成，所有确定性门禁与真实指标门禁通过。计划暂保持 `active`，仅等待是否另开 AI Planner 结构化输出稳定性切片；该问题不由本次前端改动引入，也不影响 Mock/真实指标 UI 使用。
