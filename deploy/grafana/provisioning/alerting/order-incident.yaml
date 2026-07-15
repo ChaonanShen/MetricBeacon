@@ -11,7 +11,7 @@ contactPoints:
           url: http://ai-core:8080/internal/v1/alerts/grafana
           httpMethod: POST
           maxAlerts: "10"
-          extraHeaders:
+          headers:
             X-MTB-Alert-Source: demo-grafana
           hmacConfig:
             secret: $ORDER_INCIDENT_WEBHOOK_SECRET

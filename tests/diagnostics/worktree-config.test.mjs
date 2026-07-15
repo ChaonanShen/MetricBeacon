@@ -101,3 +101,10 @@ test('published Docker port parsing rejects missing and zero ports', () => {
   assert.throws(() => parsePublishedPort('127.0.0.1:0'), /could not parse/);
   assert.throws(() => parsePublishedPort(''), /could not parse/);
 });
+
+test('Incident webhook uses Grafana receiver wire keys for source and HMAC headers', () => {
+  const provisioning = readFileSync(join(import.meta.dirname, '../../deploy/grafana/provisioning/alerting/order-incident.yaml'), 'utf8');
+  assert.match(provisioning, /\n\s+headers:\n\s+X-MTB-Alert-Source: demo-grafana\n/);
+  assert.doesNotMatch(provisioning, /extraHeaders/);
+  assert.match(provisioning, /header: X-Grafana-Alerting-Signature\n\s+timestampHeader: X-MTB-Alert-Timestamp/);
+});
