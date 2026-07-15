@@ -16,7 +16,8 @@ const (
 	HeaderRequestID   = "X-Request-ID"
 	HeaderTraceID     = "X-Trace-ID"
 
-	PermissionDatasourceQuery = "datasources:query"
+	PermissionDatasourceQuery  = "datasources:query"
+	PermissionIncidentDiagnose = "incidents:diagnose"
 )
 
 // RequestContextFromHeaders parses only the internal headers constructed by

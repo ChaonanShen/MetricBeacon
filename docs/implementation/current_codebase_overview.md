@@ -34,14 +34,14 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |位置|职责|当前实现边界|
 |-|-|-|
 |`contracts/`|跨进程协议的单一来源：Plugin Resource API、AI Core API、SSE 事件、MCP Tool Schema、错误码和示例。|通过 OpenAPI/JSON Schema 校验，并据此生成 Go/TypeScript 类型；业务模块不应另写重复 DTO。|
-|`packages/generated-clients`、`packages/generated-contracts`|契约生成物。前者是 AI Core HTTP Client，后者是 Grafana MCP 工具类型。|由 `scripts/generate-clients.sh` 生成，`make generated-client-diff` 检查生成结果可复现。|
+|`packages/generated-clients`、`packages/generated-contracts`|契约生成物。前者包含 AI Core 与 order-demo HTTP Client，后者包含 Grafana 与 Incident MCP 工具类型。|由 `scripts/generate-clients.sh` 生成，`make generated-client-diff` 检查生成结果可复现；Incident Go 类型使用 skip-prune 并断言关键类型存在。|
 |`packages/request-context-go`|跨服务传递的租户、组织、用户、角色、权限、请求与 Trace 上下文。|Plugin Backend 从 Grafana 请求上下文生成它；浏览器传入的身份头不会被信任。|
 |`packages/testkit-go`|测试用的确定性时钟与 ID 生成器。|仅为测试可重复性服务。|
 |`services/ai-core/internal/domain`|核心领域模型和状态规则：Session/Message、AnalysisTask/TaskEvent/ToolCall、Chart/Execution、绝对时间范围、有效 QueryPlan 与领域错误。|QueryPlan 只接受注册 step 和 CPU rate window；不依赖数据库、MCP、Grafana 或模型 SDK。|
 |`services/ai-core/internal/application` 与 `internal/ports`|命令服务、有限查询意图解析和分析工作流；Port 定义存储、事件通知、Agent、工具、时钟和 ID 等外部能力。|Task 创建前使用注入时钟解析最近 30 秒至 6 小时、auto/显式 step 与 CPU window；工作流把同一 QueryPlan 传给 Agent/MCP，并先持久化状态/事件再通知 SSE。|
 |`services/ai-core/internal/adapters`|将 Port 接到具体实现：SQLite、内存通知器、MCP 客户端、系统时钟/随机 ID、确定性 Mock Agent 与受限 Eino Agent。HTTP 入站 Adapter 暴露会话、任务、读取与 SSE 重放接口。|AI Core 是 Session、Task、Event、Chart 和 SQLite 数据的唯一所有者。它不直接读取 fixture，也不承载 Grafana 鉴权。|
 |`services/ai-core/internal/bootstrap`|组装依赖：SQLite Store、Mock 或显式 opt-in Eino/DeepSeek Agent、MCP Gateway、工作流、HTTP API。|默认 `AI_CORE_AGENT_DRIVER=mock` 不读取 API key；`eino` 启动时必须有 Profile 与 key，固定模型/任务/MCP 限制，`/readyz` 只检查 SQLite 和 MCP 工具，不请求模型。|
-|`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|查询工具只接受注册 view、可空 CPU window、范围和 step；工具先做权限和 Schema/点数预算校验，再调用 Prometheus Port。该服务不拥有 AI Core 的任务或数据库。|
+|`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露闭集 MCP 工具。默认仍只有三个只读 `grafana.*`；显式 incident profile 额外注册 Knowledge、Skill、Playbook 编排和六个 order-service 只读工具。|Incident profile 要求独立 `incidents:diagnose` 权限、资产/Tool Schema、HMAC key 和 Mock 或带读 token 的 HTTP order Adapter。14 个工具全部 closed-world/read-only，名称和 Port 均无 Fault、shell、任意 HTTP、通用 execute 或写入口。该服务不拥有 AI Core Task/Approval/数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码，并将 fixture 确定性重采样到请求范围/step；opt-in HTTP Adapter 只执行本地注册表生成的 CPU `[30s]/[1m]/[5m]`、内存和 load PromQL，并执行响应、时间范围、step、点数和基数上限。|
 |`services/assistant-mcp/internal/ports/orderdemo` 与 `adapters/orderdemo`|订单 Operational API 的类型化只读抽象及 Mock/HTTP 实现。|Port 只包含 runtime、queue、worker、policy、有限 recent outcomes 和 operation reconcile；没有 Fault、任意 HTTP、命令或写方法。HTTP Adapter 使用生成客户端、部署读 token、固定超时、禁止重定向、64 KiB 响应上限及领域语义复验；Mock 保留 healthy/stopped/slow/dependency-error 四种可区分证据。尚未在默认 MCP profile 注册。|
 |`services/assistant-mcp/internal/adapters/assets/filesystem`|部署提供的运行资产只读 Adapter。|启动时以 JSON Schema 校验 Markdown frontmatter/YAML、引用与能力交集，并按原始文件字节计算 SHA-256；Knowledge/Skill/Playbook 以 ID+version 定位，Playbook 可选摘要固定；Alert 仅按 source/name/required labels 精确解析，零个或多个匹配都失败关闭。|
@@ -51,8 +51,9 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |`apps/grafana-plugin/frontend`|React/Grafana 产品化工作台：创建/分页列出/恢复/切换私有 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|常驻 controller 下由 scoped Grafana theme Shell 编排；宽屏为 `Canvas / Context / Chat`，中宽折叠 Context，窄屏按 `Chat / Context / Canvas` 纵排。Context 只派生真实 Session/Task/QueryPlan，不伪造 Folder/权限。Session 无限分页由服务端 token 驱动，reducer 以 Session ID 拒绝迟到 history/replay/event。图表按 Task oldest-first 分组、最多两列。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 owner-scoped Session page、单 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
+|`data/operational-assets`|order-demo 的版本化 Knowledge、Skill、Playbook 与精确 Alert Mapping。|只由 assistant-mcp 文件 Adapter 读取；原始字节摘要在 Playbook checkpoint 和后续 Intent 中固定。|
 |`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`scripts/mtb` 统一根 `.env` 的 worktree ID/slot、脱敏配置、工具链、按 lockfile 指纹执行的 `npm ci`、一次前端 build、四种 Compose mode、生命周期、诊断和快速/full verify。开发栈使用稳定 worktree project/slot 端口；E2E/诊断使用唯一 project 和 Docker 动态端口，并只清理本轮 volume/image/network。原 `make e2e-*` 和 `run-*.sh` 是兼容入口。|
-|`compose.incident-e2e.yaml`、`deploy/grafana/provisioning`|可控订单故障的真实监控拓扑。|order-service 分别接入 business/ops/metrics internal network，fault-controller 使用共享 Unix Socket 且 `network_mode: none`；Prometheus 5 秒抓取，Grafana 以不可编辑 datasource、10 秒评估的 `OrderQueueBacklog` 和带 HMAC 的 Webhook contact point发现异常。AI Core Alert ingress 尚未实现，因此当前 Gate 只验收到 firing/resolved。|
+|`compose.incident-e2e.yaml`、`deploy/grafana/provisioning`|可控订单故障的真实监控与只读诊断拓扑。|order-service 分别接入 business/ops/metrics internal network，assistant-mcp 仅加入 ops 并使用读 token，fault-controller 使用共享 Unix Socket 且 `network_mode: none`；Prometheus 5 秒抓取，Grafana 以不可编辑 datasource、10 秒评估的 `OrderQueueBacklog` 和带 HMAC 的 Webhook contact point 发现异常。AI Core Alert ingress 尚未实现。|
 
 ## 关键数据与依赖边界
 

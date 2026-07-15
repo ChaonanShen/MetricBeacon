@@ -5,8 +5,8 @@ namespace service calls a Prometheus Port; only the Mock Prometheus Adapter may 
 deterministic scenario files.
 
 The incident slice also defines a typed, read-only order-demo Port with deterministic
-Mock scenarios and an HTTP Adapter generated from the Operational OpenAPI. It is not yet
-registered as an MCP namespace in the default profile. The Port has no fault or write
+Mock scenarios and an HTTP Adapter generated from the Operational OpenAPI. It is
+registered only by the opt-in Incident profile. The Port has no fault or write
 method; the HTTP Adapter uses a deployment read token and enforces time, body, cardinality,
 redirect, and response-semantic limits.
 
@@ -15,6 +15,14 @@ read-only. Startup validates their JSON Schemas and cross-references, restricts 
 capabilities to the referenced Skill and the compiled read registry, and pins raw file
 bytes with SHA-256. Alert resolution requires exactly one source/name/required-label
 match; zero or multiple matches fail closed.
+
+Set `ASSISTANT_MCP_INCIDENT_ENABLED=true` to opt into the Incident namespaces. The
+profile requires asset/tool schema directories, a checkpoint key of at least 32 bytes,
+and either the bounded Mock order driver or the HTTP driver with
+`ASSISTANT_MCP_ORDER_URL` plus `ASSISTANT_MCP_ORDER_READ_TOKEN`. The default profile
+still exposes exactly the original three `grafana.*` tools. Incident mode adds eleven
+closed-world read-only tools; none exposes Fault Injection, shell, arbitrary HTTP, or a
+write/execute operation.
 
 It does not own AI Core tasks or SQLite, and Tool handlers must not bypass the namespace
 service to read fixtures.

@@ -1,5 +1,12 @@
 services:
   assistant-mcp:
+    environment:
+      ASSISTANT_MCP_INCIDENT_ENABLED: "true"
+      ASSISTANT_MCP_ORDER_DRIVER: http
+      ASSISTANT_MCP_ORDER_URL: http://order-service:8091
+      ASSISTANT_MCP_ORDER_READ_TOKEN: "incident-read-development-token"
+      ASSISTANT_MCP_CHECKPOINT_KEY: "incident-checkpoint-development-key-v1"
+    depends_on: {order-service: {condition: service_healthy}}
     networks: [default, order-ops]
 
   ai-core:

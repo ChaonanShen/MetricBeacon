@@ -72,6 +72,7 @@ mini-torchbearing/
 │       ├── cmd/server/                    # Streamable HTTP MCP 入口
 │       ├── internal/
 │       │   ├── namespaces/grafana/        # grafana.* Tool 注册与处理
+│       │   ├── namespaces/incident/       # opt-in 资产、Playbook 与订单只读 MCP 工具
 │       │   ├── ports/prometheus/          # Prometheus 查询抽象
 │       │   ├── ports/orderdemo/           # 无 Fault/写入口的订单 Operational 只读抽象
 │       │   ├── adapters/prometheus/

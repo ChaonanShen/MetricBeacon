@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,6 +137,156 @@ func TestHTTPDriverReadinessAndInvalidConfiguration(t *testing.T) {
 	}
 }
 
+func TestIncidentProfileRegistersOnlyBoundedToolsAndRunsStoppedWorkerDiagnosis(t *testing.T) {
+	runtime, err := bootstrap.Wire(bootstrap.Config{
+		FixtureDir: repositoryPath(t, "data/mock-scenarios/node_exporter_overview"), SchemaDir: repositoryPath(t, "contracts/tools/grafana"),
+		IncidentEnabled: true, IncidentToolSchemaDir: repositoryPath(t, "contracts/tools/incident"), AssetDir: repositoryPath(t, "data/operational-assets"), AssetSchemaDir: repositoryPath(t, "contracts/schemas/assets"),
+		OrderDriver: "mock", OrderMockScenario: "worker-stopped", CheckpointKey: "0123456789abcdef0123456789abcdef",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(runtime.Handler)
+	t.Cleanup(server.Close)
+	context := context.Background()
+	client := newClient(t, server.URL+"/mcp", incidentHeaders(true))
+	initialize(t, context, client)
+	tools, err := client.ListTools(context, mcp.ListToolsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tools.Tools) != 14 {
+		t.Fatalf("incident profile has unexpected tools: %#v", tools.Tools)
+	}
+	for _, tool := range tools.Tools {
+		lower := strings.ToLower(tool.Name)
+		if strings.Contains(lower, "fault") || strings.Contains(lower, "shell") || strings.Contains(lower, "execute") {
+			t.Fatalf("unsafe tool was exposed: %s", tool.Name)
+		}
+		if tool.Annotations.ReadOnlyHint == nil || !*tool.Annotations.ReadOnlyHint || tool.Annotations.OpenWorldHint == nil || *tool.Annotations.OpenWorldHint {
+			t.Fatalf("tool is not closed-world read-only: %#v", tool)
+		}
+	}
+
+	knowledge := call(t, context, client, "knowledge.get_document", map[string]any{"id": "order-service", "version": "1"})
+	if knowledge.IsError {
+		t.Fatalf("Knowledge failed: %#v", knowledge)
+	}
+	var knowledgeOutput struct{ Digest, Content string }
+	decodeStructured(t, knowledge, &knowledgeOutput)
+	if len(knowledgeOutput.Digest) != 64 || !strings.Contains(knowledgeOutput.Content, "Backlog is a symptom") {
+		t.Fatalf("unexpected Knowledge: %#v", knowledgeOutput)
+	}
+
+	resolved := call(t, context, client, "playbook.resolve_alert", map[string]any{"sourceId": "demo-grafana", "alertName": "OrderQueueBacklog", "labels": map[string]string{"service_ref": "order-demo", "severity": "warning"}})
+	if resolved.IsError {
+		t.Fatalf("resolve failed: %#v", resolved)
+	}
+	var resolution struct{ PlaybookId, PlaybookVersion, PlaybookDigest, ServiceRef string }
+	decodeStructured(t, resolved, &resolution)
+	started := call(t, context, client, "playbook.start_run", map[string]any{"playbookId": resolution.PlaybookId, "version": resolution.PlaybookVersion, "digest": resolution.PlaybookDigest, "serviceRef": resolution.ServiceRef})
+	if started.IsError {
+		t.Fatalf("start failed: %#v", started)
+	}
+	var startOutput struct {
+		Status        string
+		Checkpoint    string
+		AssetRefs     []any
+		CapabilityIds []string
+	}
+	decodeStructured(t, started, &startOutput)
+	if startOutput.Status != "needs_agent" || len(startOutput.AssetRefs) != 3 || len(startOutput.CapabilityIds) != 6 {
+		t.Fatalf("unexpected start: %#v", startOutput)
+	}
+	worker := call(t, context, client, "order_service.get_worker_state", map[string]any{})
+	if worker.IsError {
+		t.Fatalf("worker read failed: %#v", worker)
+	}
+	var workerOutput struct{ ConfiguredConcurrency, EffectiveConcurrency, ActiveWorkers, Version int }
+	decodeStructured(t, worker, &workerOutput)
+	if workerOutput.ConfiguredConcurrency != 0 || workerOutput.EffectiveConcurrency != 0 || workerOutput.ActiveWorkers != 0 || workerOutput.Version != 2 {
+		t.Fatalf("unexpected worker state: %#v", workerOutput)
+	}
+	resumed := call(t, context, client, "playbook.resume_run", map[string]any{"checkpoint": startOutput.Checkpoint, "diagnosis": map[string]any{"primaryHypothesis": "workers are stopped", "evidenceRefs": []string{"order_service.get_worker_state", "order_service.get_worker_policy"}, "alternatives": []string{"slow processing"}, "confidence": 0.95, "candidateAction": "restore_worker_concurrency"}})
+	if resumed.IsError {
+		t.Fatalf("resume failed: %#v", resumed)
+	}
+	var resumeOutput struct {
+		Status      string
+		IntentDraft *struct {
+			CapabilityId      string
+			InstanceEpoch     string
+			ExpectedVersion   int
+			BeforeConcurrency int
+			AfterConcurrency  int
+			PolicyDigest      string
+			PlaybookDigest    string
+		}
+	}
+	decodeStructured(t, resumed, &resumeOutput)
+	if resumeOutput.Status != "needs_approval" || resumeOutput.IntentDraft == nil || resumeOutput.IntentDraft.CapabilityId != "order_service.restore_worker_concurrency" || resumeOutput.IntentDraft.InstanceEpoch == "" || resumeOutput.IntentDraft.ExpectedVersion != 2 || resumeOutput.IntentDraft.BeforeConcurrency != 0 || resumeOutput.IntentDraft.AfterConcurrency != 2 || len(resumeOutput.IntentDraft.PolicyDigest) != 64 || len(resumeOutput.IntentDraft.PlaybookDigest) != 64 {
+		t.Fatalf("unexpected version-bound Intent: %#v", resumeOutput)
+	}
+	for _, test := range []struct {
+		name string
+		args map[string]any
+	}{
+		{"order_service.get_worker_state", map[string]any{"command": "anything"}},
+		{"playbook.resolve_alert", map[string]any{"sourceId": "demo-grafana", "alertName": "Unknown", "labels": map[string]string{"service_ref": "order-demo"}}},
+		{"order_service.get_operation", map[string]any{"operationId": "missing"}},
+		{"playbook.resume_run", map[string]any{"checkpoint": startOutput.Checkpoint + "tampered", "diagnosis": map[string]any{"primaryHypothesis": "stopped", "evidenceRefs": []string{"order_service.get_worker_state"}, "alternatives": []string{}, "confidence": 1, "candidateAction": "restore_worker_concurrency"}}},
+	} {
+		if result := call(t, context, client, test.name, test.args); !result.IsError {
+			t.Fatalf("fail-closed case unexpectedly succeeded for %s: %#v", test.name, result)
+		}
+	}
+
+	unauthorized := newClient(t, server.URL+"/mcp", incidentHeaders(false))
+	initialize(t, context, unauthorized)
+	denied := call(t, context, unauthorized, "order_service.get_worker_state", map[string]any{})
+	if !denied.IsError {
+		t.Fatal("incident tool succeeded without incidents:diagnose")
+	}
+}
+
+func TestIncidentProfileSimilarSymptomsDoNotProduceIntent(t *testing.T) {
+	for _, scenario := range []string{"healthy", "slow-processing", "dependency-errors"} {
+		t.Run(scenario, func(t *testing.T) {
+			runtime, err := bootstrap.Wire(bootstrap.Config{
+				FixtureDir: repositoryPath(t, "data/mock-scenarios/node_exporter_overview"), SchemaDir: repositoryPath(t, "contracts/tools/grafana"),
+				IncidentEnabled: true, IncidentToolSchemaDir: repositoryPath(t, "contracts/tools/incident"), AssetDir: repositoryPath(t, "data/operational-assets"), AssetSchemaDir: repositoryPath(t, "contracts/schemas/assets"),
+				OrderDriver: "mock", OrderMockScenario: scenario, CheckpointKey: "0123456789abcdef0123456789abcdef",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			server := httptest.NewServer(runtime.Handler)
+			t.Cleanup(server.Close)
+			ctx := context.Background()
+			client := newClient(t, server.URL+"/mcp", incidentHeaders(true))
+			initialize(t, ctx, client)
+			resolved := call(t, ctx, client, "playbook.resolve_alert", map[string]any{"sourceId": "demo-grafana", "alertName": "OrderQueueBacklog", "labels": map[string]string{"service_ref": "order-demo"}})
+			var resolution struct{ PlaybookId, PlaybookVersion, PlaybookDigest, ServiceRef string }
+			decodeStructured(t, resolved, &resolution)
+			started := call(t, ctx, client, "playbook.start_run", map[string]any{"playbookId": resolution.PlaybookId, "version": resolution.PlaybookVersion, "digest": resolution.PlaybookDigest, "serviceRef": resolution.ServiceRef})
+			var start struct{ Checkpoint string }
+			decodeStructured(t, started, &start)
+			resumed := call(t, ctx, client, "playbook.resume_run", map[string]any{"checkpoint": start.Checkpoint, "diagnosis": map[string]any{"primaryHypothesis": "requesting restore despite alternative evidence", "evidenceRefs": []string{"order_service.get_worker_state", "order_service.get_worker_policy"}, "alternatives": []string{"dependency errors"}, "confidence": 0.99, "candidateAction": "restore_worker_concurrency"}})
+			if resumed.IsError {
+				t.Fatalf("no-action resume failed: %#v", resumed)
+			}
+			var output struct {
+				Status      string
+				IntentDraft any `json:"intentDraft"`
+			}
+			decodeStructured(t, resumed, &output)
+			if output.Status != "completed" || output.IntentDraft != nil {
+				t.Fatalf("scenario %s produced an unsafe Intent: %#v", scenario, output)
+			}
+		})
+	}
+}
+
 func newClient(t *testing.T, endpoint string, headers map[string]string) *client.Client {
 	t.Helper()
 	transport, err := transport.NewStreamableHTTP(endpoint, transport.WithHTTPHeaders(headers))
@@ -189,6 +340,14 @@ func headers(withPermission bool) map[string]string {
 		"X-Request-ID":      "request-test",
 		"X-Trace-ID":        "trace-test",
 	}
+}
+
+func incidentHeaders(withPermission bool) map[string]string {
+	result := headers(true)
+	if withPermission {
+		result["X-MTB-Permissions"] = "datasources:query,incidents:diagnose"
+	}
+	return result
 }
 
 func repositoryPath(t *testing.T, relative string) string {
