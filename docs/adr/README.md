@@ -19,5 +19,6 @@
 |[ADR-019](ADR-019-bounded-node-exporter-query-parameters.md)|Accepted|三视图内的有界时间、resolution、CPU window 与极简 Agent|
 |[ADR-020](ADR-020-natural-language-only-workbench-query-intent.md)|Superseded|Workbench 只提交自然语言，原本由 AI Core 本地解析时间意图|
 |[ADR-021](ADR-021-agent-planned-bounded-query-intent.md)|Accepted|同步 Agent 规划受限 view/range/step，本地验证并冻结 QueryPlan|
+|[ADR-022](ADR-022-private-session-history.md)|Accepted|当前用户私有的 Session 历史、活跃时间排序与 Workbench 恢复边界|
 
 新增 ADR 时应至少包含：背景、决策、备选方案、影响、开放问题、复审条件和关联文档。
