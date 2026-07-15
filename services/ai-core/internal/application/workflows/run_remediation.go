@@ -22,7 +22,7 @@ import (
 
 const (
 	approvalEvidenceLifetime = 60 * time.Second
-	defaultVerificationDelay = 5 * time.Second
+	defaultVerificationDelay = 30 * time.Second
 	recoveryQueueLimit       = 10
 	recoveryOldestAgeLimit   = 10
 	probeDeadlineMS          = 5000
@@ -375,6 +375,9 @@ func (w RunRemediationWorkflow) verifyRuntime(ctx context.Context, identity requ
 }
 
 func (w RunRemediationWorkflow) verifyMetricsAndBusiness(ctx context.Context, identity requestcontext.Context, item task.AnalysisTask) error {
+	if err := w.wait(ctx); err != nil {
+		return err
+	}
 	first, evidence, err := w.Toolset.GetRecoveryMetrics(ctx, identity)
 	if evidence.Name != "" {
 		if persistErr := w.persistToolEvidence(ctx, item, evidence, err); persistErr != nil {
