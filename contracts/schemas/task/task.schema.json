@@ -1,25 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://mini-torchbearing.local/contracts/schemas/task/task.schema.json",
-  "title": "AnalysisTask",
+  "title": "Task",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "sessionId", "status", "inputMessageId", "datasourceUid", "timeRange", "queryPlan", "latestSequence", "error", "createdAt", "startedAt", "completedAt", "updatedAt", "version"],
+  "required": ["id", "kind", "sessionId", "status", "inputMessageId", "latestSequence", "error", "createdAt", "startedAt", "completedAt", "updatedAt", "version"],
   "properties": {
     "id": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "enum": ["metric_analysis", "incident_remediation"]},
     "sessionId": {"type": "string", "minLength": 1},
-    "status": {"type": "string", "enum": ["created", "planning", "running_tools", "validating", "completed", "failed"]},
+    "status": {"type": "string", "enum": ["created", "planning", "running_tools", "waiting_approval", "executing", "reconciling", "validating", "completed", "failed", "cancelled"]},
     "inputMessageId": {"type": "string", "minLength": 1},
     "datasourceUid": {"type": "string", "enum": ["prometheus-main"]},
     "timeRange": {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string", "format": "date-time"}, "to": {"type": "string", "format": "date-time"}}},
-    "queryPlan": {
-      "type": "object", "additionalProperties": false, "required": ["views", "stepSeconds", "cpuRateWindowSeconds"],
-      "properties": {
-        "views": {"type": "array", "uniqueItems": true, "maxItems": 3, "items": {"type": "string", "enum": ["cpu", "memory", "load"]}},
-        "stepSeconds": {"type": "integer", "enum": [5, 10, 15, 30, 60, 120, 300]},
-        "cpuRateWindowSeconds": {"type": "integer", "enum": [30, 60, 300]}
-      }
-    },
+    "queryPlan": {"type": "object", "additionalProperties": false, "required": ["views", "stepSeconds", "cpuRateWindowSeconds"], "properties": {"views": {"type": "array", "uniqueItems": true, "maxItems": 3, "items": {"type": "string", "enum": ["cpu", "memory", "load"]}}, "stepSeconds": {"type": "integer", "enum": [5, 10, 15, 30, 60, 120, 300]}, "cpuRateWindowSeconds": {"type": "integer", "enum": [30, 60, 300]}}},
+    "incidentPlan": {"$ref": "incident-plan.schema.json"},
     "latestSequence": {"type": "integer", "minimum": 0},
     "error": {"anyOf": [{"type": "object", "additionalProperties": true, "required": ["code", "message", "retryable", "requestId"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "retryable": {"type": "boolean"}, "requestId": {"type": "string"}}}, {"type": "null"}]},
     "createdAt": {"type": "string", "format": "date-time"},
@@ -27,5 +22,9 @@
     "completedAt": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
     "updatedAt": {"type": "string", "format": "date-time"},
     "version": {"type": "integer", "minimum": 1}
-  }
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "metric_analysis"}}}, "then": {"properties": {"datasourceUid": true, "timeRange": true, "queryPlan": true}, "required": ["datasourceUid", "timeRange", "queryPlan"], "not": {"properties": {"incidentPlan": true}, "required": ["incidentPlan"]}}},
+    {"if": {"properties": {"kind": {"const": "incident_remediation"}}}, "then": {"properties": {"incidentPlan": true}, "required": ["incidentPlan"], "not": {"anyOf": [{"properties": {"datasourceUid": true}, "required": ["datasourceUid"]}, {"properties": {"timeRange": true}, "required": ["timeRange"]}, {"properties": {"queryPlan": true}, "required": ["queryPlan"]}]}}}
+  ]
 }

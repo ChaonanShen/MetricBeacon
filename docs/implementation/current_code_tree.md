@@ -102,8 +102,10 @@ mini-torchbearing/
 ├── contracts/                             # 跨服务协议的单一来源
 │   ├── openapi/                           # Plugin/AI Core 与订单 Business/Operational/Fault API
 │   ├── tools/grafana/                     # MCP Tool OpenAPI/JSON Schema
-│   ├── schemas/                           # Session、Task、Chart、Event 等 Schema
-│   │   └── api/*-page.schema.json          # Message/Task keyset 页面及有限事件重放响应
+│   ├── schemas/                           # Session/Task tagged union、IncidentPlan、Approval、Alert、Chart 等 Schema
+│   │   ├── incident/                      # 有界 Grafana Webhook 与接收响应
+│   │   ├── approval/                      # 审批公开快照
+│   │   └── api/                           # 页面、有限重放与审批 decision 请求
 │   ├── events/                            # TaskEvent 定义
 │   ├── errors/                            # 错误码定义
 │   └── examples/                          # 合约示例

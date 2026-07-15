@@ -1,13 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://mini-torchbearing.local/contracts/schemas/session/session.schema.json",
-  "title": "AnalysisSession",
+  "title": "Session",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "tenantId", "title", "status", "createdBy", "createdAt", "updatedAt", "version"],
+  "required": ["id", "tenantId", "orgId", "kind", "title", "status", "createdBy", "createdAt", "updatedAt", "version"],
   "properties": {
     "id": {"type": "string", "minLength": 1},
     "tenantId": {"type": "string", "minLength": 1},
+    "orgId": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "enum": ["private", "org_incident"]},
     "title": {"type": "string", "minLength": 1, "maxLength": 200},
     "status": {"type": "string", "enum": ["active"]},
     "createdBy": {"type": "string", "minLength": 1},

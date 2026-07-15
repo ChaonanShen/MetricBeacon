@@ -1,0 +1,32 @@
+{
+  "id": "task_incident_01",
+  "kind": "incident_remediation",
+  "sessionId": "session_incident_01",
+  "status": "running_tools",
+  "inputMessageId": "message_trigger_01",
+  "incidentPlan": {
+    "sourceId": "demo-grafana",
+    "alertName": "OrderQueueBacklog",
+    "alertFingerprint": "order-backlog-fingerprint-1",
+    "serviceRef": "order-service:demo",
+    "labels": {"alertname": "OrderQueueBacklog", "service_ref": "order-service:demo", "severity": "warning"},
+    "mapping": {"id": "order-demo", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    "playbook": {"id": "order-queue-backlog", "version": "1", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    "assetRefs": [
+      {"kind": "alert_mapping", "id": "order-demo", "version": "1", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      {"kind": "playbook", "id": "order-queue-backlog", "version": "1", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+      {"kind": "knowledge", "id": "order-service", "version": "1", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+      {"kind": "skill", "id": "diagnose-order-backlog", "version": "1", "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}
+    ],
+    "phase": "needs_agent",
+    "diagnosis": null,
+    "intent": null
+  },
+  "latestSequence": 4,
+  "error": null,
+  "createdAt": "2026-07-16T08:00:01Z",
+  "startedAt": "2026-07-16T08:00:01Z",
+  "completedAt": null,
+  "updatedAt": "2026-07-16T08:00:02Z",
+  "version": 4
+}

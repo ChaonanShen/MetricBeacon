@@ -3,6 +3,8 @@
     {
       "id": "session_01",
       "tenantId": "org:1",
+      "orgId": "1",
+      "kind": "private",
       "title": "查看最近 30 分钟 CPU 和内存",
       "status": "active",
       "createdBy": "user:1",

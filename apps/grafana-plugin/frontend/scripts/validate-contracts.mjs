@@ -83,6 +83,14 @@ validate(id('schemas/api/create-session-request.schema.json'), await json(path.j
 validate(id('schemas/api/session-page.schema.json'), await json(path.join(examples, 'session-page.response.json')), 'Session page example');
 validate(id('schemas/api/create-task-request.schema.json'), await json(path.join(examples, 'create-task.request.json')), 'create Task example');
 validate(id('events/task-events.schema.json'), await json(path.join(examples, 'task-event.json')), 'TaskEvent example');
+const alertWebhook = await json(path.join(examples, 'grafana-alert-webhook.json'));
+validate(id('schemas/incident/grafana-alert-webhook.schema.json'), alertWebhook, 'Grafana alert webhook example');
+expectInvalid(id('schemas/incident/grafana-alert-webhook.schema.json'), {...alertWebhook, groundTruth: 'worker-stopped'}, 'Grafana alert webhook with ground truth');
+expectInvalid(id('schemas/incident/grafana-alert-webhook.schema.json'), {...alertWebhook, alerts: alertWebhook.alerts.map(({fingerprint: _fingerprint, ...alert}) => alert)}, 'Grafana alert without fingerprint');
+const incidentTask = await json(path.join(examples, 'incident-task.json'));
+validate(id('schemas/task/task.schema.json'), incidentTask, 'Incident Task example');
+expectInvalid(id('schemas/task/task.schema.json'), {...incidentTask, queryPlan: {views: ['cpu'], stepSeconds: 30, cpuRateWindowSeconds: 60}}, 'Incident Task carrying QueryPlan');
+validate(id('schemas/approval/approval.schema.json'), await json(path.join(examples, 'approval.json')), 'Approval example');
 validate(id('tools/grafana/search-metrics.input.schema.json'), await json(path.join(examples, 'grafana.search_metrics.input.json')), 'search tool example');
 validate(id('tools/grafana/get-metric-labels.input.schema.json'), await json(path.join(examples, 'grafana.get_metric_labels.input.json')), 'labels tool example');
 validate(id('tools/grafana/query-prometheus.input.schema.json'), await json(path.join(examples, 'grafana.query_prometheus.input.json')), 'query tool example');

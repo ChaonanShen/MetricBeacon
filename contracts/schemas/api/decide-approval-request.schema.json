@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/api/decide-approval-request.schema.json",
+  "title": "DecideApprovalRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "reason", "expectedTaskVersion", "expectedApprovalVersion", "intentDigest"],
+  "properties": {
+    "decision": {"type": "string", "enum": ["approve", "reject"]},
+    "reason": {"type": "string", "maxLength": 500},
+    "expectedTaskVersion": {"type": "integer", "minimum": 1},
+    "expectedApprovalVersion": {"type": "integer", "minimum": 1},
+    "intentDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+  }
+}

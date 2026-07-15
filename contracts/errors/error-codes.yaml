@@ -13,5 +13,8 @@ codes:
   schema_validation_failed: {httpStatus: 400, retryable: false}
   idempotency_conflict: {httpStatus: 409, retryable: false}
   execution_interrupted: {httpStatus: 503, retryable: true}
+  target_precondition_failed: {httpStatus: 409, retryable: false}
+  approval_required: {httpStatus: 409, retryable: false}
+  approval_expired: {httpStatus: 409, retryable: false}
   internal_error: {httpStatus: 500, retryable: false}
   not_implemented: {httpStatus: 501, retryable: false}

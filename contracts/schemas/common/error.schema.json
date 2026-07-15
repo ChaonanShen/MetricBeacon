@@ -10,7 +10,7 @@
       "properties": {
         "code": {
           "type": "string",
-          "enum": ["invalid_argument", "unauthenticated", "permission_denied", "resource_not_found", "resource_conflict", "invalid_state_transition", "adapter_not_configured", "dependency_unavailable", "tool_not_supported", "tool_timeout", "schema_validation_failed", "idempotency_conflict", "execution_interrupted", "internal_error", "not_implemented"]
+          "enum": ["invalid_argument", "unauthenticated", "permission_denied", "resource_not_found", "resource_conflict", "invalid_state_transition", "adapter_not_configured", "dependency_unavailable", "tool_not_supported", "tool_timeout", "schema_validation_failed", "idempotency_conflict", "execution_interrupted", "target_precondition_failed", "approval_required", "approval_expired", "internal_error", "not_implemented"]
         },
         "message": {"type": "string", "minLength": 1},
         "retryable": {"type": "boolean"},

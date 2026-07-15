@@ -9,6 +9,26 @@ servers:
 security:
   - InternalServiceIdentity: []
 paths:
+  /internal/v1/alerts/grafana:
+    post:
+      summary: Accept a bounded Grafana Alerting webhook after source and HMAC verification
+      description: This machine endpoint does not accept Grafana user identity headers. The signature is lowercase hexadecimal HMAC-SHA256 over `timestamp + ":" + rawBody`.
+      security: []
+      x-mtb-timeout-ms: 10000
+      operationId: ingestGrafanaAlert
+      parameters:
+        - $ref: '#/components/parameters/AlertSource'
+        - $ref: '#/components/parameters/AlertTimestamp'
+        - $ref: '#/components/parameters/AlertSignature'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/GrafanaAlertWebhook'}}}
+      responses:
+        '202': {description: Firing alerts accepted or deduplicated, content: {application/json: {schema: {$ref: '#/components/schemas/AlertIngressResponse'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
   /healthz:
     get:
       summary: Report process liveness
@@ -159,6 +179,64 @@ paths:
       responses:
         '200': {description: Task snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Task'}}}}
         default: {$ref: '#/components/responses/ErrorResponse'}
+  /v1/incidents:
+    get:
+      summary: List organization-visible Incident Tasks by recent activity
+      x-mtb-timeout-ms: 10000
+      operationId: listIncidents
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Roles'
+        - $ref: '#/components/parameters/Permissions'
+        - $ref: '#/components/parameters/PageSizeTasks'
+        - $ref: '#/components/parameters/PageToken'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      responses:
+        '200': {description: Organization-scoped Incident Task page, content: {application/json: {schema: {$ref: '#/components/schemas/TaskPage'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /v1/tasks/{taskId}/approval:
+    get:
+      summary: Get the current pending or decided Approval for an Incident Task
+      x-mtb-timeout-ms: 10000
+      operationId: getTaskApproval
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Roles'
+        - $ref: '#/components/parameters/Permissions'
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      responses:
+        '200': {description: Approval snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Approval'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+    post:
+      summary: Admin decision over the exact immutable Incident Intent
+      x-mtb-timeout-ms: 10000
+      operationId: decideTaskApproval
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/OrgId'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Roles'
+        - $ref: '#/components/parameters/Permissions'
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/TraceId'
+        - $ref: '#/components/parameters/TraceParent'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/DecideApprovalRequest'}}}
+      responses:
+        '202': {description: Decision persisted and workflow scheduled, content: {application/json: {schema: {$ref: '#/components/schemas/Approval'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
   /v1/tasks/{taskId}/events:
     get:
       summary: Replay and follow durable tenant-scoped TaskEvents
@@ -220,6 +298,9 @@ components:
     UserId: {name: X-MTB-User-ID, in: header, required: true, schema: {type: string, minLength: 1}}
     Roles: {name: X-MTB-Roles, in: header, required: true, schema: {type: string, minLength: 1}, description: "Comma-separated, trimmed and de-duplicated roles."}
     Permissions: {name: X-MTB-Permissions, in: header, required: true, schema: {type: string, minLength: 1}, description: "Comma-separated permissions; must include datasources:query for this profile."}
+    AlertSource: {name: X-MTB-Alert-Source, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 80}}
+    AlertTimestamp: {name: X-MTB-Alert-Timestamp, in: header, required: true, schema: {type: integer, minimum: 1}, description: Unix timestamp accepted only within the configured replay window.}
+    AlertSignature: {name: X-Grafana-Alerting-Signature, in: header, required: true, schema: {type: string, pattern: '^[a-f0-9]{64}$'}}
   schemas:
     CreateSessionRequest: {$ref: '../schemas/api/create-session-request.schema.json'}
     CreateTaskRequest: {$ref: '../schemas/api/create-task-request.schema.json'}
@@ -234,6 +315,10 @@ components:
     ChartExecution: {$ref: '../schemas/chart/execution.schema.json'}
     TaskEvent: {$ref: '../events/task-events.schema.json'}
     ErrorEnvelope: {$ref: '../schemas/common/error.schema.json'}
+    GrafanaAlertWebhook: {$ref: '../schemas/incident/grafana-alert-webhook.schema.json'}
+    AlertIngressResponse: {$ref: '../schemas/incident/alert-ingress-response.schema.json'}
+    Approval: {$ref: '../schemas/approval/approval.schema.json'}
+    DecideApprovalRequest: {$ref: '../schemas/api/decide-approval-request.schema.json'}
   responses:
     ErrorResponse:
       description: Structured domain error

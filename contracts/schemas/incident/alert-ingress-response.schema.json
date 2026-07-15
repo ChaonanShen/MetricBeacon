@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/incident/alert-ingress-response.schema.json",
+  "title": "AlertIngressResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["accepted", "duplicate", "taskIds"],
+  "properties": {
+    "accepted": {"type": "integer", "minimum": 0, "maximum": 10},
+    "duplicate": {"type": "integer", "minimum": 0, "maximum": 10},
+    "taskIds": {"type": "array", "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+  }
+}

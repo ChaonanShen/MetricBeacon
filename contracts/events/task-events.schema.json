@@ -34,8 +34,8 @@
     "statusChanged": {
       "type": "object", "additionalProperties": false, "required": ["previousStatus", "status"],
       "properties": {
-        "previousStatus": {"type": "string", "enum": ["created", "planning", "running_tools", "validating", "completed", "failed"]},
-        "status": {"type": "string", "enum": ["created", "planning", "running_tools", "validating", "completed", "failed"]},
+        "previousStatus": {"type": "string", "enum": ["created", "planning", "running_tools", "waiting_approval", "executing", "reconciling", "validating", "completed", "failed", "cancelled"]},
+        "status": {"type": "string", "enum": ["created", "planning", "running_tools", "waiting_approval", "executing", "reconciling", "validating", "completed", "failed", "cancelled"]},
         "error": {"$ref": "#/$defs/taskEventError"}
       }
     },
@@ -96,6 +96,64 @@
         "task": {"$ref": "#/$defs/taskSnapshot"},
         "error": {"$ref": "#/$defs/taskEventError"}
       }
+    },
+    "alertReceived": {
+      "type": "object", "additionalProperties": false, "required": ["sourceId", "alertName", "fingerprint", "serviceRef", "status", "startsAt"],
+      "properties": {
+        "sourceId": {"type": "string", "minLength": 1}, "alertName": {"type": "string", "minLength": 1},
+        "fingerprint": {"type": "string", "minLength": 1}, "serviceRef": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "enum": ["firing", "resolved"]}, "startsAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "playbookResolved": {
+      "type": "object", "additionalProperties": false, "required": ["mappingId", "mappingDigest", "playbookId", "playbookVersion", "playbookDigest"],
+      "properties": {
+        "mappingId": {"type": "string", "minLength": 1}, "mappingDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+        "playbookId": {"type": "string", "minLength": 1}, "playbookVersion": {"type": "string", "minLength": 1},
+        "playbookDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+      }
+    },
+    "assetsPinned": {
+      "type": "object", "additionalProperties": false, "required": ["assets"],
+      "properties": {"assets": {"type": "array", "minItems": 3, "maxItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["kind", "id", "version", "digest"], "properties": {"kind": {"type": "string", "enum": ["knowledge", "skill", "playbook", "alert_mapping"]}, "id": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}, "digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}}}}}
+    },
+    "diagnosisCompleted": {
+      "type": "object", "additionalProperties": false, "required": ["primaryHypothesis", "evidenceRefs", "alternativeHypotheses", "confidence", "candidateAction"],
+      "properties": {
+        "primaryHypothesis": {"type": "string", "enum": ["worker_stopped", "slow_processing", "dependency_errors", "healthy", "insufficient_evidence"]},
+        "evidenceRefs": {"type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "alternativeHypotheses": {"type": "array", "maxItems": 4, "uniqueItems": true, "items": {"type": "string"}},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "candidateAction": {"type": "string", "enum": ["restore_worker_concurrency", "no_action"]}
+      }
+    },
+    "intentPrepared": {
+      "type": "object", "additionalProperties": false, "required": ["intentId", "intentDigest", "capabilityId", "serviceRef", "instanceEpoch", "expectedVersion", "beforeConcurrency", "afterConcurrency", "risk"],
+      "properties": {
+        "intentId": {"type": "string", "minLength": 1}, "intentDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+        "capabilityId": {"const": "order_service.restore_worker_concurrency"}, "serviceRef": {"type": "string", "minLength": 1},
+        "instanceEpoch": {"type": "string", "minLength": 1}, "expectedVersion": {"type": "integer", "minimum": 1},
+        "beforeConcurrency": {"const": 0}, "afterConcurrency": {"const": 2}, "risk": {"const": "low"}
+      }
+    },
+    "approvalRequested": {
+      "type": "object", "additionalProperties": false, "required": ["approvalId", "intentDigest", "expiresAt", "version"],
+      "properties": {"approvalId": {"type": "string", "minLength": 1}, "intentDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}, "expiresAt": {"type": "string", "format": "date-time"}, "version": {"type": "integer", "minimum": 1}}
+    },
+    "approvalDecided": {
+      "type": "object", "additionalProperties": false, "required": ["approvalId", "status", "decidedBy", "decidedAt", "version"],
+      "properties": {"approvalId": {"type": "string", "minLength": 1}, "status": {"type": "string", "enum": ["approved", "rejected", "expired"]}, "decidedBy": {"type": "string", "minLength": 1}, "decidedAt": {"type": "string", "format": "date-time"}, "version": {"type": "integer", "minimum": 2}}
+    },
+    "remediationOperation": {
+      "type": "object", "additionalProperties": false, "required": ["operationId", "intentDigest", "state"],
+      "properties": {"operationId": {"type": "string", "minLength": 1}, "intentDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}, "state": {"type": "string", "enum": ["started", "applied", "already_applied", "failed", "unknown"]}}
+    },
+    "verification": {
+      "type": "object", "additionalProperties": false, "required": ["passed", "observedAt", "summary"],
+      "properties": {"passed": {"type": "boolean"}, "observedAt": {"type": "string", "format": "date-time"}, "summary": {"type": "string", "minLength": 1, "maxLength": 500}}
+    },
+    "auditRecorded": {
+      "type": "object", "additionalProperties": false, "required": ["auditId", "action", "outcome"],
+      "properties": {"auditId": {"type": "string", "minLength": 1}, "action": {"type": "string", "enum": ["approval_decision", "remediation_execute", "remediation_verify"]}, "outcome": {"type": "string", "enum": ["accepted", "rejected", "succeeded", "failed"]}}
     }
   },
   "type": "object",
@@ -106,7 +164,7 @@
     "taskId": {"type": "string", "minLength": 1},
     "sessionId": {"type": "string", "minLength": 1},
     "sequence": {"type": "integer", "minimum": 1},
-    "type": {"type": "string", "enum": ["task.created", "task.status_changed", "assistant.message.started", "assistant.message.delta", "assistant.message.completed", "tool.started", "tool.completed", "tool.failed", "metric.candidates_created", "chart.created", "chart.execution_completed", "task.completed", "task.failed"]},
+    "type": {"type": "string", "enum": ["task.created", "task.status_changed", "assistant.message.started", "assistant.message.delta", "assistant.message.completed", "tool.started", "tool.completed", "tool.failed", "metric.candidates_created", "chart.created", "chart.execution_completed", "task.completed", "task.failed", "alert.received", "playbook.resolved", "assets.pinned", "diagnosis.completed", "intent.prepared", "approval.requested", "approval.decided", "remediation.started", "remediation.reconciled", "verification.runtime", "verification.metrics", "verification.business", "audit.recorded"]},
     "timestamp": {"type": "string", "format": "date-time"},
     "payload": {"type": "object"}
   },
@@ -123,6 +181,19 @@
     {"properties": {"type": {"const": "chart.created"}, "payload": {"$ref": "#/$defs/chartCreated"}}},
     {"properties": {"type": {"const": "chart.execution_completed"}, "payload": {"$ref": "#/$defs/chartExecutionCompleted"}}},
     {"properties": {"type": {"const": "task.completed"}, "payload": {"$ref": "#/$defs/taskCompleted"}}},
-    {"properties": {"type": {"const": "task.failed"}, "payload": {"$ref": "#/$defs/taskFailed"}}}
+    {"properties": {"type": {"const": "task.failed"}, "payload": {"$ref": "#/$defs/taskFailed"}}},
+    {"properties": {"type": {"const": "alert.received"}, "payload": {"$ref": "#/$defs/alertReceived"}}},
+    {"properties": {"type": {"const": "playbook.resolved"}, "payload": {"$ref": "#/$defs/playbookResolved"}}},
+    {"properties": {"type": {"const": "assets.pinned"}, "payload": {"$ref": "#/$defs/assetsPinned"}}},
+    {"properties": {"type": {"const": "diagnosis.completed"}, "payload": {"$ref": "#/$defs/diagnosisCompleted"}}},
+    {"properties": {"type": {"const": "intent.prepared"}, "payload": {"$ref": "#/$defs/intentPrepared"}}},
+    {"properties": {"type": {"const": "approval.requested"}, "payload": {"$ref": "#/$defs/approvalRequested"}}},
+    {"properties": {"type": {"const": "approval.decided"}, "payload": {"$ref": "#/$defs/approvalDecided"}}},
+    {"properties": {"type": {"const": "remediation.started"}, "payload": {"$ref": "#/$defs/remediationOperation"}}},
+    {"properties": {"type": {"const": "remediation.reconciled"}, "payload": {"$ref": "#/$defs/remediationOperation"}}},
+    {"properties": {"type": {"const": "verification.runtime"}, "payload": {"$ref": "#/$defs/verification"}}},
+    {"properties": {"type": {"const": "verification.metrics"}, "payload": {"$ref": "#/$defs/verification"}}},
+    {"properties": {"type": {"const": "verification.business"}, "payload": {"$ref": "#/$defs/verification"}}},
+    {"properties": {"type": {"const": "audit.recorded"}, "payload": {"$ref": "#/$defs/auditRecorded"}}}
   ]
 }

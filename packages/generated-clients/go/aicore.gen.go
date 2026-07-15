@@ -21,15 +21,165 @@ const (
 	InternalServiceIdentityScopes internalServiceIdentityContextKey = "InternalServiceIdentity.Scopes"
 )
 
+// Defines values for AlertStatus.
+const (
+	AlertStatusFiring   AlertStatus = "firing"
+	AlertStatusResolved AlertStatus = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the AlertStatus enum.
+func (e AlertStatus) Valid() bool {
+	switch e {
+	case AlertStatusFiring:
+		return true
+	case AlertStatusResolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertReceivedStatus.
+const (
+	AlertReceivedStatusFiring   AlertReceivedStatus = "firing"
+	AlertReceivedStatusResolved AlertReceivedStatus = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the AlertReceivedStatus enum.
+func (e AlertReceivedStatus) Valid() bool {
+	switch e {
+	case AlertReceivedStatusFiring:
+		return true
+	case AlertReceivedStatusResolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalSchemaStatus.
+const (
+	ApprovalSchemaStatusApproved ApprovalSchemaStatus = "approved"
+	ApprovalSchemaStatusExpired  ApprovalSchemaStatus = "expired"
+	ApprovalSchemaStatusPending  ApprovalSchemaStatus = "pending"
+	ApprovalSchemaStatusRejected ApprovalSchemaStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalSchemaStatus enum.
+func (e ApprovalSchemaStatus) Valid() bool {
+	switch e {
+	case ApprovalSchemaStatusApproved:
+		return true
+	case ApprovalSchemaStatusExpired:
+		return true
+	case ApprovalSchemaStatusPending:
+		return true
+	case ApprovalSchemaStatusRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalDecidedStatus.
+const (
+	ApprovalDecidedStatusApproved ApprovalDecidedStatus = "approved"
+	ApprovalDecidedStatusExpired  ApprovalDecidedStatus = "expired"
+	ApprovalDecidedStatusRejected ApprovalDecidedStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalDecidedStatus enum.
+func (e ApprovalDecidedStatus) Valid() bool {
+	switch e {
+	case ApprovalDecidedStatusApproved:
+		return true
+	case ApprovalDecidedStatusExpired:
+		return true
+	case ApprovalDecidedStatusRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AssetsPinnedAssetsKind.
+const (
+	AssetsPinnedAssetsKindAlertMapping AssetsPinnedAssetsKind = "alert_mapping"
+	AssetsPinnedAssetsKindKnowledge    AssetsPinnedAssetsKind = "knowledge"
+	AssetsPinnedAssetsKindPlaybook     AssetsPinnedAssetsKind = "playbook"
+	AssetsPinnedAssetsKindSkill        AssetsPinnedAssetsKind = "skill"
+)
+
+// Valid indicates whether the value is a known member of the AssetsPinnedAssetsKind enum.
+func (e AssetsPinnedAssetsKind) Valid() bool {
+	switch e {
+	case AssetsPinnedAssetsKindAlertMapping:
+		return true
+	case AssetsPinnedAssetsKindKnowledge:
+		return true
+	case AssetsPinnedAssetsKindPlaybook:
+		return true
+	case AssetsPinnedAssetsKindSkill:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditRecordedAction.
+const (
+	ApprovalDecision   AuditRecordedAction = "approval_decision"
+	RemediationExecute AuditRecordedAction = "remediation_execute"
+	RemediationVerify  AuditRecordedAction = "remediation_verify"
+)
+
+// Valid indicates whether the value is a known member of the AuditRecordedAction enum.
+func (e AuditRecordedAction) Valid() bool {
+	switch e {
+	case ApprovalDecision:
+		return true
+	case RemediationExecute:
+		return true
+	case RemediationVerify:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditRecordedOutcome.
+const (
+	AuditRecordedOutcomeAccepted  AuditRecordedOutcome = "accepted"
+	AuditRecordedOutcomeFailed    AuditRecordedOutcome = "failed"
+	AuditRecordedOutcomeRejected  AuditRecordedOutcome = "rejected"
+	AuditRecordedOutcomeSucceeded AuditRecordedOutcome = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the AuditRecordedOutcome enum.
+func (e AuditRecordedOutcome) Valid() bool {
+	switch e {
+	case AuditRecordedOutcomeAccepted:
+		return true
+	case AuditRecordedOutcomeFailed:
+		return true
+	case AuditRecordedOutcomeRejected:
+		return true
+	case AuditRecordedOutcomeSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateTaskRequestSchemaAnalysisContextDatasourceUid.
 const (
-	CreateTaskRequestSchemaAnalysisContextDatasourceUidPrometheusMain CreateTaskRequestSchemaAnalysisContextDatasourceUid = "prometheus-main"
+	PrometheusMain CreateTaskRequestSchemaAnalysisContextDatasourceUid = "prometheus-main"
 )
 
 // Valid indicates whether the value is a known member of the CreateTaskRequestSchemaAnalysisContextDatasourceUid enum.
 func (e CreateTaskRequestSchemaAnalysisContextDatasourceUid) Valid() bool {
 	switch e {
-	case CreateTaskRequestSchemaAnalysisContextDatasourceUidPrometheusMain:
+	case PrometheusMain:
 		return true
 	default:
 		return false
@@ -38,31 +188,94 @@ func (e CreateTaskRequestSchemaAnalysisContextDatasourceUid) Valid() bool {
 
 // Defines values for CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds.
 const (
-	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN10  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 10
-	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN120 CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 120
-	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN15  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 15
-	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN30  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 30
-	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN300 CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 300
-	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN5   CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 5
-	CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN60  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 60
+	N10  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 10
+	N120 CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 120
+	N15  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 15
+	N30  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 30
+	N300 CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 300
+	N5   CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 5
+	N60  CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds = 60
 )
 
 // Valid indicates whether the value is a known member of the CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds enum.
 func (e CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds) Valid() bool {
 	switch e {
-	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN10:
+	case N10:
 		return true
-	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN120:
+	case N120:
 		return true
-	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN15:
+	case N15:
 		return true
-	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN30:
+	case N30:
 		return true
-	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN300:
+	case N300:
 		return true
-	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN5:
+	case N5:
 		return true
-	case CreateTaskRequestSchemaAnalysisContextResolution1StepSecondsN60:
+	case N60:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DecideApprovalRequestSchemaDecision.
+const (
+	Approve DecideApprovalRequestSchemaDecision = "approve"
+	Reject  DecideApprovalRequestSchemaDecision = "reject"
+)
+
+// Valid indicates whether the value is a known member of the DecideApprovalRequestSchemaDecision enum.
+func (e DecideApprovalRequestSchemaDecision) Valid() bool {
+	switch e {
+	case Approve:
+		return true
+	case Reject:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DiagnosisCompletedCandidateAction.
+const (
+	DiagnosisCompletedCandidateActionNoAction                 DiagnosisCompletedCandidateAction = "no_action"
+	DiagnosisCompletedCandidateActionRestoreWorkerConcurrency DiagnosisCompletedCandidateAction = "restore_worker_concurrency"
+)
+
+// Valid indicates whether the value is a known member of the DiagnosisCompletedCandidateAction enum.
+func (e DiagnosisCompletedCandidateAction) Valid() bool {
+	switch e {
+	case DiagnosisCompletedCandidateActionNoAction:
+		return true
+	case DiagnosisCompletedCandidateActionRestoreWorkerConcurrency:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DiagnosisCompletedPrimaryHypothesis.
+const (
+	DiagnosisCompletedPrimaryHypothesisDependencyErrors     DiagnosisCompletedPrimaryHypothesis = "dependency_errors"
+	DiagnosisCompletedPrimaryHypothesisHealthy              DiagnosisCompletedPrimaryHypothesis = "healthy"
+	DiagnosisCompletedPrimaryHypothesisInsufficientEvidence DiagnosisCompletedPrimaryHypothesis = "insufficient_evidence"
+	DiagnosisCompletedPrimaryHypothesisSlowProcessing       DiagnosisCompletedPrimaryHypothesis = "slow_processing"
+	DiagnosisCompletedPrimaryHypothesisWorkerStopped        DiagnosisCompletedPrimaryHypothesis = "worker_stopped"
+)
+
+// Valid indicates whether the value is a known member of the DiagnosisCompletedPrimaryHypothesis enum.
+func (e DiagnosisCompletedPrimaryHypothesis) Valid() bool {
+	switch e {
+	case DiagnosisCompletedPrimaryHypothesisDependencyErrors:
+		return true
+	case DiagnosisCompletedPrimaryHypothesisHealthy:
+		return true
+	case DiagnosisCompletedPrimaryHypothesisInsufficientEvidence:
+		return true
+	case DiagnosisCompletedPrimaryHypothesisSlowProcessing:
+		return true
+	case DiagnosisCompletedPrimaryHypothesisWorkerStopped:
 		return true
 	default:
 		return false
@@ -71,27 +284,34 @@ func (e CreateTaskRequestSchemaAnalysisContextResolution1StepSeconds) Valid() bo
 
 // Defines values for ErrorCode.
 const (
-	AdapterNotConfigured   ErrorCode = "adapter_not_configured"
-	DependencyUnavailable  ErrorCode = "dependency_unavailable"
-	ExecutionInterrupted   ErrorCode = "execution_interrupted"
-	IdempotencyConflict    ErrorCode = "idempotency_conflict"
-	InternalError          ErrorCode = "internal_error"
-	InvalidArgument        ErrorCode = "invalid_argument"
-	InvalidStateTransition ErrorCode = "invalid_state_transition"
-	NotImplemented         ErrorCode = "not_implemented"
-	PermissionDenied       ErrorCode = "permission_denied"
-	ResourceConflict       ErrorCode = "resource_conflict"
-	ResourceNotFound       ErrorCode = "resource_not_found"
-	SchemaValidationFailed ErrorCode = "schema_validation_failed"
-	ToolNotSupported       ErrorCode = "tool_not_supported"
-	ToolTimeout            ErrorCode = "tool_timeout"
-	Unauthenticated        ErrorCode = "unauthenticated"
+	AdapterNotConfigured     ErrorCode = "adapter_not_configured"
+	ApprovalExpired          ErrorCode = "approval_expired"
+	ApprovalRequired         ErrorCode = "approval_required"
+	DependencyUnavailable    ErrorCode = "dependency_unavailable"
+	ExecutionInterrupted     ErrorCode = "execution_interrupted"
+	IdempotencyConflict      ErrorCode = "idempotency_conflict"
+	InternalError            ErrorCode = "internal_error"
+	InvalidArgument          ErrorCode = "invalid_argument"
+	InvalidStateTransition   ErrorCode = "invalid_state_transition"
+	NotImplemented           ErrorCode = "not_implemented"
+	PermissionDenied         ErrorCode = "permission_denied"
+	ResourceConflict         ErrorCode = "resource_conflict"
+	ResourceNotFound         ErrorCode = "resource_not_found"
+	SchemaValidationFailed   ErrorCode = "schema_validation_failed"
+	TargetPreconditionFailed ErrorCode = "target_precondition_failed"
+	ToolNotSupported         ErrorCode = "tool_not_supported"
+	ToolTimeout              ErrorCode = "tool_timeout"
+	Unauthenticated          ErrorCode = "unauthenticated"
 )
 
 // Valid indicates whether the value is a known member of the ErrorCode enum.
 func (e ErrorCode) Valid() bool {
 	switch e {
 	case AdapterNotConfigured:
+		return true
+	case ApprovalExpired:
+		return true
+	case ApprovalRequired:
 		return true
 	case DependencyUnavailable:
 		return true
@@ -115,6 +335,8 @@ func (e ErrorCode) Valid() bool {
 		return true
 	case SchemaValidationFailed:
 		return true
+	case TargetPreconditionFailed:
+		return true
 	case ToolNotSupported:
 		return true
 	case ToolTimeout:
@@ -126,9 +348,157 @@ func (e ErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for GrafanaAlertWebhookSchemaStatus.
+const (
+	Firing   GrafanaAlertWebhookSchemaStatus = "firing"
+	Resolved GrafanaAlertWebhookSchemaStatus = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the GrafanaAlertWebhookSchemaStatus enum.
+func (e GrafanaAlertWebhookSchemaStatus) Valid() bool {
+	switch e {
+	case Firing:
+		return true
+	case Resolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IncidentPlanSchemaAssetRefsKind.
+const (
+	IncidentPlanSchemaAssetRefsKindAlertMapping IncidentPlanSchemaAssetRefsKind = "alert_mapping"
+	IncidentPlanSchemaAssetRefsKindKnowledge    IncidentPlanSchemaAssetRefsKind = "knowledge"
+	IncidentPlanSchemaAssetRefsKindPlaybook     IncidentPlanSchemaAssetRefsKind = "playbook"
+	IncidentPlanSchemaAssetRefsKindSkill        IncidentPlanSchemaAssetRefsKind = "skill"
+)
+
+// Valid indicates whether the value is a known member of the IncidentPlanSchemaAssetRefsKind enum.
+func (e IncidentPlanSchemaAssetRefsKind) Valid() bool {
+	switch e {
+	case IncidentPlanSchemaAssetRefsKindAlertMapping:
+		return true
+	case IncidentPlanSchemaAssetRefsKindKnowledge:
+		return true
+	case IncidentPlanSchemaAssetRefsKindPlaybook:
+		return true
+	case IncidentPlanSchemaAssetRefsKindSkill:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IncidentPlanSchemaDiagnosisCandidateAction.
+const (
+	IncidentPlanSchemaDiagnosisCandidateActionNoAction                 IncidentPlanSchemaDiagnosisCandidateAction = "no_action"
+	IncidentPlanSchemaDiagnosisCandidateActionRestoreWorkerConcurrency IncidentPlanSchemaDiagnosisCandidateAction = "restore_worker_concurrency"
+)
+
+// Valid indicates whether the value is a known member of the IncidentPlanSchemaDiagnosisCandidateAction enum.
+func (e IncidentPlanSchemaDiagnosisCandidateAction) Valid() bool {
+	switch e {
+	case IncidentPlanSchemaDiagnosisCandidateActionNoAction:
+		return true
+	case IncidentPlanSchemaDiagnosisCandidateActionRestoreWorkerConcurrency:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IncidentPlanSchemaDiagnosisPrimaryHypothesis.
+const (
+	IncidentPlanSchemaDiagnosisPrimaryHypothesisDependencyErrors     IncidentPlanSchemaDiagnosisPrimaryHypothesis = "dependency_errors"
+	IncidentPlanSchemaDiagnosisPrimaryHypothesisHealthy              IncidentPlanSchemaDiagnosisPrimaryHypothesis = "healthy"
+	IncidentPlanSchemaDiagnosisPrimaryHypothesisInsufficientEvidence IncidentPlanSchemaDiagnosisPrimaryHypothesis = "insufficient_evidence"
+	IncidentPlanSchemaDiagnosisPrimaryHypothesisSlowProcessing       IncidentPlanSchemaDiagnosisPrimaryHypothesis = "slow_processing"
+	IncidentPlanSchemaDiagnosisPrimaryHypothesisWorkerStopped        IncidentPlanSchemaDiagnosisPrimaryHypothesis = "worker_stopped"
+)
+
+// Valid indicates whether the value is a known member of the IncidentPlanSchemaDiagnosisPrimaryHypothesis enum.
+func (e IncidentPlanSchemaDiagnosisPrimaryHypothesis) Valid() bool {
+	switch e {
+	case IncidentPlanSchemaDiagnosisPrimaryHypothesisDependencyErrors:
+		return true
+	case IncidentPlanSchemaDiagnosisPrimaryHypothesisHealthy:
+		return true
+	case IncidentPlanSchemaDiagnosisPrimaryHypothesisInsufficientEvidence:
+		return true
+	case IncidentPlanSchemaDiagnosisPrimaryHypothesisSlowProcessing:
+		return true
+	case IncidentPlanSchemaDiagnosisPrimaryHypothesisWorkerStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IncidentPlanSchemaIntentRisk.
+const (
+	Low IncidentPlanSchemaIntentRisk = "low"
+)
+
+// Valid indicates whether the value is a known member of the IncidentPlanSchemaIntentRisk enum.
+func (e IncidentPlanSchemaIntentRisk) Valid() bool {
+	switch e {
+	case Low:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IncidentPlanSchemaPhase.
+const (
+	IncidentPlanSchemaPhaseCompleted      IncidentPlanSchemaPhase = "completed"
+	IncidentPlanSchemaPhaseExecute        IncidentPlanSchemaPhase = "execute"
+	IncidentPlanSchemaPhaseLoadAssets     IncidentPlanSchemaPhase = "load_assets"
+	IncidentPlanSchemaPhaseNeedsAgent     IncidentPlanSchemaPhase = "needs_agent"
+	IncidentPlanSchemaPhaseNeedsApproval  IncidentPlanSchemaPhase = "needs_approval"
+	IncidentPlanSchemaPhaseNoAction       IncidentPlanSchemaPhase = "no_action"
+	IncidentPlanSchemaPhaseObserve        IncidentPlanSchemaPhase = "observe"
+	IncidentPlanSchemaPhasePrepare        IncidentPlanSchemaPhase = "prepare"
+	IncidentPlanSchemaPhaseVerifyBusiness IncidentPlanSchemaPhase = "verify_business"
+	IncidentPlanSchemaPhaseVerifyMetrics  IncidentPlanSchemaPhase = "verify_metrics"
+	IncidentPlanSchemaPhaseVerifyRuntime  IncidentPlanSchemaPhase = "verify_runtime"
+)
+
+// Valid indicates whether the value is a known member of the IncidentPlanSchemaPhase enum.
+func (e IncidentPlanSchemaPhase) Valid() bool {
+	switch e {
+	case IncidentPlanSchemaPhaseCompleted:
+		return true
+	case IncidentPlanSchemaPhaseExecute:
+		return true
+	case IncidentPlanSchemaPhaseLoadAssets:
+		return true
+	case IncidentPlanSchemaPhaseNeedsAgent:
+		return true
+	case IncidentPlanSchemaPhaseNeedsApproval:
+		return true
+	case IncidentPlanSchemaPhaseNoAction:
+		return true
+	case IncidentPlanSchemaPhaseObserve:
+		return true
+	case IncidentPlanSchemaPhasePrepare:
+		return true
+	case IncidentPlanSchemaPhaseVerifyBusiness:
+		return true
+	case IncidentPlanSchemaPhaseVerifyMetrics:
+		return true
+	case IncidentPlanSchemaPhaseVerifyRuntime:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MessageSchemaRole.
 const (
 	Assistant MessageSchemaRole = "assistant"
+	Trigger   MessageSchemaRole = "trigger"
 	User      MessageSchemaRole = "user"
 )
 
@@ -137,7 +507,54 @@ func (e MessageSchemaRole) Valid() bool {
 	switch e {
 	case Assistant:
 		return true
+	case Trigger:
+		return true
 	case User:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RemediationOperationState.
+const (
+	RemediationOperationStateAlreadyApplied RemediationOperationState = "already_applied"
+	RemediationOperationStateApplied        RemediationOperationState = "applied"
+	RemediationOperationStateFailed         RemediationOperationState = "failed"
+	RemediationOperationStateStarted        RemediationOperationState = "started"
+	RemediationOperationStateUnknown        RemediationOperationState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the RemediationOperationState enum.
+func (e RemediationOperationState) Valid() bool {
+	switch e {
+	case RemediationOperationStateAlreadyApplied:
+		return true
+	case RemediationOperationStateApplied:
+		return true
+	case RemediationOperationStateFailed:
+		return true
+	case RemediationOperationStateStarted:
+		return true
+	case RemediationOperationStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SessionSchemaKind.
+const (
+	OrgIncident SessionSchemaKind = "org_incident"
+	Private     SessionSchemaKind = "private"
+)
+
+// Valid indicates whether the value is a known member of the SessionSchemaKind enum.
+func (e SessionSchemaKind) Valid() bool {
+	switch e {
+	case OrgIncident:
+		return true
+	case Private:
 		return true
 	default:
 		return false
@@ -161,28 +578,40 @@ func (e SessionSchemaStatus) Valid() bool {
 
 // Defines values for StatusChangedPreviousStatus.
 const (
-	StatusChangedPreviousStatusCompleted    StatusChangedPreviousStatus = "completed"
-	StatusChangedPreviousStatusCreated      StatusChangedPreviousStatus = "created"
-	StatusChangedPreviousStatusFailed       StatusChangedPreviousStatus = "failed"
-	StatusChangedPreviousStatusPlanning     StatusChangedPreviousStatus = "planning"
-	StatusChangedPreviousStatusRunningTools StatusChangedPreviousStatus = "running_tools"
-	StatusChangedPreviousStatusValidating   StatusChangedPreviousStatus = "validating"
+	StatusChangedPreviousStatusCancelled       StatusChangedPreviousStatus = "cancelled"
+	StatusChangedPreviousStatusCompleted       StatusChangedPreviousStatus = "completed"
+	StatusChangedPreviousStatusCreated         StatusChangedPreviousStatus = "created"
+	StatusChangedPreviousStatusExecuting       StatusChangedPreviousStatus = "executing"
+	StatusChangedPreviousStatusFailed          StatusChangedPreviousStatus = "failed"
+	StatusChangedPreviousStatusPlanning        StatusChangedPreviousStatus = "planning"
+	StatusChangedPreviousStatusReconciling     StatusChangedPreviousStatus = "reconciling"
+	StatusChangedPreviousStatusRunningTools    StatusChangedPreviousStatus = "running_tools"
+	StatusChangedPreviousStatusValidating      StatusChangedPreviousStatus = "validating"
+	StatusChangedPreviousStatusWaitingApproval StatusChangedPreviousStatus = "waiting_approval"
 )
 
 // Valid indicates whether the value is a known member of the StatusChangedPreviousStatus enum.
 func (e StatusChangedPreviousStatus) Valid() bool {
 	switch e {
+	case StatusChangedPreviousStatusCancelled:
+		return true
 	case StatusChangedPreviousStatusCompleted:
 		return true
 	case StatusChangedPreviousStatusCreated:
+		return true
+	case StatusChangedPreviousStatusExecuting:
 		return true
 	case StatusChangedPreviousStatusFailed:
 		return true
 	case StatusChangedPreviousStatusPlanning:
 		return true
+	case StatusChangedPreviousStatusReconciling:
+		return true
 	case StatusChangedPreviousStatusRunningTools:
 		return true
 	case StatusChangedPreviousStatusValidating:
+		return true
+	case StatusChangedPreviousStatusWaitingApproval:
 		return true
 	default:
 		return false
@@ -191,28 +620,40 @@ func (e StatusChangedPreviousStatus) Valid() bool {
 
 // Defines values for StatusChangedStatus.
 const (
-	StatusChangedStatusCompleted    StatusChangedStatus = "completed"
-	StatusChangedStatusCreated      StatusChangedStatus = "created"
-	StatusChangedStatusFailed       StatusChangedStatus = "failed"
-	StatusChangedStatusPlanning     StatusChangedStatus = "planning"
-	StatusChangedStatusRunningTools StatusChangedStatus = "running_tools"
-	StatusChangedStatusValidating   StatusChangedStatus = "validating"
+	Cancelled       StatusChangedStatus = "cancelled"
+	Completed       StatusChangedStatus = "completed"
+	Created         StatusChangedStatus = "created"
+	Executing       StatusChangedStatus = "executing"
+	Failed          StatusChangedStatus = "failed"
+	Planning        StatusChangedStatus = "planning"
+	Reconciling     StatusChangedStatus = "reconciling"
+	RunningTools    StatusChangedStatus = "running_tools"
+	Validating      StatusChangedStatus = "validating"
+	WaitingApproval StatusChangedStatus = "waiting_approval"
 )
 
 // Valid indicates whether the value is a known member of the StatusChangedStatus enum.
 func (e StatusChangedStatus) Valid() bool {
 	switch e {
-	case StatusChangedStatusCompleted:
+	case Cancelled:
 		return true
-	case StatusChangedStatusCreated:
+	case Completed:
 		return true
-	case StatusChangedStatusFailed:
+	case Created:
 		return true
-	case StatusChangedStatusPlanning:
+	case Executing:
 		return true
-	case StatusChangedStatusRunningTools:
+	case Failed:
 		return true
-	case StatusChangedStatusValidating:
+	case Planning:
+		return true
+	case Reconciling:
+		return true
+	case RunningTools:
+		return true
+	case Validating:
+		return true
+	case WaitingApproval:
 		return true
 	default:
 		return false
@@ -221,12 +662,22 @@ func (e StatusChangedStatus) Valid() bool {
 
 // Defines values for TaskEventsSchemaType.
 const (
+	TaskEventsSchemaTypeAlertReceived             TaskEventsSchemaType = "alert.received"
+	TaskEventsSchemaTypeApprovalDecided           TaskEventsSchemaType = "approval.decided"
+	TaskEventsSchemaTypeApprovalRequested         TaskEventsSchemaType = "approval.requested"
+	TaskEventsSchemaTypeAssetsPinned              TaskEventsSchemaType = "assets.pinned"
 	TaskEventsSchemaTypeAssistantMessageCompleted TaskEventsSchemaType = "assistant.message.completed"
 	TaskEventsSchemaTypeAssistantMessageDelta     TaskEventsSchemaType = "assistant.message.delta"
 	TaskEventsSchemaTypeAssistantMessageStarted   TaskEventsSchemaType = "assistant.message.started"
+	TaskEventsSchemaTypeAuditRecorded             TaskEventsSchemaType = "audit.recorded"
 	TaskEventsSchemaTypeChartCreated              TaskEventsSchemaType = "chart.created"
 	TaskEventsSchemaTypeChartExecutionCompleted   TaskEventsSchemaType = "chart.execution_completed"
+	TaskEventsSchemaTypeDiagnosisCompleted        TaskEventsSchemaType = "diagnosis.completed"
+	TaskEventsSchemaTypeIntentPrepared            TaskEventsSchemaType = "intent.prepared"
 	TaskEventsSchemaTypeMetricCandidatesCreated   TaskEventsSchemaType = "metric.candidates_created"
+	TaskEventsSchemaTypePlaybookResolved          TaskEventsSchemaType = "playbook.resolved"
+	TaskEventsSchemaTypeRemediationReconciled     TaskEventsSchemaType = "remediation.reconciled"
+	TaskEventsSchemaTypeRemediationStarted        TaskEventsSchemaType = "remediation.started"
 	TaskEventsSchemaTypeTaskCompleted             TaskEventsSchemaType = "task.completed"
 	TaskEventsSchemaTypeTaskCreated               TaskEventsSchemaType = "task.created"
 	TaskEventsSchemaTypeTaskFailed                TaskEventsSchemaType = "task.failed"
@@ -234,22 +685,45 @@ const (
 	TaskEventsSchemaTypeToolCompleted             TaskEventsSchemaType = "tool.completed"
 	TaskEventsSchemaTypeToolFailed                TaskEventsSchemaType = "tool.failed"
 	TaskEventsSchemaTypeToolStarted               TaskEventsSchemaType = "tool.started"
+	TaskEventsSchemaTypeVerificationBusiness      TaskEventsSchemaType = "verification.business"
+	TaskEventsSchemaTypeVerificationMetrics       TaskEventsSchemaType = "verification.metrics"
+	TaskEventsSchemaTypeVerificationRuntime       TaskEventsSchemaType = "verification.runtime"
 )
 
 // Valid indicates whether the value is a known member of the TaskEventsSchemaType enum.
 func (e TaskEventsSchemaType) Valid() bool {
 	switch e {
+	case TaskEventsSchemaTypeAlertReceived:
+		return true
+	case TaskEventsSchemaTypeApprovalDecided:
+		return true
+	case TaskEventsSchemaTypeApprovalRequested:
+		return true
+	case TaskEventsSchemaTypeAssetsPinned:
+		return true
 	case TaskEventsSchemaTypeAssistantMessageCompleted:
 		return true
 	case TaskEventsSchemaTypeAssistantMessageDelta:
 		return true
 	case TaskEventsSchemaTypeAssistantMessageStarted:
 		return true
+	case TaskEventsSchemaTypeAuditRecorded:
+		return true
 	case TaskEventsSchemaTypeChartCreated:
 		return true
 	case TaskEventsSchemaTypeChartExecutionCompleted:
 		return true
+	case TaskEventsSchemaTypeDiagnosisCompleted:
+		return true
+	case TaskEventsSchemaTypeIntentPrepared:
+		return true
 	case TaskEventsSchemaTypeMetricCandidatesCreated:
+		return true
+	case TaskEventsSchemaTypePlaybookResolved:
+		return true
+	case TaskEventsSchemaTypeRemediationReconciled:
+		return true
+	case TaskEventsSchemaTypeRemediationStarted:
 		return true
 	case TaskEventsSchemaTypeTaskCompleted:
 		return true
@@ -265,130 +739,123 @@ func (e TaskEventsSchemaType) Valid() bool {
 		return true
 	case TaskEventsSchemaTypeToolStarted:
 		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for TaskSchemaDatasourceUid.
-const (
-	TaskSchemaDatasourceUidPrometheusMain TaskSchemaDatasourceUid = "prometheus-main"
-)
-
-// Valid indicates whether the value is a known member of the TaskSchemaDatasourceUid enum.
-func (e TaskSchemaDatasourceUid) Valid() bool {
-	switch e {
-	case TaskSchemaDatasourceUidPrometheusMain:
+	case TaskEventsSchemaTypeVerificationBusiness:
+		return true
+	case TaskEventsSchemaTypeVerificationMetrics:
+		return true
+	case TaskEventsSchemaTypeVerificationRuntime:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for TaskSchemaQueryPlanCpuRateWindowSeconds.
-const (
-	TaskSchemaQueryPlanCpuRateWindowSecondsN30  TaskSchemaQueryPlanCpuRateWindowSeconds = 30
-	TaskSchemaQueryPlanCpuRateWindowSecondsN300 TaskSchemaQueryPlanCpuRateWindowSeconds = 300
-	TaskSchemaQueryPlanCpuRateWindowSecondsN60  TaskSchemaQueryPlanCpuRateWindowSeconds = 60
-)
-
-// Valid indicates whether the value is a known member of the TaskSchemaQueryPlanCpuRateWindowSeconds enum.
-func (e TaskSchemaQueryPlanCpuRateWindowSeconds) Valid() bool {
-	switch e {
-	case TaskSchemaQueryPlanCpuRateWindowSecondsN30:
-		return true
-	case TaskSchemaQueryPlanCpuRateWindowSecondsN300:
-		return true
-	case TaskSchemaQueryPlanCpuRateWindowSecondsN60:
-		return true
-	default:
-		return false
-	}
+// Alert defines model for alert.
+type Alert struct {
+	Annotations  Labels                                        `json:"annotations"`
+	DashboardURL *string                                       `json:"dashboardURL,omitempty"`
+	EndsAt       time.Time                                     `json:"endsAt"`
+	Fingerprint  string                                        `json:"fingerprint"`
+	GeneratorURL *string                                       `json:"generatorURL,omitempty"`
+	Labels       Alert_Labels                                  `json:"labels"`
+	PanelURL     *string                                       `json:"panelURL,omitempty"`
+	SilenceURL   *string                                       `json:"silenceURL,omitempty"`
+	StartsAt     time.Time                                     `json:"startsAt"`
+	Status       AlertStatus                                   `json:"status"`
+	ValueString  *string                                       `json:"valueString,omitempty"`
+	Values       *map[string]Alert_Values_AdditionalProperties `json:"values,omitempty"`
 }
 
-// Defines values for TaskSchemaQueryPlanStepSeconds.
-const (
-	N10  TaskSchemaQueryPlanStepSeconds = 10
-	N120 TaskSchemaQueryPlanStepSeconds = 120
-	N15  TaskSchemaQueryPlanStepSeconds = 15
-	N30  TaskSchemaQueryPlanStepSeconds = 30
-	N300 TaskSchemaQueryPlanStepSeconds = 300
-	N5   TaskSchemaQueryPlanStepSeconds = 5
-	N60  TaskSchemaQueryPlanStepSeconds = 60
-)
-
-// Valid indicates whether the value is a known member of the TaskSchemaQueryPlanStepSeconds enum.
-func (e TaskSchemaQueryPlanStepSeconds) Valid() bool {
-	switch e {
-	case N10:
-		return true
-	case N120:
-		return true
-	case N15:
-		return true
-	case N30:
-		return true
-	case N300:
-		return true
-	case N5:
-		return true
-	case N60:
-		return true
-	default:
-		return false
-	}
+// Alert_Labels defines model for Alert.Labels.
+type Alert_Labels struct {
+	Alertname            string            `json:"alertname"`
+	ServiceRef           string            `json:"service_ref"`
+	AdditionalProperties map[string]string `json:"-"`
 }
 
-// Defines values for TaskSchemaQueryPlanViews.
-const (
-	Cpu    TaskSchemaQueryPlanViews = "cpu"
-	Load   TaskSchemaQueryPlanViews = "load"
-	Memory TaskSchemaQueryPlanViews = "memory"
-)
+// AlertStatus defines model for Alert.Status.
+type AlertStatus string
 
-// Valid indicates whether the value is a known member of the TaskSchemaQueryPlanViews enum.
-func (e TaskSchemaQueryPlanViews) Valid() bool {
-	switch e {
-	case Cpu:
-		return true
-	case Load:
-		return true
-	case Memory:
-		return true
-	default:
-		return false
-	}
+// AlertValues0 defines model for .
+type AlertValues0 = float32
+
+// AlertValues1 defines model for .
+type AlertValues1 = string
+
+// Alert_Values_AdditionalProperties defines model for alert.values.AdditionalProperties.
+type Alert_Values_AdditionalProperties struct {
+	union json.RawMessage
 }
 
-// Defines values for TaskSchemaStatus.
-const (
-	Completed    TaskSchemaStatus = "completed"
-	Created      TaskSchemaStatus = "created"
-	Failed       TaskSchemaStatus = "failed"
-	Planning     TaskSchemaStatus = "planning"
-	RunningTools TaskSchemaStatus = "running_tools"
-	Validating   TaskSchemaStatus = "validating"
-)
-
-// Valid indicates whether the value is a known member of the TaskSchemaStatus enum.
-func (e TaskSchemaStatus) Valid() bool {
-	switch e {
-	case Completed:
-		return true
-	case Created:
-		return true
-	case Failed:
-		return true
-	case Planning:
-		return true
-	case RunningTools:
-		return true
-	case Validating:
-		return true
-	default:
-		return false
-	}
+// AlertIngressResponseSchema defines model for alert-ingress-response.schema.
+type AlertIngressResponseSchema struct {
+	Accepted  int      `json:"accepted"`
+	Duplicate int      `json:"duplicate"`
+	TaskIds   []string `json:"taskIds"`
 }
+
+// AlertReceived defines model for alertReceived.
+type AlertReceived struct {
+	AlertName   string              `json:"alertName"`
+	Fingerprint string              `json:"fingerprint"`
+	ServiceRef  string              `json:"serviceRef"`
+	SourceId    string              `json:"sourceId"`
+	StartsAt    time.Time           `json:"startsAt"`
+	Status      AlertReceivedStatus `json:"status"`
+}
+
+// AlertReceivedStatus defines model for AlertReceived.Status.
+type AlertReceivedStatus string
+
+// ApprovalSchema defines model for approval.schema.
+type ApprovalSchema struct {
+	DecidedAt      *time.Time           `json:"decidedAt"`
+	DecidedBy      *string              `json:"decidedBy"`
+	DecisionReason *string              `json:"decisionReason"`
+	ExpiresAt      time.Time            `json:"expiresAt"`
+	Id             string               `json:"id"`
+	IntentDigest   string               `json:"intentDigest"`
+	RequestedAt    time.Time            `json:"requestedAt"`
+	Status         ApprovalSchemaStatus `json:"status"`
+	TaskId         string               `json:"taskId"`
+	Version        int                  `json:"version"`
+}
+
+// ApprovalSchemaStatus defines model for ApprovalSchema.Status.
+type ApprovalSchemaStatus string
+
+// ApprovalDecided defines model for approvalDecided.
+type ApprovalDecided struct {
+	ApprovalId string                `json:"approvalId"`
+	DecidedAt  time.Time             `json:"decidedAt"`
+	DecidedBy  string                `json:"decidedBy"`
+	Status     ApprovalDecidedStatus `json:"status"`
+	Version    int                   `json:"version"`
+}
+
+// ApprovalDecidedStatus defines model for ApprovalDecided.Status.
+type ApprovalDecidedStatus string
+
+// ApprovalRequested defines model for approvalRequested.
+type ApprovalRequested struct {
+	ApprovalId   string    `json:"approvalId"`
+	ExpiresAt    time.Time `json:"expiresAt"`
+	IntentDigest string    `json:"intentDigest"`
+	Version      int       `json:"version"`
+}
+
+// AssetsPinned defines model for assetsPinned.
+type AssetsPinned struct {
+	Assets []struct {
+		Digest  string                 `json:"digest"`
+		Id      string                 `json:"id"`
+		Kind    AssetsPinnedAssetsKind `json:"kind"`
+		Version string                 `json:"version"`
+	} `json:"assets"`
+}
+
+// AssetsPinnedAssetsKind defines model for AssetsPinned.Assets.Kind.
+type AssetsPinnedAssetsKind string
 
 // AssistantCompleted defines model for assistantCompleted.
 type AssistantCompleted struct {
@@ -407,6 +874,19 @@ type AssistantStarted struct {
 	MessageId string      `json:"messageId"`
 	Role      interface{} `json:"role"`
 }
+
+// AuditRecorded defines model for auditRecorded.
+type AuditRecorded struct {
+	Action  AuditRecordedAction  `json:"action"`
+	AuditId string               `json:"auditId"`
+	Outcome AuditRecordedOutcome `json:"outcome"`
+}
+
+// AuditRecordedAction defines model for AuditRecorded.Action.
+type AuditRecordedAction string
+
+// AuditRecordedOutcome defines model for AuditRecorded.Outcome.
+type AuditRecordedOutcome string
 
 // Candidate defines model for candidate.
 type Candidate struct {
@@ -493,6 +973,33 @@ type CreateTaskRequestSchema_AnalysisContext_TimeRange struct {
 	union json.RawMessage
 }
 
+// DecideApprovalRequestSchema defines model for decide-approval-request.schema.
+type DecideApprovalRequestSchema struct {
+	Decision                DecideApprovalRequestSchemaDecision `json:"decision"`
+	ExpectedApprovalVersion int                                 `json:"expectedApprovalVersion"`
+	ExpectedTaskVersion     int                                 `json:"expectedTaskVersion"`
+	IntentDigest            string                              `json:"intentDigest"`
+	Reason                  string                              `json:"reason"`
+}
+
+// DecideApprovalRequestSchemaDecision defines model for DecideApprovalRequestSchema.Decision.
+type DecideApprovalRequestSchemaDecision string
+
+// DiagnosisCompleted defines model for diagnosisCompleted.
+type DiagnosisCompleted struct {
+	AlternativeHypotheses []string                            `json:"alternativeHypotheses"`
+	CandidateAction       DiagnosisCompletedCandidateAction   `json:"candidateAction"`
+	Confidence            float32                             `json:"confidence"`
+	EvidenceRefs          []string                            `json:"evidenceRefs"`
+	PrimaryHypothesis     DiagnosisCompletedPrimaryHypothesis `json:"primaryHypothesis"`
+}
+
+// DiagnosisCompletedCandidateAction defines model for DiagnosisCompleted.CandidateAction.
+type DiagnosisCompletedCandidateAction string
+
+// DiagnosisCompletedPrimaryHypothesis defines model for DiagnosisCompleted.PrimaryHypothesis.
+type DiagnosisCompletedPrimaryHypothesis string
+
 // Error defines model for error.
 type Error struct {
 	Code      ErrorCode               `json:"code"`
@@ -518,6 +1025,102 @@ type Execution struct {
 	Status               string                 `json:"status"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
+
+// GrafanaAlertWebhookSchema defines model for grafana-alert-webhook.schema.
+type GrafanaAlertWebhookSchema struct {
+	Alerts            []Alert                         `json:"alerts"`
+	CommonAnnotations *Labels                         `json:"commonAnnotations,omitempty"`
+	CommonLabels      *Labels                         `json:"commonLabels,omitempty"`
+	ExternalURL       *string                         `json:"externalURL,omitempty"`
+	GroupKey          *string                         `json:"groupKey,omitempty"`
+	GroupLabels       *Labels                         `json:"groupLabels,omitempty"`
+	Message           *string                         `json:"message,omitempty"`
+	OrgId             *int                            `json:"orgId,omitempty"`
+	Receiver          string                          `json:"receiver"`
+	State             *string                         `json:"state,omitempty"`
+	Status            GrafanaAlertWebhookSchemaStatus `json:"status"`
+	Title             *string                         `json:"title,omitempty"`
+	TruncatedAlerts   *int                            `json:"truncatedAlerts,omitempty"`
+	Version           *string                         `json:"version,omitempty"`
+}
+
+// GrafanaAlertWebhookSchemaStatus defines model for GrafanaAlertWebhookSchema.Status.
+type GrafanaAlertWebhookSchemaStatus string
+
+// IncidentPlanSchema defines model for incident-plan.schema.
+type IncidentPlanSchema struct {
+	AlertFingerprint string `json:"alertFingerprint"`
+	AlertName        string `json:"alertName"`
+	AssetRefs        []struct {
+		Digest  string                          `json:"digest"`
+		Id      string                          `json:"id"`
+		Kind    IncidentPlanSchemaAssetRefsKind `json:"kind"`
+		Version string                          `json:"version"`
+	} `json:"assetRefs"`
+	Diagnosis *struct {
+		AlternativeHypotheses []string                                     `json:"alternativeHypotheses"`
+		CandidateAction       IncidentPlanSchemaDiagnosisCandidateAction   `json:"candidateAction"`
+		Confidence            float32                                      `json:"confidence"`
+		EvidenceRefs          []string                                     `json:"evidenceRefs"`
+		PrimaryHypothesis     IncidentPlanSchemaDiagnosisPrimaryHypothesis `json:"primaryHypothesis"`
+	} `json:"diagnosis"`
+	Intent *struct {
+		AfterConcurrency  interface{}                  `json:"afterConcurrency"`
+		BeforeConcurrency interface{}                  `json:"beforeConcurrency"`
+		CapabilityId      interface{}                  `json:"capabilityId"`
+		CreatedAt         time.Time                    `json:"createdAt"`
+		Digest            string                       `json:"digest"`
+		ExpectedVersion   int                          `json:"expectedVersion"`
+		Id                string                       `json:"id"`
+		InstanceEpoch     string                       `json:"instanceEpoch"`
+		Risk              IncidentPlanSchemaIntentRisk `json:"risk"`
+		ServiceRef        string                       `json:"serviceRef"`
+	} `json:"intent"`
+	Labels  map[string]string `json:"labels"`
+	Mapping struct {
+		Digest string `json:"digest"`
+		Id     string `json:"id"`
+	} `json:"mapping"`
+	Phase    IncidentPlanSchemaPhase `json:"phase"`
+	Playbook struct {
+		Digest  string `json:"digest"`
+		Id      string `json:"id"`
+		Version string `json:"version"`
+	} `json:"playbook"`
+	ServiceRef string `json:"serviceRef"`
+	SourceId   string `json:"sourceId"`
+}
+
+// IncidentPlanSchemaAssetRefsKind defines model for IncidentPlanSchema.AssetRefs.Kind.
+type IncidentPlanSchemaAssetRefsKind string
+
+// IncidentPlanSchemaDiagnosisCandidateAction defines model for IncidentPlanSchema.Diagnosis.CandidateAction.
+type IncidentPlanSchemaDiagnosisCandidateAction string
+
+// IncidentPlanSchemaDiagnosisPrimaryHypothesis defines model for IncidentPlanSchema.Diagnosis.PrimaryHypothesis.
+type IncidentPlanSchemaDiagnosisPrimaryHypothesis string
+
+// IncidentPlanSchemaIntentRisk defines model for IncidentPlanSchema.Intent.Risk.
+type IncidentPlanSchemaIntentRisk string
+
+// IncidentPlanSchemaPhase defines model for IncidentPlanSchema.Phase.
+type IncidentPlanSchemaPhase string
+
+// IntentPrepared defines model for intentPrepared.
+type IntentPrepared struct {
+	AfterConcurrency  interface{} `json:"afterConcurrency"`
+	BeforeConcurrency interface{} `json:"beforeConcurrency"`
+	CapabilityId      interface{} `json:"capabilityId"`
+	ExpectedVersion   int         `json:"expectedVersion"`
+	InstanceEpoch     string      `json:"instanceEpoch"`
+	IntentDigest      string      `json:"intentDigest"`
+	IntentId          string      `json:"intentId"`
+	Risk              interface{} `json:"risk"`
+	ServiceRef        string      `json:"serviceRef"`
+}
+
+// Labels defines model for labels.
+type Labels map[string]string
 
 // Message defines model for message.
 type Message struct {
@@ -554,6 +1157,25 @@ type MetricCandidates struct {
 	Candidates []Candidate `json:"candidates"`
 }
 
+// PlaybookResolved defines model for playbookResolved.
+type PlaybookResolved struct {
+	MappingDigest   string `json:"mappingDigest"`
+	MappingId       string `json:"mappingId"`
+	PlaybookDigest  string `json:"playbookDigest"`
+	PlaybookId      string `json:"playbookId"`
+	PlaybookVersion string `json:"playbookVersion"`
+}
+
+// RemediationOperation defines model for remediationOperation.
+type RemediationOperation struct {
+	IntentDigest string                    `json:"intentDigest"`
+	OperationId  string                    `json:"operationId"`
+	State        RemediationOperationState `json:"state"`
+}
+
+// RemediationOperationState defines model for RemediationOperation.State.
+type RemediationOperationState string
+
 // SessionPageSchema defines model for session-page.schema.
 type SessionPageSchema struct {
 	Items         []SessionSchema `json:"items"`
@@ -565,12 +1187,17 @@ type SessionSchema struct {
 	CreatedAt time.Time           `json:"createdAt"`
 	CreatedBy string              `json:"createdBy"`
 	Id        string              `json:"id"`
+	Kind      SessionSchemaKind   `json:"kind"`
+	OrgId     string              `json:"orgId"`
 	Status    SessionSchemaStatus `json:"status"`
 	TenantId  string              `json:"tenantId"`
 	Title     string              `json:"title"`
 	UpdatedAt time.Time           `json:"updatedAt"`
 	Version   int                 `json:"version"`
 }
+
+// SessionSchemaKind defines model for SessionSchema.Kind.
+type SessionSchemaKind string
 
 // SessionSchemaStatus defines model for SessionSchema.Status.
 type SessionSchemaStatus string
@@ -688,6 +1315,84 @@ type TaskEventsSchema12 struct {
 	Type    interface{} `json:"type,omitempty"`
 }
 
+// TaskEventsSchema13 defines model for .
+type TaskEventsSchema13 struct {
+	Payload *AlertReceived `json:"payload,omitempty"`
+	Type    interface{}    `json:"type,omitempty"`
+}
+
+// TaskEventsSchema14 defines model for .
+type TaskEventsSchema14 struct {
+	Payload *PlaybookResolved `json:"payload,omitempty"`
+	Type    interface{}       `json:"type,omitempty"`
+}
+
+// TaskEventsSchema15 defines model for .
+type TaskEventsSchema15 struct {
+	Payload *AssetsPinned `json:"payload,omitempty"`
+	Type    interface{}   `json:"type,omitempty"`
+}
+
+// TaskEventsSchema16 defines model for .
+type TaskEventsSchema16 struct {
+	Payload *DiagnosisCompleted `json:"payload,omitempty"`
+	Type    interface{}         `json:"type,omitempty"`
+}
+
+// TaskEventsSchema17 defines model for .
+type TaskEventsSchema17 struct {
+	Payload *IntentPrepared `json:"payload,omitempty"`
+	Type    interface{}     `json:"type,omitempty"`
+}
+
+// TaskEventsSchema18 defines model for .
+type TaskEventsSchema18 struct {
+	Payload *ApprovalRequested `json:"payload,omitempty"`
+	Type    interface{}        `json:"type,omitempty"`
+}
+
+// TaskEventsSchema19 defines model for .
+type TaskEventsSchema19 struct {
+	Payload *ApprovalDecided `json:"payload,omitempty"`
+	Type    interface{}      `json:"type,omitempty"`
+}
+
+// TaskEventsSchema20 defines model for .
+type TaskEventsSchema20 struct {
+	Payload *RemediationOperation `json:"payload,omitempty"`
+	Type    interface{}           `json:"type,omitempty"`
+}
+
+// TaskEventsSchema21 defines model for .
+type TaskEventsSchema21 struct {
+	Payload *RemediationOperation `json:"payload,omitempty"`
+	Type    interface{}           `json:"type,omitempty"`
+}
+
+// TaskEventsSchema22 defines model for .
+type TaskEventsSchema22 struct {
+	Payload *Verification `json:"payload,omitempty"`
+	Type    interface{}   `json:"type,omitempty"`
+}
+
+// TaskEventsSchema23 defines model for .
+type TaskEventsSchema23 struct {
+	Payload *Verification `json:"payload,omitempty"`
+	Type    interface{}   `json:"type,omitempty"`
+}
+
+// TaskEventsSchema24 defines model for .
+type TaskEventsSchema24 struct {
+	Payload *Verification `json:"payload,omitempty"`
+	Type    interface{}   `json:"type,omitempty"`
+}
+
+// TaskEventsSchema25 defines model for .
+type TaskEventsSchema25 struct {
+	Payload *AuditRecorded `json:"payload,omitempty"`
+	Type    interface{}    `json:"type,omitempty"`
+}
+
 // TaskPageSchema defines model for task-page.schema.
 type TaskPageSchema struct {
 	Items         []TaskSchema `json:"items"`
@@ -695,53 +1400,7 @@ type TaskPageSchema struct {
 }
 
 // TaskSchema defines model for task.schema.
-type TaskSchema struct {
-	CompletedAt    *time.Time              `json:"completedAt"`
-	CreatedAt      time.Time               `json:"createdAt"`
-	DatasourceUid  TaskSchemaDatasourceUid `json:"datasourceUid"`
-	Error          *TaskSchema_Error       `json:"error"`
-	Id             string                  `json:"id"`
-	InputMessageId string                  `json:"inputMessageId"`
-	LatestSequence int                     `json:"latestSequence"`
-	QueryPlan      struct {
-		CpuRateWindowSeconds TaskSchemaQueryPlanCpuRateWindowSeconds `json:"cpuRateWindowSeconds"`
-		StepSeconds          TaskSchemaQueryPlanStepSeconds          `json:"stepSeconds"`
-		Views                []TaskSchemaQueryPlanViews              `json:"views"`
-	} `json:"queryPlan"`
-	SessionId string           `json:"sessionId"`
-	StartedAt *time.Time       `json:"startedAt"`
-	Status    TaskSchemaStatus `json:"status"`
-	TimeRange struct {
-		From time.Time `json:"from"`
-		To   time.Time `json:"to"`
-	} `json:"timeRange"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	Version   int       `json:"version"`
-}
-
-// TaskSchemaDatasourceUid defines model for TaskSchema.DatasourceUid.
-type TaskSchemaDatasourceUid string
-
-// TaskSchema_Error defines model for TaskSchema.Error.
-type TaskSchema_Error struct {
-	Code                 string                 `json:"code"`
-	Message              string                 `json:"message"`
-	RequestId            string                 `json:"requestId"`
-	Retryable            bool                   `json:"retryable"`
-	AdditionalProperties map[string]interface{} `json:"-"`
-}
-
-// TaskSchemaQueryPlanCpuRateWindowSeconds defines model for TaskSchema.QueryPlan.CpuRateWindowSeconds.
-type TaskSchemaQueryPlanCpuRateWindowSeconds int
-
-// TaskSchemaQueryPlanStepSeconds defines model for TaskSchema.QueryPlan.StepSeconds.
-type TaskSchemaQueryPlanStepSeconds int
-
-// TaskSchemaQueryPlanViews defines model for TaskSchema.QueryPlan.Views.
-type TaskSchemaQueryPlanViews string
-
-// TaskSchemaStatus defines model for TaskSchema.Status.
-type TaskSchemaStatus string
+type TaskSchema = interface{}
 
 // TaskCompleted defines model for taskCompleted.
 type TaskCompleted struct {
@@ -800,8 +1459,24 @@ type ToolStarted struct {
 	ToolVersion  interface{}            `json:"toolVersion"`
 }
 
+// Verification defines model for verification.
+type Verification struct {
+	ObservedAt time.Time `json:"observedAt"`
+	Passed     bool      `json:"passed"`
+	Summary    string    `json:"summary"`
+}
+
 // AfterSequence defines model for AfterSequence.
 type AfterSequence = int
+
+// AlertSignature defines model for AlertSignature.
+type AlertSignature = string
+
+// AlertSource defines model for AlertSource.
+type AlertSource = string
+
+// AlertTimestamp defines model for AlertTimestamp.
+type AlertTimestamp = int
 
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = string
@@ -859,6 +1534,36 @@ type ErrorResponse = ErrorSchema
 
 // internalServiceIdentityContextKey is the context key for InternalServiceIdentity security scheme
 type internalServiceIdentityContextKey string
+
+// IngestGrafanaAlertParams defines parameters for IngestGrafanaAlert.
+type IngestGrafanaAlertParams struct {
+	XMTBAlertSource AlertSource `json:"X-MTB-Alert-Source"`
+
+	// XMTBAlertTimestamp Unix timestamp accepted only within the configured replay window.
+	XMTBAlertTimestamp        AlertTimestamp `json:"X-MTB-Alert-Timestamp"`
+	XGrafanaAlertingSignature AlertSignature `json:"X-Grafana-Alerting-Signature"`
+	XRequestID                RequestId      `json:"X-Request-ID"`
+	XTraceID                  TraceId        `json:"X-Trace-ID"`
+	Traceparent               *TraceParent   `json:"traceparent,omitempty"`
+}
+
+// ListIncidentsParams defines parameters for ListIncidents.
+type ListIncidentsParams struct {
+	PageSize     *PageSizeTasks `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	PageToken    *PageToken     `form:"pageToken,omitempty" json:"pageToken,omitempty"`
+	XMTBTenantID TenantId       `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId          `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId         `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
 
 // ListSessionsParams defines parameters for ListSessions.
 type ListSessionsParams struct {
@@ -979,6 +1684,39 @@ type GetTaskParams struct {
 	Traceparent     *TraceParent `json:"traceparent,omitempty"`
 }
 
+// GetTaskApprovalParams defines parameters for GetTaskApproval.
+type GetTaskApprovalParams struct {
+	XMTBTenantID TenantId `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId    `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId   `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions  `json:"X-MTB-Permissions"`
+	XRequestID      RequestId    `json:"X-Request-ID"`
+	XTraceID        TraceId      `json:"X-Trace-ID"`
+	Traceparent     *TraceParent `json:"traceparent,omitempty"`
+}
+
+// DecideTaskApprovalParams defines parameters for DecideTaskApproval.
+type DecideTaskApprovalParams struct {
+	XMTBTenantID TenantId `json:"X-MTB-Tenant-ID"`
+	XMTBOrgID    OrgId    `json:"X-MTB-Org-ID"`
+	XMTBUserID   UserId   `json:"X-MTB-User-ID"`
+
+	// XMTBRoles Comma-separated, trimmed and de-duplicated roles.
+	XMTBRoles Roles `json:"X-MTB-Roles"`
+
+	// XMTBPermissions Comma-separated permissions; must include datasources:query for this profile.
+	XMTBPermissions Permissions    `json:"X-MTB-Permissions"`
+	IdempotencyKey  IdempotencyKey `json:"Idempotency-Key"`
+	XRequestID      RequestId      `json:"X-Request-ID"`
+	XTraceID        TraceId        `json:"X-Trace-ID"`
+	Traceparent     *TraceParent   `json:"traceparent,omitempty"`
+}
+
 // StreamTaskEventsParams defines parameters for StreamTaskEvents.
 type StreamTaskEventsParams struct {
 	AfterSequence *AfterSequence `form:"afterSequence,omitempty" json:"afterSequence,omitempty"`
@@ -1016,11 +1754,96 @@ type ReplayTaskEventsParams struct {
 	Traceparent     *TraceParent `json:"traceparent,omitempty"`
 }
 
+// IngestGrafanaAlertJSONRequestBody defines body for IngestGrafanaAlert for application/json ContentType.
+type IngestGrafanaAlertJSONRequestBody = GrafanaAlertWebhookSchema
+
 // CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
 type CreateSessionJSONRequestBody = CreateSessionRequestSchema
 
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CreateTaskRequestSchema
+
+// DecideTaskApprovalJSONRequestBody defines body for DecideTaskApproval for application/json ContentType.
+type DecideTaskApprovalJSONRequestBody = DecideApprovalRequestSchema
+
+// Getter for additional properties for Alert_Labels. Returns the specified
+// element and whether it was found
+func (a Alert_Labels) Get(fieldName string) (value string, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for Alert_Labels
+func (a *Alert_Labels) Set(fieldName string, value string) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]string)
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for Alert_Labels to handle AdditionalProperties
+func (a *Alert_Labels) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["alertname"]; found {
+		err = json.Unmarshal(raw, &a.Alertname)
+		if err != nil {
+			return fmt.Errorf("error reading 'alertname': %w", err)
+		}
+		delete(object, "alertname")
+	}
+
+	if raw, found := object["service_ref"]; found {
+		err = json.Unmarshal(raw, &a.ServiceRef)
+		if err != nil {
+			return fmt.Errorf("error reading 'service_ref': %w", err)
+		}
+		delete(object, "service_ref")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]string)
+		for fieldName, fieldBuf := range object {
+			var fieldVal string
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for Alert_Labels to handle AdditionalProperties
+func (a Alert_Labels) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["alertname"], err = json.Marshal(a.Alertname)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'alertname': %w", err)
+	}
+
+	object["service_ref"], err = json.Marshal(a.ServiceRef)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'service_ref': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // Getter for additional properties for Candidate. Returns the specified
 // element and whether it was found
@@ -1500,111 +2323,6 @@ func (a Message) MarshalJSON() ([]byte, error) {
 	return json.Marshal(object)
 }
 
-// Getter for additional properties for TaskSchema_Error. Returns the specified
-// element and whether it was found
-func (a TaskSchema_Error) Get(fieldName string) (value interface{}, found bool) {
-	if a.AdditionalProperties != nil {
-		value, found = a.AdditionalProperties[fieldName]
-	}
-	return
-}
-
-// Setter for additional properties for TaskSchema_Error
-func (a *TaskSchema_Error) Set(fieldName string, value interface{}) {
-	if a.AdditionalProperties == nil {
-		a.AdditionalProperties = make(map[string]interface{})
-	}
-	a.AdditionalProperties[fieldName] = value
-}
-
-// Override default JSON handling for TaskSchema_Error to handle AdditionalProperties
-func (a *TaskSchema_Error) UnmarshalJSON(b []byte) error {
-	object := make(map[string]json.RawMessage)
-	err := json.Unmarshal(b, &object)
-	if err != nil {
-		return err
-	}
-
-	if raw, found := object["code"]; found {
-		err = json.Unmarshal(raw, &a.Code)
-		if err != nil {
-			return fmt.Errorf("error reading 'code': %w", err)
-		}
-		delete(object, "code")
-	}
-
-	if raw, found := object["message"]; found {
-		err = json.Unmarshal(raw, &a.Message)
-		if err != nil {
-			return fmt.Errorf("error reading 'message': %w", err)
-		}
-		delete(object, "message")
-	}
-
-	if raw, found := object["requestId"]; found {
-		err = json.Unmarshal(raw, &a.RequestId)
-		if err != nil {
-			return fmt.Errorf("error reading 'requestId': %w", err)
-		}
-		delete(object, "requestId")
-	}
-
-	if raw, found := object["retryable"]; found {
-		err = json.Unmarshal(raw, &a.Retryable)
-		if err != nil {
-			return fmt.Errorf("error reading 'retryable': %w", err)
-		}
-		delete(object, "retryable")
-	}
-
-	if len(object) != 0 {
-		a.AdditionalProperties = make(map[string]interface{})
-		for fieldName, fieldBuf := range object {
-			var fieldVal interface{}
-			err := json.Unmarshal(fieldBuf, &fieldVal)
-			if err != nil {
-				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
-			}
-			a.AdditionalProperties[fieldName] = fieldVal
-		}
-	}
-	return nil
-}
-
-// Override default JSON handling for TaskSchema_Error to handle AdditionalProperties
-func (a TaskSchema_Error) MarshalJSON() ([]byte, error) {
-	var err error
-	object := make(map[string]json.RawMessage)
-
-	object["code"], err = json.Marshal(a.Code)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'code': %w", err)
-	}
-
-	object["message"], err = json.Marshal(a.Message)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'message': %w", err)
-	}
-
-	object["requestId"], err = json.Marshal(a.RequestId)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'requestId': %w", err)
-	}
-
-	object["retryable"], err = json.Marshal(a.Retryable)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'retryable': %w", err)
-	}
-
-	for fieldName, field := range a.AdditionalProperties {
-		object[fieldName], err = json.Marshal(field)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
-		}
-	}
-	return json.Marshal(object)
-}
-
 // Getter for additional properties for TaskEventError. Returns the specified
 // element and whether it was found
 func (a TaskEventError) Get(fieldName string) (value interface{}, found bool) {
@@ -1800,6 +2518,68 @@ func (a TaskSnapshot) MarshalJSON() ([]byte, error) {
 		}
 	}
 	return json.Marshal(object)
+}
+
+// AsAlertValues0 returns the union data inside the Alert_Values_AdditionalProperties as a AlertValues0
+func (t Alert_Values_AdditionalProperties) AsAlertValues0() (AlertValues0, error) {
+	var body AlertValues0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAlertValues0 overwrites any union data inside the Alert_Values_AdditionalProperties as the provided AlertValues0
+func (t *Alert_Values_AdditionalProperties) FromAlertValues0(v AlertValues0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAlertValues0 performs a merge with any union data inside the Alert_Values_AdditionalProperties, using the provided AlertValues0
+func (t *Alert_Values_AdditionalProperties) MergeAlertValues0(v AlertValues0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAlertValues1 returns the union data inside the Alert_Values_AdditionalProperties as a AlertValues1
+func (t Alert_Values_AdditionalProperties) AsAlertValues1() (AlertValues1, error) {
+	var body AlertValues1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAlertValues1 overwrites any union data inside the Alert_Values_AdditionalProperties as the provided AlertValues1
+func (t *Alert_Values_AdditionalProperties) FromAlertValues1(v AlertValues1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAlertValues1 performs a merge with any union data inside the Alert_Values_AdditionalProperties, using the provided AlertValues1
+func (t *Alert_Values_AdditionalProperties) MergeAlertValues1(v AlertValues1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t Alert_Values_AdditionalProperties) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *Alert_Values_AdditionalProperties) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
 }
 
 // AsCreateTaskRequestSchemaAnalysisContextResolution0 returns the union data inside the CreateTaskRequestSchema_AnalysisContext_Resolution as a CreateTaskRequestSchemaAnalysisContextResolution0
@@ -2264,6 +3044,344 @@ func (t *TaskEventsSchema) MergeTaskEventsSchema12(v TaskEventsSchema12) error {
 	return err
 }
 
+// AsTaskEventsSchema13 returns the union data inside the TaskEventsSchema as a TaskEventsSchema13
+func (t TaskEventsSchema) AsTaskEventsSchema13() (TaskEventsSchema13, error) {
+	var body TaskEventsSchema13
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema13 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema13
+func (t *TaskEventsSchema) FromTaskEventsSchema13(v TaskEventsSchema13) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema13 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema13
+func (t *TaskEventsSchema) MergeTaskEventsSchema13(v TaskEventsSchema13) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema14 returns the union data inside the TaskEventsSchema as a TaskEventsSchema14
+func (t TaskEventsSchema) AsTaskEventsSchema14() (TaskEventsSchema14, error) {
+	var body TaskEventsSchema14
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema14 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema14
+func (t *TaskEventsSchema) FromTaskEventsSchema14(v TaskEventsSchema14) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema14 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema14
+func (t *TaskEventsSchema) MergeTaskEventsSchema14(v TaskEventsSchema14) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema15 returns the union data inside the TaskEventsSchema as a TaskEventsSchema15
+func (t TaskEventsSchema) AsTaskEventsSchema15() (TaskEventsSchema15, error) {
+	var body TaskEventsSchema15
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema15 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema15
+func (t *TaskEventsSchema) FromTaskEventsSchema15(v TaskEventsSchema15) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema15 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema15
+func (t *TaskEventsSchema) MergeTaskEventsSchema15(v TaskEventsSchema15) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema16 returns the union data inside the TaskEventsSchema as a TaskEventsSchema16
+func (t TaskEventsSchema) AsTaskEventsSchema16() (TaskEventsSchema16, error) {
+	var body TaskEventsSchema16
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema16 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema16
+func (t *TaskEventsSchema) FromTaskEventsSchema16(v TaskEventsSchema16) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema16 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema16
+func (t *TaskEventsSchema) MergeTaskEventsSchema16(v TaskEventsSchema16) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema17 returns the union data inside the TaskEventsSchema as a TaskEventsSchema17
+func (t TaskEventsSchema) AsTaskEventsSchema17() (TaskEventsSchema17, error) {
+	var body TaskEventsSchema17
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema17 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema17
+func (t *TaskEventsSchema) FromTaskEventsSchema17(v TaskEventsSchema17) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema17 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema17
+func (t *TaskEventsSchema) MergeTaskEventsSchema17(v TaskEventsSchema17) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema18 returns the union data inside the TaskEventsSchema as a TaskEventsSchema18
+func (t TaskEventsSchema) AsTaskEventsSchema18() (TaskEventsSchema18, error) {
+	var body TaskEventsSchema18
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema18 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema18
+func (t *TaskEventsSchema) FromTaskEventsSchema18(v TaskEventsSchema18) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema18 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema18
+func (t *TaskEventsSchema) MergeTaskEventsSchema18(v TaskEventsSchema18) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema19 returns the union data inside the TaskEventsSchema as a TaskEventsSchema19
+func (t TaskEventsSchema) AsTaskEventsSchema19() (TaskEventsSchema19, error) {
+	var body TaskEventsSchema19
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema19 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema19
+func (t *TaskEventsSchema) FromTaskEventsSchema19(v TaskEventsSchema19) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema19 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema19
+func (t *TaskEventsSchema) MergeTaskEventsSchema19(v TaskEventsSchema19) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema20 returns the union data inside the TaskEventsSchema as a TaskEventsSchema20
+func (t TaskEventsSchema) AsTaskEventsSchema20() (TaskEventsSchema20, error) {
+	var body TaskEventsSchema20
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema20 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema20
+func (t *TaskEventsSchema) FromTaskEventsSchema20(v TaskEventsSchema20) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema20 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema20
+func (t *TaskEventsSchema) MergeTaskEventsSchema20(v TaskEventsSchema20) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema21 returns the union data inside the TaskEventsSchema as a TaskEventsSchema21
+func (t TaskEventsSchema) AsTaskEventsSchema21() (TaskEventsSchema21, error) {
+	var body TaskEventsSchema21
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema21 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema21
+func (t *TaskEventsSchema) FromTaskEventsSchema21(v TaskEventsSchema21) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema21 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema21
+func (t *TaskEventsSchema) MergeTaskEventsSchema21(v TaskEventsSchema21) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema22 returns the union data inside the TaskEventsSchema as a TaskEventsSchema22
+func (t TaskEventsSchema) AsTaskEventsSchema22() (TaskEventsSchema22, error) {
+	var body TaskEventsSchema22
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema22 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema22
+func (t *TaskEventsSchema) FromTaskEventsSchema22(v TaskEventsSchema22) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema22 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema22
+func (t *TaskEventsSchema) MergeTaskEventsSchema22(v TaskEventsSchema22) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema23 returns the union data inside the TaskEventsSchema as a TaskEventsSchema23
+func (t TaskEventsSchema) AsTaskEventsSchema23() (TaskEventsSchema23, error) {
+	var body TaskEventsSchema23
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema23 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema23
+func (t *TaskEventsSchema) FromTaskEventsSchema23(v TaskEventsSchema23) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema23 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema23
+func (t *TaskEventsSchema) MergeTaskEventsSchema23(v TaskEventsSchema23) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema24 returns the union data inside the TaskEventsSchema as a TaskEventsSchema24
+func (t TaskEventsSchema) AsTaskEventsSchema24() (TaskEventsSchema24, error) {
+	var body TaskEventsSchema24
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema24 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema24
+func (t *TaskEventsSchema) FromTaskEventsSchema24(v TaskEventsSchema24) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema24 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema24
+func (t *TaskEventsSchema) MergeTaskEventsSchema24(v TaskEventsSchema24) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTaskEventsSchema25 returns the union data inside the TaskEventsSchema as a TaskEventsSchema25
+func (t TaskEventsSchema) AsTaskEventsSchema25() (TaskEventsSchema25, error) {
+	var body TaskEventsSchema25
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTaskEventsSchema25 overwrites any union data inside the TaskEventsSchema as the provided TaskEventsSchema25
+func (t *TaskEventsSchema) FromTaskEventsSchema25(v TaskEventsSchema25) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeTaskEventsSchema25 performs a merge with any union data inside the TaskEventsSchema, using the provided TaskEventsSchema25
+func (t *TaskEventsSchema) MergeTaskEventsSchema25(v TaskEventsSchema25) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t TaskEventsSchema) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	if err != nil {
@@ -2457,8 +3575,16 @@ type ClientInterface interface {
 	// Healthz request
 	Healthz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// IngestGrafanaAlertWithBody request with any body
+	IngestGrafanaAlertWithBody(ctx context.Context, params *IngestGrafanaAlertParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	IngestGrafanaAlert(ctx context.Context, params *IngestGrafanaAlertParams, body IngestGrafanaAlertJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// Readyz request
 	Readyz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListIncidents request
+	ListIncidents(ctx context.Context, params *ListIncidentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListSessions request
 	ListSessions(ctx context.Context, params *ListSessionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2485,6 +3611,14 @@ type ClientInterface interface {
 	// GetTask request
 	GetTask(ctx context.Context, taskId TaskId, params *GetTaskParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetTaskApproval request
+	GetTaskApproval(ctx context.Context, taskId TaskId, params *GetTaskApprovalParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideTaskApprovalWithBody request with any body
+	DecideTaskApprovalWithBody(ctx context.Context, taskId TaskId, params *DecideTaskApprovalParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	DecideTaskApproval(ctx context.Context, taskId TaskId, params *DecideTaskApprovalParams, body DecideTaskApprovalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// StreamTaskEvents request
 	StreamTaskEvents(ctx context.Context, taskId TaskId, params *StreamTaskEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2504,8 +3638,44 @@ func (c *Client) Healthz(ctx context.Context, reqEditors ...RequestEditorFn) (*h
 	return c.Client.Do(req)
 }
 
+func (c *Client) IngestGrafanaAlertWithBody(ctx context.Context, params *IngestGrafanaAlertParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIngestGrafanaAlertRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) IngestGrafanaAlert(ctx context.Context, params *IngestGrafanaAlertParams, body IngestGrafanaAlertJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIngestGrafanaAlertRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) Readyz(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadyzRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListIncidents(ctx context.Context, params *ListIncidentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListIncidentsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2624,6 +3794,42 @@ func (c *Client) GetTask(ctx context.Context, taskId TaskId, params *GetTaskPara
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetTaskApproval(ctx context.Context, taskId TaskId, params *GetTaskApprovalParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTaskApprovalRequest(c.Server, taskId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DecideTaskApprovalWithBody(ctx context.Context, taskId TaskId, params *DecideTaskApprovalParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideTaskApprovalRequestWithBody(c.Server, taskId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DecideTaskApproval(ctx context.Context, taskId TaskId, params *DecideTaskApprovalParams, body DecideTaskApprovalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideTaskApprovalRequest(c.Server, taskId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) StreamTaskEvents(ctx context.Context, taskId TaskId, params *StreamTaskEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStreamTaskEventsRequest(c.Server, taskId, params)
 	if err != nil {
@@ -2675,6 +3881,106 @@ func NewHealthzRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewIngestGrafanaAlertRequest calls the generic IngestGrafanaAlert builder with application/json body
+func NewIngestGrafanaAlertRequest(server string, params *IngestGrafanaAlertParams, body IngestGrafanaAlertJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewIngestGrafanaAlertRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewIngestGrafanaAlertRequestWithBody generates requests for IngestGrafanaAlert with any type of body
+func NewIngestGrafanaAlertRequestWithBody(server string, params *IngestGrafanaAlertParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/v1/alerts/grafana")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Alert-Source", params.XMTBAlertSource, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Alert-Source", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Alert-Timestamp", params.XMTBAlertTimestamp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Alert-Timestamp", headerParam1)
+
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-Grafana-Alerting-Signature", params.XGrafanaAlertingSignature, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Grafana-Alerting-Signature", headerParam2)
+
+		var headerParam3 string
+
+		headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-Request-ID", params.XRequestID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Request-ID", headerParam3)
+
+		var headerParam4 string
+
+		headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-Trace-ID", params.XTraceID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Trace-ID", headerParam4)
+
+		if params.Traceparent != nil {
+			var headerParam5 string
+
+			headerParam5, err = runtime.StyleParamWithOptions("simple", false, "traceparent", *params.Traceparent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("traceparent", headerParam5)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewReadyzRequest generates requests for Readyz
 func NewReadyzRequest(server string) (*http.Request, error) {
 	var err error
@@ -2697,6 +4003,150 @@ func NewReadyzRequest(server string) (*http.Request, error) {
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListIncidentsRequest generates requests for ListIncidents
+func NewListIncidentsRequest(server string, params *ListIncidentsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/incidents")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageSize", *params.PageSize, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.PageToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pageToken", *params.PageToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Tenant-ID", params.XMTBTenantID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Tenant-ID", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Org-ID", params.XMTBOrgID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Org-ID", headerParam1)
+
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-User-ID", params.XMTBUserID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-User-ID", headerParam2)
+
+		var headerParam3 string
+
+		headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Roles", params.XMTBRoles, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Roles", headerParam3)
+
+		var headerParam4 string
+
+		headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Permissions", params.XMTBPermissions, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Permissions", headerParam4)
+
+		var headerParam5 string
+
+		headerParam5, err = runtime.StyleParamWithOptions("simple", false, "X-Request-ID", params.XRequestID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Request-ID", headerParam5)
+
+		var headerParam6 string
+
+		headerParam6, err = runtime.StyleParamWithOptions("simple", false, "X-Trace-ID", params.XTraceID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Trace-ID", headerParam6)
+
+		if params.Traceparent != nil {
+			var headerParam7 string
+
+			headerParam7, err = runtime.StyleParamWithOptions("simple", false, "traceparent", *params.Traceparent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("traceparent", headerParam7)
+		}
+
 	}
 
 	return req, nil
@@ -3617,6 +5067,252 @@ func NewGetTaskRequest(server string, taskId TaskId, params *GetTaskParams) (*ht
 	return req, nil
 }
 
+// NewGetTaskApprovalRequest generates requests for GetTaskApproval
+func NewGetTaskApprovalRequest(server string, taskId TaskId, params *GetTaskApprovalParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "taskId", taskId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/tasks/%s/approval", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Tenant-ID", params.XMTBTenantID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Tenant-ID", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Org-ID", params.XMTBOrgID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Org-ID", headerParam1)
+
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-User-ID", params.XMTBUserID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-User-ID", headerParam2)
+
+		var headerParam3 string
+
+		headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Roles", params.XMTBRoles, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Roles", headerParam3)
+
+		var headerParam4 string
+
+		headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Permissions", params.XMTBPermissions, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Permissions", headerParam4)
+
+		var headerParam5 string
+
+		headerParam5, err = runtime.StyleParamWithOptions("simple", false, "X-Request-ID", params.XRequestID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Request-ID", headerParam5)
+
+		var headerParam6 string
+
+		headerParam6, err = runtime.StyleParamWithOptions("simple", false, "X-Trace-ID", params.XTraceID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Trace-ID", headerParam6)
+
+		if params.Traceparent != nil {
+			var headerParam7 string
+
+			headerParam7, err = runtime.StyleParamWithOptions("simple", false, "traceparent", *params.Traceparent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("traceparent", headerParam7)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDecideTaskApprovalRequest calls the generic DecideTaskApproval builder with application/json body
+func NewDecideTaskApprovalRequest(server string, taskId TaskId, params *DecideTaskApprovalParams, body DecideTaskApprovalJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDecideTaskApprovalRequestWithBody(server, taskId, params, "application/json", bodyReader)
+}
+
+// NewDecideTaskApprovalRequestWithBody generates requests for DecideTaskApproval with any type of body
+func NewDecideTaskApprovalRequestWithBody(server string, taskId TaskId, params *DecideTaskApprovalParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "taskId", taskId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/tasks/%s/approval", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Tenant-ID", params.XMTBTenantID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Tenant-ID", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Org-ID", params.XMTBOrgID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Org-ID", headerParam1)
+
+		var headerParam2 string
+
+		headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-User-ID", params.XMTBUserID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-User-ID", headerParam2)
+
+		var headerParam3 string
+
+		headerParam3, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Roles", params.XMTBRoles, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Roles", headerParam3)
+
+		var headerParam4 string
+
+		headerParam4, err = runtime.StyleParamWithOptions("simple", false, "X-MTB-Permissions", params.XMTBPermissions, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-MTB-Permissions", headerParam4)
+
+		var headerParam5 string
+
+		headerParam5, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("Idempotency-Key", headerParam5)
+
+		var headerParam6 string
+
+		headerParam6, err = runtime.StyleParamWithOptions("simple", false, "X-Request-ID", params.XRequestID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Request-ID", headerParam6)
+
+		var headerParam7 string
+
+		headerParam7, err = runtime.StyleParamWithOptions("simple", false, "X-Trace-ID", params.XTraceID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Trace-ID", headerParam7)
+
+		if params.Traceparent != nil {
+			var headerParam8 string
+
+			headerParam8, err = runtime.StyleParamWithOptions("simple", false, "traceparent", *params.Traceparent, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("traceparent", headerParam8)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewStreamTaskEventsRequest generates requests for StreamTaskEvents
 func NewStreamTaskEventsRequest(server string, taskId TaskId, params *StreamTaskEventsParams) (*http.Request, error) {
 	var err error
@@ -3976,8 +5672,16 @@ type ClientWithResponsesInterface interface {
 	// HealthzWithResponse request
 	HealthzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthzResponse, error)
 
+	// IngestGrafanaAlertWithBodyWithResponse request with any body
+	IngestGrafanaAlertWithBodyWithResponse(ctx context.Context, params *IngestGrafanaAlertParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IngestGrafanaAlertResponse, error)
+
+	IngestGrafanaAlertWithResponse(ctx context.Context, params *IngestGrafanaAlertParams, body IngestGrafanaAlertJSONRequestBody, reqEditors ...RequestEditorFn) (*IngestGrafanaAlertResponse, error)
+
 	// ReadyzWithResponse request
 	ReadyzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadyzResponse, error)
+
+	// ListIncidentsWithResponse request
+	ListIncidentsWithResponse(ctx context.Context, params *ListIncidentsParams, reqEditors ...RequestEditorFn) (*ListIncidentsResponse, error)
 
 	// ListSessionsWithResponse request
 	ListSessionsWithResponse(ctx context.Context, params *ListSessionsParams, reqEditors ...RequestEditorFn) (*ListSessionsResponse, error)
@@ -4003,6 +5707,14 @@ type ClientWithResponsesInterface interface {
 
 	// GetTaskWithResponse request
 	GetTaskWithResponse(ctx context.Context, taskId TaskId, params *GetTaskParams, reqEditors ...RequestEditorFn) (*GetTaskResponse, error)
+
+	// GetTaskApprovalWithResponse request
+	GetTaskApprovalWithResponse(ctx context.Context, taskId TaskId, params *GetTaskApprovalParams, reqEditors ...RequestEditorFn) (*GetTaskApprovalResponse, error)
+
+	// DecideTaskApprovalWithBodyWithResponse request with any body
+	DecideTaskApprovalWithBodyWithResponse(ctx context.Context, taskId TaskId, params *DecideTaskApprovalParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideTaskApprovalResponse, error)
+
+	DecideTaskApprovalWithResponse(ctx context.Context, taskId TaskId, params *DecideTaskApprovalParams, body DecideTaskApprovalJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideTaskApprovalResponse, error)
 
 	// StreamTaskEventsWithResponse request
 	StreamTaskEventsWithResponse(ctx context.Context, taskId TaskId, params *StreamTaskEventsParams, reqEditors ...RequestEditorFn) (*StreamTaskEventsResponse, error)
@@ -4040,6 +5752,37 @@ func (r HealthzResponse) ContentType() string {
 	return ""
 }
 
+type IngestGrafanaAlertResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *AlertIngressResponseSchema
+	JSONDefault  *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r IngestGrafanaAlertResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r IngestGrafanaAlertResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r IngestGrafanaAlertResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadyzResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4064,6 +5807,37 @@ func (r ReadyzResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadyzResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListIncidentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TaskPageSchema
+	JSONDefault  *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListIncidentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListIncidentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListIncidentsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -4287,6 +6061,68 @@ func (r GetTaskResponse) ContentType() string {
 	return ""
 }
 
+type GetTaskApprovalResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ApprovalSchema
+	JSONDefault  *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTaskApprovalResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTaskApprovalResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTaskApprovalResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DecideTaskApprovalResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *ApprovalSchema
+	JSONDefault  *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DecideTaskApprovalResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DecideTaskApprovalResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DecideTaskApprovalResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type StreamTaskEventsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4357,6 +6193,23 @@ func (c *ClientWithResponses) HealthzWithResponse(ctx context.Context, reqEditor
 	return ParseHealthzResponse(rsp)
 }
 
+// IngestGrafanaAlertWithBodyWithResponse request with arbitrary body returning *IngestGrafanaAlertResponse
+func (c *ClientWithResponses) IngestGrafanaAlertWithBodyWithResponse(ctx context.Context, params *IngestGrafanaAlertParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IngestGrafanaAlertResponse, error) {
+	rsp, err := c.IngestGrafanaAlertWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIngestGrafanaAlertResponse(rsp)
+}
+
+func (c *ClientWithResponses) IngestGrafanaAlertWithResponse(ctx context.Context, params *IngestGrafanaAlertParams, body IngestGrafanaAlertJSONRequestBody, reqEditors ...RequestEditorFn) (*IngestGrafanaAlertResponse, error) {
+	rsp, err := c.IngestGrafanaAlert(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIngestGrafanaAlertResponse(rsp)
+}
+
 // ReadyzWithResponse request returning *ReadyzResponse
 func (c *ClientWithResponses) ReadyzWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadyzResponse, error) {
 	rsp, err := c.Readyz(ctx, reqEditors...)
@@ -4364,6 +6217,15 @@ func (c *ClientWithResponses) ReadyzWithResponse(ctx context.Context, reqEditors
 		return nil, err
 	}
 	return ParseReadyzResponse(rsp)
+}
+
+// ListIncidentsWithResponse request returning *ListIncidentsResponse
+func (c *ClientWithResponses) ListIncidentsWithResponse(ctx context.Context, params *ListIncidentsParams, reqEditors ...RequestEditorFn) (*ListIncidentsResponse, error) {
+	rsp, err := c.ListIncidents(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListIncidentsResponse(rsp)
 }
 
 // ListSessionsWithResponse request returning *ListSessionsResponse
@@ -4445,6 +6307,32 @@ func (c *ClientWithResponses) GetTaskWithResponse(ctx context.Context, taskId Ta
 	return ParseGetTaskResponse(rsp)
 }
 
+// GetTaskApprovalWithResponse request returning *GetTaskApprovalResponse
+func (c *ClientWithResponses) GetTaskApprovalWithResponse(ctx context.Context, taskId TaskId, params *GetTaskApprovalParams, reqEditors ...RequestEditorFn) (*GetTaskApprovalResponse, error) {
+	rsp, err := c.GetTaskApproval(ctx, taskId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTaskApprovalResponse(rsp)
+}
+
+// DecideTaskApprovalWithBodyWithResponse request with arbitrary body returning *DecideTaskApprovalResponse
+func (c *ClientWithResponses) DecideTaskApprovalWithBodyWithResponse(ctx context.Context, taskId TaskId, params *DecideTaskApprovalParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideTaskApprovalResponse, error) {
+	rsp, err := c.DecideTaskApprovalWithBody(ctx, taskId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideTaskApprovalResponse(rsp)
+}
+
+func (c *ClientWithResponses) DecideTaskApprovalWithResponse(ctx context.Context, taskId TaskId, params *DecideTaskApprovalParams, body DecideTaskApprovalJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideTaskApprovalResponse, error) {
+	rsp, err := c.DecideTaskApproval(ctx, taskId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideTaskApprovalResponse(rsp)
+}
+
 // StreamTaskEventsWithResponse request returning *StreamTaskEventsResponse
 func (c *ClientWithResponses) StreamTaskEventsWithResponse(ctx context.Context, taskId TaskId, params *StreamTaskEventsParams, reqEditors ...RequestEditorFn) (*StreamTaskEventsResponse, error) {
 	rsp, err := c.StreamTaskEvents(ctx, taskId, params, reqEditors...)
@@ -4479,6 +6367,39 @@ func ParseHealthzResponse(rsp *http.Response) (*HealthzResponse, error) {
 	return response, nil
 }
 
+// ParseIngestGrafanaAlertResponse parses an HTTP response from a IngestGrafanaAlertWithResponse call
+func ParseIngestGrafanaAlertResponse(rsp *http.Response) (*IngestGrafanaAlertResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &IngestGrafanaAlertResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest AlertIngressResponseSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadyzResponse parses an HTTP response from a ReadyzWithResponse call
 func ParseReadyzResponse(rsp *http.Response) (*ReadyzResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -4499,6 +6420,39 @@ func ParseReadyzResponse(rsp *http.Response) (*ReadyzResponse, error) {
 			return nil, err
 		}
 		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListIncidentsResponse parses an HTTP response from a ListIncidentsWithResponse call
+func ParseListIncidentsResponse(rsp *http.Response) (*ListIncidentsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListIncidentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TaskPageSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
 
 	}
 
@@ -4723,6 +6677,72 @@ func ParseGetTaskResponse(rsp *http.Response) (*GetTaskResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTaskApprovalResponse parses an HTTP response from a GetTaskApprovalWithResponse call
+func ParseGetTaskApprovalResponse(rsp *http.Response) (*GetTaskApprovalResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTaskApprovalResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApprovalSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDecideTaskApprovalResponse parses an HTTP response from a DecideTaskApprovalWithResponse call
+func ParseDecideTaskApprovalResponse(rsp *http.Response) (*DecideTaskApprovalResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DecideTaskApprovalResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest ApprovalSchema
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest ErrorResponse

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mini-torchbearing.local/contracts/schemas/approval/approval.schema.json",
+  "title": "Approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "taskId", "status", "intentDigest", "requestedAt", "expiresAt", "decidedAt", "decidedBy", "decisionReason", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "taskId": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["pending", "approved", "rejected", "expired"]},
+    "intentDigest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "requestedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "decidedAt": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "decidedBy": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+    "decisionReason": {"anyOf": [{"type": "string", "maxLength": 500}, {"type": "null"}]},
+    "version": {"type": "integer", "minimum": 1}
+  }
+}

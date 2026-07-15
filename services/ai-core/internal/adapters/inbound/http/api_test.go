@@ -422,6 +422,28 @@ func waitTaskTerminal(t *testing.T, store *storage.Store, taskID string) {
 	t.Fatalf("task did not reach a terminal state: status=%v err=%v", lastStatus, lastErr)
 }
 
+func TestIncidentContractPlaceholdersFailClosed(t *testing.T) {
+	server := httptest.NewServer(NewHandler(&API{}))
+	defer server.Close()
+
+	response := request(t, http.MethodGet, server.URL+"/v1/incidents", "", "request-incidents", "")
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNotImplemented {
+		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusNotImplemented)
+	}
+	var body struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Error.Code != string(common.NotImplemented) {
+		t.Fatalf("error code = %q", body.Error.Code)
+	}
+}
+
 func request(t *testing.T, method, target, body, requestID, idempotencyKey string) *http.Response {
 	return requestAsUser(t, method, target, body, requestID, idempotencyKey, "user:1")
 }

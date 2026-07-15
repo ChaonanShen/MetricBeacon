@@ -1,0 +1,26 @@
+{
+  "receiver": "order-incident-ai-core",
+  "status": "firing",
+  "orgId": 1,
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "OrderQueueBacklog",
+        "service_ref": "order-service:demo",
+        "severity": "warning"
+      },
+      "annotations": {"summary": "Order queue is not draining"},
+      "startsAt": "2026-07-16T08:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "fingerprint": "order-backlog-fingerprint-1",
+      "values": {"A": 12, "B": "0"}
+    }
+  ],
+  "groupLabels": {"alertname": "OrderQueueBacklog"},
+  "commonLabels": {"service_ref": "order-service:demo"},
+  "commonAnnotations": {"summary": "Order queue is not draining"},
+  "version": "1",
+  "groupKey": "{}:{alertname=\"OrderQueueBacklog\"}",
+  "truncatedAlerts": 0
+}

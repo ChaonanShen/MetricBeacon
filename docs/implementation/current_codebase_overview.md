@@ -33,13 +33,13 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 
 |位置|职责|当前实现边界|
 |-|-|-|
-|`contracts/`|跨进程协议的单一来源：Plugin Resource API、AI Core API、SSE 事件、MCP Tool Schema、错误码和示例。|通过 OpenAPI/JSON Schema 校验，并据此生成 Go/TypeScript 类型；业务模块不应另写重复 DTO。|
+|`contracts/`|跨进程协议的单一来源：Plugin Resource API、AI Core API、SSE 事件、MCP Tool Schema、错误码和示例。|除现有指标分析外，已合同化 Grafana HMAC Alert ingress、Task/Session tagged union、IncidentPlan、Approval、组织 Incident list 和处置事件；Incident Schema 禁止携带 QueryPlan，Webhook 不接收 fault ground truth。通过 OpenAPI/JSON Schema 校验并生成 Go/TypeScript 类型。|
 |`packages/generated-clients`、`packages/generated-contracts`|契约生成物。前者包含 AI Core 与 order-demo HTTP Client，后者包含 Grafana 与 Incident MCP 工具类型。|由 `scripts/generate-clients.sh` 生成，`make generated-client-diff` 检查生成结果可复现；Incident Go 类型使用 skip-prune 并断言关键类型存在。|
 |`packages/request-context-go`|跨服务传递的租户、组织、用户、角色、权限、请求与 Trace 上下文。|Plugin Backend 从 Grafana 请求上下文生成它；浏览器传入的身份头不会被信任。|
 |`packages/testkit-go`|测试用的确定性时钟与 ID 生成器。|仅为测试可重复性服务。|
 |`services/ai-core/internal/domain`|核心领域模型和状态规则：Session/Message、AnalysisTask/TaskEvent/ToolCall、Chart/Execution、绝对时间范围、有效 QueryPlan 与领域错误。|QueryPlan 只接受注册 step 和 CPU rate window；不依赖数据库、MCP、Grafana 或模型 SDK。|
 |`services/ai-core/internal/application` 与 `internal/ports`|命令服务、有限查询意图解析和分析工作流；Port 定义存储、事件通知、Agent、工具、时钟和 ID 等外部能力。|Task 创建前使用注入时钟解析最近 30 秒至 6 小时、auto/显式 step 与 CPU window；工作流把同一 QueryPlan 传给 Agent/MCP，并先持久化状态/事件再通知 SSE。|
-|`services/ai-core/internal/adapters`|将 Port 接到具体实现：SQLite、内存通知器、MCP 客户端、系统时钟/随机 ID、确定性 Mock Agent 与受限 Eino Agent。HTTP 入站 Adapter 暴露会话、任务、读取与 SSE 重放接口。|AI Core 是 Session、Task、Event、Chart 和 SQLite 数据的唯一所有者。它不直接读取 fixture，也不承载 Grafana 鉴权。|
+|`services/ai-core/internal/adapters`|将 Port 接到具体实现：SQLite、内存通知器、MCP 客户端、系统时钟/随机 ID、确定性 Mock Agent 与受限 Eino Agent。HTTP 入站 Adapter 暴露会话、任务、读取与 SSE 重放接口。|AI Core 是 Session、Task、Event、Chart 和 SQLite 数据的唯一所有者。Incident 新路由当前只有类型化 `not_implemented` 占位，尚未接受告警或审批；G5/G6 将分别替换为真实命令处理器。|
 |`services/ai-core/internal/bootstrap`|组装依赖：SQLite Store、Mock 或显式 opt-in Eino/DeepSeek Agent、MCP Gateway、工作流、HTTP API。|默认 `AI_CORE_AGENT_DRIVER=mock` 不读取 API key；`eino` 启动时必须有 Profile 与 key，固定模型/任务/MCP 限制，`/readyz` 只检查 SQLite 和 MCP 工具，不请求模型。|
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露闭集 MCP 工具。默认仍只有三个只读 `grafana.*`；显式 incident profile 额外注册 Knowledge、Skill、Playbook 编排和六个 order-service 只读工具。|Incident profile 要求独立 `incidents:diagnose` 权限、资产/Tool Schema、HMAC key 和 Mock 或带读 token 的 HTTP order Adapter。14 个工具全部 closed-world/read-only，名称和 Port 均无 Fault、shell、任意 HTTP、通用 execute 或写入口。该服务不拥有 AI Core Task/Approval/数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码，并将 fixture 确定性重采样到请求范围/step；opt-in HTTP Adapter 只执行本地注册表生成的 CPU `[30s]/[1m]/[5m]`、内存和 load PromQL，并执行响应、时间范围、step、点数和基数上限。|
@@ -208,7 +208,7 @@ Backend 由 Grafana 承载。
 |`make test-frontend`|Vitest 工作台 Session 状态、历史分页/标题、SSE、路由、Resource 错误、产品 View/Shell、图表分组/聚焦和 DataFrame mapper；随后 TypeScript typecheck。|通过：12 个测试文件、42 个用例。|
 |`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果、DeepSeek 探针、worktree 配置和 Compose 命名/端口解析，并检查诊断与 E2E Shell 语法。|通过：44 个 Node 测试。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
-|`make validate-contracts`|3 份 OpenAPI、25 份 JSON Schema 与 node_exporter fixture。|通过。|
+|`make validate-contracts`|Plugin/AI Core/order-demo OpenAPI、36 份 JSON Schema、资产与 node_exporter fixture。|通过；包含有效 Incident/Approval/Webhook 以及 QueryPlan 混入、ground truth 和缺失 fingerprint 的反例。|
 |`make generated-client-diff`|重新生成 Client/类型后确认 Git 无差异。|通过。|
 |`make lint`|Go 格式检查和前端 typecheck。|通过。|
 |`make boundary-check`、`make secret-scan`|AI Core 依赖边界和常见私钥/AKIA 模式扫描。|通过。|

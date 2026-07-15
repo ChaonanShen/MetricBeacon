@@ -32,9 +32,13 @@ const taskStatusView: Record<Task['status'], { label: string; tone: ViewTone }> 
   created: { label: '已创建', tone: 'info' },
   planning: { label: '规划中', tone: 'info' },
   running_tools: { label: '查询中', tone: 'warning' },
+  waiting_approval: { label: '等待审批', tone: 'warning' },
+  executing: { label: '执行中', tone: 'warning' },
+  reconciling: { label: '核对执行结果', tone: 'warning' },
   validating: { label: '校验中', tone: 'warning' },
   completed: { label: '已完成', tone: 'success' },
   failed: { label: '失败', tone: 'error' },
+  cancelled: { label: '已取消', tone: 'neutral' },
 };
 
 export function deriveWorkbenchContext(sessionTitle: string | undefined, tasks: Task[], activeTask?: Task): WorkbenchContextView {
@@ -53,6 +57,24 @@ export function deriveWorkbenchContext(sessionTitle: string | undefined, tasks: 
   }
 
   const status = taskStatusView[contextTask.status];
+  if (contextTask.kind === 'incident_remediation') {
+    return {
+      sessionTitle: sessionTitle?.trim() || '未命名事件',
+      datasource: contextTask.incidentPlan?.serviceRef ?? 'Order Service',
+      timeRange: '事件处置',
+      views: contextTask.incidentPlan?.playbook.id ?? '—',
+      step: '—',
+      status: status.label,
+      statusTone: status.tone,
+      hasTask: true,
+    };
+  }
+  if (!contextTask.datasourceUid || !contextTask.timeRange || !contextTask.queryPlan) {
+    return {
+      sessionTitle: sessionTitle?.trim() || '未命名会话', datasource: '—', timeRange: '—', views: '—', step: '—',
+      status: status.label, statusTone: status.tone, hasTask: true,
+    };
+  }
   return {
     sessionTitle: sessionTitle?.trim() || '未命名会话',
     datasource: contextTask.datasourceUid === 'prometheus-main' ? 'Prometheus' : contextTask.datasourceUid,
@@ -78,13 +100,13 @@ function formatInstant(value: string): string {
   return parsed.toISOString().replace('T', ' ').replace('.000Z', ' UTC');
 }
 
-function formatTimeRange(range: Task['timeRange']): string {
+function formatTimeRange(range: NonNullable<Task['timeRange']>): string {
   const from = formatInstant(range.from);
   const to = formatInstant(range.to);
   return from === '—' || to === '—' ? '—' : `${from} — ${to}`;
 }
 
-function formatView(view: Task['queryPlan']['views'][number]): string {
+function formatView(view: NonNullable<Task['queryPlan']>['views'][number]): string {
   if (view === 'cpu') return 'CPU';
   if (view === 'memory') return '内存';
   return '系统负载';

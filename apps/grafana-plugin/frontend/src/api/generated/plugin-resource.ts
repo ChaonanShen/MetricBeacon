@@ -107,6 +107,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plugins/mini-torchbearing-app/resources/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Incident Tasks visible to the current Grafana organization */
+        get: operations["listIncidents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plugins/mini-torchbearing-app/resources/tasks/{taskId}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an Incident Task Approval */
+        get: operations["getTaskApproval"];
+        put?: never;
+        /** Submit an Admin approval decision for an immutable Incident Intent */
+        post: operations["decideTaskApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plugins/mini-torchbearing-app/resources/tasks/{taskId}/events": {
         parameters: {
             query?: never;
@@ -158,9 +193,11 @@ export interface components {
         ChartExecution: components["schemas"]["execution.schema"];
         TaskEvent: components["schemas"]["task-events.schema"];
         ErrorEnvelope: components["schemas"]["error.schema"];
+        Approval: components["schemas"]["approval.schema"];
+        DecideApprovalRequest: components["schemas"]["decide-approval-request.schema"];
         error: {
             /** @enum {string} */
-            code: "invalid_argument" | "unauthenticated" | "permission_denied" | "resource_not_found" | "resource_conflict" | "invalid_state_transition" | "adapter_not_configured" | "dependency_unavailable" | "tool_not_supported" | "tool_timeout" | "schema_validation_failed" | "idempotency_conflict" | "execution_interrupted" | "internal_error" | "not_implemented";
+            code: "invalid_argument" | "unauthenticated" | "permission_denied" | "resource_not_found" | "resource_conflict" | "invalid_state_transition" | "adapter_not_configured" | "dependency_unavailable" | "tool_not_supported" | "tool_timeout" | "schema_validation_failed" | "idempotency_conflict" | "execution_interrupted" | "target_precondition_failed" | "approval_required" | "approval_expired" | "internal_error" | "not_implemented";
             message: string;
             retryable: boolean;
             requestId: string;
@@ -174,7 +211,7 @@ export interface components {
             $defs: {
                 error: {
                     /** @enum {string} */
-                    code: "invalid_argument" | "unauthenticated" | "permission_denied" | "resource_not_found" | "resource_conflict" | "invalid_state_transition" | "adapter_not_configured" | "dependency_unavailable" | "tool_not_supported" | "tool_timeout" | "schema_validation_failed" | "idempotency_conflict" | "execution_interrupted" | "internal_error" | "not_implemented";
+                    code: "invalid_argument" | "unauthenticated" | "permission_denied" | "resource_not_found" | "resource_conflict" | "invalid_state_transition" | "adapter_not_configured" | "dependency_unavailable" | "tool_not_supported" | "tool_timeout" | "schema_validation_failed" | "idempotency_conflict" | "execution_interrupted" | "target_precondition_failed" | "approval_required" | "approval_expired" | "internal_error" | "not_implemented";
                     message: string;
                     retryable: boolean;
                     requestId: string;
@@ -184,10 +221,13 @@ export interface components {
                 };
             };
         };
-        /** AnalysisSession */
+        /** Session */
         "session.schema": {
             id: string;
             tenantId: string;
+            orgId: string;
+            /** @enum {string} */
+            kind: "private" | "org_incident";
             title: string;
             /** @enum {string} */
             status: "active";
@@ -213,7 +253,7 @@ export interface components {
             sessionId: string;
             taskId: string;
             /** @enum {string} */
-            role: "user" | "assistant";
+            role: "user" | "assistant" | "trigger";
             content: string;
             /** Format: date-time */
             createdAt: string;
@@ -223,28 +263,85 @@ export interface components {
             items: components["schemas"]["message.schema"][];
             nextPageToken: string | null;
         };
-        /** AnalysisTask */
+        /** IncidentPlan */
+        "incident-plan.schema": {
+            sourceId: string;
+            alertName: string;
+            alertFingerprint: string;
+            serviceRef: string;
+            labels: {
+                [key: string]: string;
+            };
+            mapping: {
+                id: string;
+                digest: string;
+            };
+            playbook: {
+                id: string;
+                version: string;
+                digest: string;
+            };
+            assetRefs: {
+                /** @enum {string} */
+                kind: "knowledge" | "skill" | "playbook" | "alert_mapping";
+                id: string;
+                version: string;
+                digest: string;
+            }[];
+            /** @enum {string} */
+            phase: "load_assets" | "observe" | "needs_agent" | "prepare" | "needs_approval" | "execute" | "verify_runtime" | "verify_metrics" | "verify_business" | "completed" | "no_action";
+            diagnosis: null | {
+                /** @enum {string} */
+                primaryHypothesis: "worker_stopped" | "slow_processing" | "dependency_errors" | "healthy" | "insufficient_evidence";
+                evidenceRefs: string[];
+                alternativeHypotheses: string[];
+                confidence: number;
+                /** @enum {string} */
+                candidateAction: "restore_worker_concurrency" | "no_action";
+            };
+            intent: null | {
+                id: string;
+                digest: string;
+                /** @constant */
+                capabilityId: "order_service.restore_worker_concurrency";
+                serviceRef: string;
+                instanceEpoch: string;
+                expectedVersion: number;
+                /** @constant */
+                beforeConcurrency: 0;
+                /** @constant */
+                afterConcurrency: 2;
+                /** @enum {string} */
+                risk: "low";
+                /** Format: date-time */
+                createdAt: string;
+            };
+        };
+        /** Task */
         "task.schema": {
             id: string;
+            /** @enum {string} */
+            kind: "metric_analysis" | "incident_remediation";
             sessionId: string;
             /** @enum {string} */
-            status: "created" | "planning" | "running_tools" | "validating" | "completed" | "failed";
+            status: "created" | "planning" | "running_tools" | "waiting_approval" | "executing" | "reconciling" | "validating" | "completed" | "failed" | "cancelled";
             inputMessageId: string;
             /** @enum {string} */
-            datasourceUid: "prometheus-main";
-            timeRange: {
+            datasourceUid?: "prometheus-main";
+            timeRange?: {
                 /** Format: date-time */
                 from: string;
                 /** Format: date-time */
                 to: string;
             };
-            queryPlan: {
+            queryPlan?: {
                 views: ("cpu" | "memory" | "load")[];
                 /** @enum {integer} */
                 stepSeconds: 5 | 10 | 15 | 30 | 60 | 120 | 300;
                 /** @enum {integer} */
                 cpuRateWindowSeconds: 30 | 60 | 300;
             };
+            incidentPlan?: components["schemas"]["incident-plan.schema"];
             latestSequence: number;
             error: ({
                 code: string;
@@ -261,7 +358,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             version: number;
-        };
+        } & (unknown & unknown);
         /** TaskPage */
         "task-page.schema": {
             items: components["schemas"]["task.schema"][];
@@ -290,6 +387,31 @@ export interface components {
                     stepSeconds: 5 | 10 | 15 | 30 | 60 | 120 | 300;
                 };
             };
+        };
+        /** Approval */
+        "approval.schema": {
+            id: string;
+            taskId: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "expired";
+            intentDigest: string;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            decidedAt: string | null;
+            decidedBy: string | null;
+            decisionReason: string | null;
+            version: number;
+        };
+        /** DecideApprovalRequest */
+        "decide-approval-request.schema": {
+            /** @enum {string} */
+            decision: "approve" | "reject";
+            reason: string;
+            expectedTaskVersion: number;
+            expectedApprovalVersion: number;
+            intentDigest: string;
         };
         taskSnapshot: {
             id: string;
@@ -348,9 +470,9 @@ export interface components {
         };
         statusChanged: {
             /** @enum {string} */
-            previousStatus: "created" | "planning" | "running_tools" | "validating" | "completed" | "failed";
+            previousStatus: "created" | "planning" | "running_tools" | "waiting_approval" | "executing" | "reconciling" | "validating" | "completed" | "failed" | "cancelled";
             /** @enum {string} */
-            status: "created" | "planning" | "running_tools" | "validating" | "completed" | "failed";
+            status: "created" | "planning" | "running_tools" | "waiting_approval" | "executing" | "reconciling" | "validating" | "completed" | "failed" | "cancelled";
             error?: components["schemas"]["taskEventError"];
         };
         assistantStarted: {
@@ -408,6 +530,91 @@ export interface components {
             task: components["schemas"]["taskSnapshot"];
             error: components["schemas"]["taskEventError"];
         };
+        alertReceived: {
+            sourceId: string;
+            alertName: string;
+            fingerprint: string;
+            serviceRef: string;
+            /** @enum {string} */
+            status: "firing" | "resolved";
+            /** Format: date-time */
+            startsAt: string;
+        };
+        playbookResolved: {
+            mappingId: string;
+            mappingDigest: string;
+            playbookId: string;
+            playbookVersion: string;
+            playbookDigest: string;
+        };
+        assetsPinned: {
+            assets: {
+                /** @enum {string} */
+                kind: "knowledge" | "skill" | "playbook" | "alert_mapping";
+                id: string;
+                version: string;
+                digest: string;
+            }[];
+        };
+        diagnosisCompleted: {
+            /** @enum {string} */
+            primaryHypothesis: "worker_stopped" | "slow_processing" | "dependency_errors" | "healthy" | "insufficient_evidence";
+            evidenceRefs: string[];
+            alternativeHypotheses: string[];
+            confidence: number;
+            /** @enum {string} */
+            candidateAction: "restore_worker_concurrency" | "no_action";
+        };
+        intentPrepared: {
+            intentId: string;
+            intentDigest: string;
+            /** @constant */
+            capabilityId: "order_service.restore_worker_concurrency";
+            serviceRef: string;
+            instanceEpoch: string;
+            expectedVersion: number;
+            /** @constant */
+            beforeConcurrency: 0;
+            /** @constant */
+            afterConcurrency: 2;
+            /** @constant */
+            risk: "low";
+        };
+        approvalRequested: {
+            approvalId: string;
+            intentDigest: string;
+            /** Format: date-time */
+            expiresAt: string;
+            version: number;
+        };
+        approvalDecided: {
+            approvalId: string;
+            /** @enum {string} */
+            status: "approved" | "rejected" | "expired";
+            decidedBy: string;
+            /** Format: date-time */
+            decidedAt: string;
+            version: number;
+        };
+        remediationOperation: {
+            operationId: string;
+            intentDigest: string;
+            /** @enum {string} */
+            state: "started" | "applied" | "already_applied" | "failed" | "unknown";
+        };
+        verification: {
+            passed: boolean;
+            /** Format: date-time */
+            observedAt: string;
+            summary: string;
+        };
+        auditRecorded: {
+            auditId: string;
+            /** @enum {string} */
+            action: "approval_decision" | "remediation_execute" | "remediation_verify";
+            /** @enum {string} */
+            outcome: "accepted" | "rejected" | "succeeded" | "failed";
+        };
         /** TaskEvent */
         "task-events.schema": {
             eventId: string;
@@ -415,7 +622,7 @@ export interface components {
             sessionId: string;
             sequence: number;
             /** @enum {string} */
-            type: "task.created" | "task.status_changed" | "assistant.message.started" | "assistant.message.delta" | "assistant.message.completed" | "tool.started" | "tool.completed" | "tool.failed" | "metric.candidates_created" | "chart.created" | "chart.execution_completed" | "task.completed" | "task.failed";
+            type: "task.created" | "task.status_changed" | "assistant.message.started" | "assistant.message.delta" | "assistant.message.completed" | "tool.started" | "tool.completed" | "tool.failed" | "metric.candidates_created" | "chart.created" | "chart.execution_completed" | "task.completed" | "task.failed" | "alert.received" | "playbook.resolved" | "assets.pinned" | "diagnosis.completed" | "intent.prepared" | "approval.requested" | "approval.decided" | "remediation.started" | "remediation.reconciled" | "verification.runtime" | "verification.metrics" | "verification.business" | "audit.recorded";
             /** Format: date-time */
             timestamp: string;
             payload: Record<string, never>;
@@ -477,9 +684,9 @@ export interface components {
                 };
                 statusChanged: {
                     /** @enum {string} */
-                    previousStatus: "created" | "planning" | "running_tools" | "validating" | "completed" | "failed";
+                    previousStatus: "created" | "planning" | "running_tools" | "waiting_approval" | "executing" | "reconciling" | "validating" | "completed" | "failed" | "cancelled";
                     /** @enum {string} */
-                    status: "created" | "planning" | "running_tools" | "validating" | "completed" | "failed";
+                    status: "created" | "planning" | "running_tools" | "waiting_approval" | "executing" | "reconciling" | "validating" | "completed" | "failed" | "cancelled";
                     error?: components["schemas"]["taskEventError"];
                 };
                 assistantStarted: {
@@ -537,6 +744,91 @@ export interface components {
                     task: components["schemas"]["taskSnapshot"];
                     error: components["schemas"]["taskEventError"];
                 };
+                alertReceived: {
+                    sourceId: string;
+                    alertName: string;
+                    fingerprint: string;
+                    serviceRef: string;
+                    /** @enum {string} */
+                    status: "firing" | "resolved";
+                    /** Format: date-time */
+                    startsAt: string;
+                };
+                playbookResolved: {
+                    mappingId: string;
+                    mappingDigest: string;
+                    playbookId: string;
+                    playbookVersion: string;
+                    playbookDigest: string;
+                };
+                assetsPinned: {
+                    assets: {
+                        /** @enum {string} */
+                        kind: "knowledge" | "skill" | "playbook" | "alert_mapping";
+                        id: string;
+                        version: string;
+                        digest: string;
+                    }[];
+                };
+                diagnosisCompleted: {
+                    /** @enum {string} */
+                    primaryHypothesis: "worker_stopped" | "slow_processing" | "dependency_errors" | "healthy" | "insufficient_evidence";
+                    evidenceRefs: string[];
+                    alternativeHypotheses: string[];
+                    confidence: number;
+                    /** @enum {string} */
+                    candidateAction: "restore_worker_concurrency" | "no_action";
+                };
+                intentPrepared: {
+                    intentId: string;
+                    intentDigest: string;
+                    /** @constant */
+                    capabilityId: "order_service.restore_worker_concurrency";
+                    serviceRef: string;
+                    instanceEpoch: string;
+                    expectedVersion: number;
+                    /** @constant */
+                    beforeConcurrency: 0;
+                    /** @constant */
+                    afterConcurrency: 2;
+                    /** @constant */
+                    risk: "low";
+                };
+                approvalRequested: {
+                    approvalId: string;
+                    intentDigest: string;
+                    /** Format: date-time */
+                    expiresAt: string;
+                    version: number;
+                };
+                approvalDecided: {
+                    approvalId: string;
+                    /** @enum {string} */
+                    status: "approved" | "rejected" | "expired";
+                    decidedBy: string;
+                    /** Format: date-time */
+                    decidedAt: string;
+                    version: number;
+                };
+                remediationOperation: {
+                    operationId: string;
+                    intentDigest: string;
+                    /** @enum {string} */
+                    state: "started" | "applied" | "already_applied" | "failed" | "unknown";
+                };
+                verification: {
+                    passed: boolean;
+                    /** Format: date-time */
+                    observedAt: string;
+                    summary: string;
+                };
+                auditRecorded: {
+                    auditId: string;
+                    /** @enum {string} */
+                    action: "approval_decision" | "remediation_execute" | "remediation_verify";
+                    /** @enum {string} */
+                    outcome: "accepted" | "rejected" | "succeeded" | "failed";
+                };
             };
         } & ({
             /** @constant */
@@ -590,6 +882,58 @@ export interface components {
             /** @constant */
             type?: "task.failed";
             payload?: components["schemas"]["taskFailed"];
+        } | {
+            /** @constant */
+            type?: "alert.received";
+            payload?: components["schemas"]["alertReceived"];
+        } | {
+            /** @constant */
+            type?: "playbook.resolved";
+            payload?: components["schemas"]["playbookResolved"];
+        } | {
+            /** @constant */
+            type?: "assets.pinned";
+            payload?: components["schemas"]["assetsPinned"];
+        } | {
+            /** @constant */
+            type?: "diagnosis.completed";
+            payload?: components["schemas"]["diagnosisCompleted"];
+        } | {
+            /** @constant */
+            type?: "intent.prepared";
+            payload?: components["schemas"]["intentPrepared"];
+        } | {
+            /** @constant */
+            type?: "approval.requested";
+            payload?: components["schemas"]["approvalRequested"];
+        } | {
+            /** @constant */
+            type?: "approval.decided";
+            payload?: components["schemas"]["approvalDecided"];
+        } | {
+            /** @constant */
+            type?: "remediation.started";
+            payload?: components["schemas"]["remediationOperation"];
+        } | {
+            /** @constant */
+            type?: "remediation.reconciled";
+            payload?: components["schemas"]["remediationOperation"];
+        } | {
+            /** @constant */
+            type?: "verification.runtime";
+            payload?: components["schemas"]["verification"];
+        } | {
+            /** @constant */
+            type?: "verification.metrics";
+            payload?: components["schemas"]["verification"];
+        } | {
+            /** @constant */
+            type?: "verification.business";
+            payload?: components["schemas"]["verification"];
+        } | {
+            /** @constant */
+            type?: "audit.recorded";
+            payload?: components["schemas"]["auditRecorded"];
         });
         /** TaskEventReplayPage */
         "task-event-replay-page.schema": {
@@ -896,6 +1240,87 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["task.schema"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
+    listIncidents: {
+        parameters: {
+            query?: {
+                pageSize?: components["parameters"]["PageSizeTasks"];
+                pageToken?: components["parameters"]["PageToken"];
+            };
+            header?: {
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization-scoped Incident Task page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["task-page.schema"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
+    getTaskApproval: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approval snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["approval.schema"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
+    decideTaskApproval: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["decide-approval-request.schema"];
+            };
+        };
+        responses: {
+            /** @description Approval decision accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["approval.schema"];
                 };
             };
             default: components["responses"]["ErrorResponse"];

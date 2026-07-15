@@ -71,9 +71,10 @@ describe('productNavigation', () => {
   });
 });
 
-function task(overrides: { id: string; status?: Task['status']; createdAt?: string; views?: Task['queryPlan']['views'] }): Task {
+function task(overrides: { id: string; status?: Task['status']; createdAt?: string; views?: NonNullable<Task['queryPlan']>['views'] }): Task {
   return {
     id: overrides.id,
+    kind: 'metric_analysis',
     sessionId: 'session-1',
     status: overrides.status ?? 'planning',
     inputMessageId: 'message-1',

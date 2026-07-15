@@ -99,6 +99,43 @@ paths:
       responses:
         '200': {description: Task snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Task'}}}}
         default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/incidents:
+    get:
+      summary: List Incident Tasks visible to the current Grafana organization
+      x-mtb-timeout-ms: 10000
+      operationId: listIncidents
+      parameters:
+        - $ref: '#/components/parameters/PageSizeTasks'
+        - $ref: '#/components/parameters/PageToken'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': {description: Organization-scoped Incident Task page, content: {application/json: {schema: {$ref: '#/components/schemas/TaskPage'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+  /api/plugins/mini-torchbearing-app/resources/tasks/{taskId}/approval:
+    get:
+      summary: Get an Incident Task Approval
+      x-mtb-timeout-ms: 10000
+      operationId: getTaskApproval
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200': {description: Approval snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/Approval'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
+    post:
+      summary: Submit an Admin approval decision for an immutable Incident Intent
+      x-mtb-timeout-ms: 10000
+      operationId: decideTaskApproval
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/DecideApprovalRequest'}}}
+      responses:
+        '202': {description: Approval decision accepted, content: {application/json: {schema: {$ref: '#/components/schemas/Approval'}}}}
+        default: {$ref: '#/components/responses/ErrorResponse'}
   /api/plugins/mini-torchbearing-app/resources/tasks/{taskId}/events:
     get:
       summary: Replay and follow durable TaskEvents
@@ -156,6 +193,8 @@ components:
     ChartExecution: {$ref: '../schemas/chart/execution.schema.json'}
     TaskEvent: {$ref: '../events/task-events.schema.json'}
     ErrorEnvelope: {$ref: '../schemas/common/error.schema.json'}
+    Approval: {$ref: '../schemas/approval/approval.schema.json'}
+    DecideApprovalRequest: {$ref: '../schemas/api/decide-approval-request.schema.json'}
   responses:
     ErrorResponse:
       description: Structured domain error

@@ -1,0 +1,12 @@
+{
+  "id": "approval_01",
+  "taskId": "task_incident_01",
+  "status": "pending",
+  "intentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "requestedAt": "2026-07-16T08:00:05Z",
+  "expiresAt": "2026-07-16T08:10:05Z",
+  "decidedAt": null,
+  "decidedBy": null,
+  "decisionReason": null,
+  "version": 1
+}
