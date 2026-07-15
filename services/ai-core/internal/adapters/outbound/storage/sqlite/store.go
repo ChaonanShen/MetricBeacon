@@ -11,6 +11,7 @@ import (
 
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/incident"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/events"
@@ -47,6 +48,9 @@ func (s *Store) Messages() repositories.MessageRepository { return messageReposi
 func (s *Store) Tasks() repositories.TaskRepository       { return taskRepository{store: s} }
 func (s *Store) TaskCheckpoints() repositories.TaskCheckpointRepository {
 	return taskCheckpointRepository{store: s}
+}
+func (s *Store) AlertEvents() repositories.AlertEventRepository {
+	return alertEventRepository{store: s}
 }
 func (s *Store) ToolCalls() repositories.ToolCallRepository { return toolCallRepository{store: s} }
 func (s *Store) Charts() repositories.ChartRepository       { return chartRepository{store: s} }
@@ -110,6 +114,15 @@ type taskCheckpointRepository struct{ store *Store }
 
 func (r taskCheckpointRepository) Create(ctx context.Context, value task.Checkpoint) error {
 	return r.store.createTaskCheckpoint(ctx, value)
+}
+
+type alertEventRepository struct{ store *Store }
+
+func (r alertEventRepository) Create(ctx context.Context, value incident.AlertEvent) error {
+	return r.store.createAlertEvent(ctx, value)
+}
+func (r alertEventRepository) GetByKey(ctx context.Context, key incident.AlertKey) (incident.AlertEvent, error) {
+	return r.store.getAlertEventByKey(ctx, key)
 }
 func (r taskCheckpointRepository) Get(ctx context.Context, tenantID, taskID string) (task.Checkpoint, error) {
 	return r.store.getTaskCheckpoint(ctx, tenantID, taskID)
@@ -549,6 +562,48 @@ func (s *Store) deleteTaskCheckpoint(ctx context.Context, tenantID, taskID strin
 		return mapError(err)
 	}
 	return requireUpdated(result, "task checkpoint")
+}
+
+func (s *Store) createAlertEvent(ctx context.Context, value incident.AlertEvent) error {
+	if value.ID == "" || value.Key.TenantID == "" || value.Key.OrgID == "" || value.Key.SourceID == "" || value.Key.Fingerprint == "" || value.Key.StartsAt.IsZero() || (value.Key.Status != incident.AlertFiring && value.Key.Status != incident.AlertResolved) || value.ServiceRef == "" || value.AlertName == "" || len(value.Labels) == 0 || len(value.Labels) > 24 || value.ReceivedAt.IsZero() || (value.Key.Status == incident.AlertFiring && value.TaskID == "") {
+		return common.NewError(common.InvalidArgument, "alert event is invalid", false)
+	}
+	labels, err := json.Marshal(value.Labels)
+	if err != nil {
+		return mapError(err)
+	}
+	var taskID any
+	if value.TaskID != "" {
+		taskID = value.TaskID
+	}
+	_, err = s.executor().ExecContext(ctx, `INSERT INTO alert_events (id, tenant_id, org_id, source_id, fingerprint, starts_at, status, service_ref, alert_name, labels_json, task_id, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.Key.TenantID, value.Key.OrgID, value.Key.SourceID, value.Key.Fingerprint, storageTimestamp(value.Key.StartsAt), value.Key.Status, value.ServiceRef, value.AlertName, string(labels), taskID, storageTimestamp(value.ReceivedAt))
+	return mapError(err)
+}
+
+func (s *Store) getAlertEventByKey(ctx context.Context, key incident.AlertKey) (incident.AlertEvent, error) {
+	if key.TenantID == "" || key.OrgID == "" || key.SourceID == "" || key.Fingerprint == "" || key.StartsAt.IsZero() || (key.Status != incident.AlertFiring && key.Status != incident.AlertResolved) {
+		return incident.AlertEvent{}, common.NewError(common.InvalidArgument, "alert key is invalid", false)
+	}
+	var value incident.AlertEvent
+	var startsAt, labelsJSON, receivedAt string
+	var taskID sql.NullString
+	err := s.executor().QueryRowContext(ctx, `SELECT id, tenant_id, org_id, source_id, fingerprint, starts_at, status, service_ref, alert_name, labels_json, task_id, received_at FROM alert_events WHERE tenant_id = ? AND org_id = ? AND source_id = ? AND fingerprint = ? AND starts_at = ? AND status = ?`, key.TenantID, key.OrgID, key.SourceID, key.Fingerprint, storageTimestamp(key.StartsAt), key.Status).Scan(&value.ID, &value.Key.TenantID, &value.Key.OrgID, &value.Key.SourceID, &value.Key.Fingerprint, &startsAt, &value.Key.Status, &value.ServiceRef, &value.AlertName, &labelsJSON, &taskID, &receivedAt)
+	if err != nil {
+		return incident.AlertEvent{}, mapError(err)
+	}
+	if value.Key.StartsAt, err = parseTimestamp(startsAt); err != nil {
+		return incident.AlertEvent{}, err
+	}
+	if value.ReceivedAt, err = parseTimestamp(receivedAt); err != nil {
+		return incident.AlertEvent{}, err
+	}
+	if err := json.Unmarshal([]byte(labelsJSON), &value.Labels); err != nil {
+		return incident.AlertEvent{}, common.NewError(common.InternalError, "stored alert labels are invalid", false)
+	}
+	if taskID.Valid {
+		value.TaskID = taskID.String
+	}
+	return value, nil
 }
 
 func (s *Store) createToolCall(ctx context.Context, value task.ToolCallRecord) error {

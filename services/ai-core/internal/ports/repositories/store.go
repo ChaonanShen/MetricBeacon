@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
+	"mini-torchbearing.local/services/ai-core/internal/domain/incident"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/events"
@@ -47,6 +48,10 @@ type TaskCheckpointRepository interface {
 	Get(context.Context, string, string) (task.Checkpoint, error)
 	Update(context.Context, task.Checkpoint, int64) error
 	Delete(context.Context, string, string, int64) error
+}
+type AlertEventRepository interface {
+	Create(context.Context, incident.AlertEvent) error
+	GetByKey(context.Context, incident.AlertKey) (incident.AlertEvent, error)
 }
 type PageRequest struct {
 	Limit     int
@@ -94,6 +99,7 @@ type ApplicationStore interface {
 	Messages() MessageRepository
 	Tasks() TaskRepository
 	TaskCheckpoints() TaskCheckpointRepository
+	AlertEvents() AlertEventRepository
 	ToolCalls() ToolCallRepository
 	Charts() ChartRepository
 	ChartExecutions() ChartExecutionRepository

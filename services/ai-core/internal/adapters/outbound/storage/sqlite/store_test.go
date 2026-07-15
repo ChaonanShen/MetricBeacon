@@ -15,6 +15,7 @@ import (
 	storage "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/storage/sqlite"
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/incident"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/repositories"
@@ -372,6 +373,15 @@ func TestIncidentTaskAndCheckpointSurviveReopen(t *testing.T) {
 	if err := store.TaskCheckpoints().Create(ctx, checkpoint); err != nil {
 		t.Fatal(err)
 	}
+	alertKey := incident.AlertKey{TenantID: tenantID, OrgID: "1", SourceID: "demo-grafana", Fingerprint: "fingerprint_1", StartsAt: now, Status: incident.AlertFiring}
+	alertEvent, err := incident.NewAlertEvent("alert_1", alertKey, "order-demo", "OrderQueueBacklog", map[string]string{"alertname": "OrderQueueBacklog", "service_ref": "order-demo"}, incidentTask.ID, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AlertEvents().Create(ctx, alertEvent); err != nil {
+		t.Fatal(err)
+	}
+	requireCode(t, store.AlertEvents().Create(ctx, alertEvent), common.ResourceConflict)
 	if _, err := store.TaskEvents().Append(ctx, task.EventDraft{EventID: "event_alert", TenantID: tenantID, TaskID: incidentTask.ID, SessionID: incidentSession.ID, Type: task.EventAlertReceived, Timestamp: now, Payload: []byte(`{"sourceId":"demo-grafana","alertName":"OrderQueueBacklog","fingerprint":"fingerprint_1","serviceRef":"order-service:demo","status":"firing","startsAt":"2026-07-13T10:30:00Z"}`)}); err != nil {
 		t.Fatal(err)
 	}
@@ -417,6 +427,15 @@ func TestIncidentTaskAndCheckpointSurviveReopen(t *testing.T) {
 	loadedCheckpoint, err := reopened.TaskCheckpoints().Get(ctx, tenantID, incidentTask.ID)
 	if err != nil || loadedCheckpoint.Version != 2 || loadedCheckpoint.OpaqueValue != "signed:checkpoint:two" {
 		t.Fatalf("reopened checkpoint = %#v, %v", loadedCheckpoint, err)
+	}
+	loadedAlert, err := reopened.AlertEvents().GetByKey(ctx, alertKey)
+	if err != nil || loadedAlert.TaskID != incidentTask.ID || !reflect.DeepEqual(loadedAlert.Labels, alertEvent.Labels) {
+		t.Fatalf("reopened AlertEvent = %#v, %v", loadedAlert, err)
+	}
+	otherTenantKey := alertKey
+	otherTenantKey.TenantID = "org:other"
+	if _, err := reopened.AlertEvents().GetByKey(ctx, otherTenantKey); err == nil {
+		t.Fatal("AlertEvent crossed tenant boundary")
 	}
 	if _, err := reopened.TaskCheckpoints().Get(ctx, "org:other", incidentTask.ID); err == nil {
 		t.Fatal("checkpoint crossed tenant boundary")
