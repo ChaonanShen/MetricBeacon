@@ -16,8 +16,10 @@ import (
 
 	requestcontext "mini-torchbearing.local/packages/request-context-go"
 	generated "mini-torchbearing.local/services/ai-core/internal/adapters/inbound/http/generated"
+	"mini-torchbearing.local/services/ai-core/internal/application/approvals"
 	"mini-torchbearing.local/services/ai-core/internal/application/commands"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/remediation"
 	"mini-torchbearing.local/services/ai-core/internal/domain/session"
 	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/events"
@@ -26,11 +28,17 @@ import (
 
 type API struct {
 	Commands     *commands.Service
+	Approvals    ApprovalService
 	Incidents    AlertIngestor
 	AlertIngress AlertIngressConfig
 	Store        repositories.ApplicationStore
 	Notifier     events.Notifier
 	Readiness    func(context.Context) error
+}
+
+type ApprovalService interface {
+	Get(context.Context, requestcontext.Context, string) (remediation.Approval, error)
+	Decide(context.Context, requestcontext.Context, approvals.DecisionInput) (remediation.Approval, error)
 }
 
 var _ generated.ServerInterface = (*API)(nil)
@@ -47,12 +55,35 @@ func (a *API) ListIncidents(w http.ResponseWriter, _ *http.Request, params gener
 	writeError(w, params.XRequestID, common.NewError(common.NotImplemented, "Incident listing is not implemented", false))
 }
 
-func (a *API) GetTaskApproval(w http.ResponseWriter, _ *http.Request, _ generated.TaskId, params generated.GetTaskApprovalParams) {
-	writeError(w, params.XRequestID, common.NewError(common.NotImplemented, "Incident approval is not implemented", false))
+func (a *API) GetTaskApproval(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.GetTaskApprovalParams) {
+	if a.Approvals == nil {
+		writeError(w, params.XRequestID, common.NewError(common.NotImplemented, "Incident approval is not configured", false))
+		return
+	}
+	result, err := a.Approvals.Get(r.Context(), identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID), taskID)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, approvalResponse(result))
 }
 
-func (a *API) DecideTaskApproval(w http.ResponseWriter, _ *http.Request, _ generated.TaskId, params generated.DecideTaskApprovalParams) {
-	writeError(w, params.XRequestID, common.NewError(common.NotImplemented, "Incident approval is not implemented", false))
+func (a *API) DecideTaskApproval(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.DecideTaskApprovalParams) {
+	if a.Approvals == nil {
+		writeError(w, params.XRequestID, common.NewError(common.NotImplemented, "Incident approval is not configured", false))
+		return
+	}
+	var body generated.DecideTaskApprovalJSONRequestBody
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	result, err := a.Approvals.Decide(r.Context(), identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID), approvals.DecisionInput{TaskID: taskID, Decision: string(body.Decision), Reason: body.Reason, IntentDigest: body.IntentDigest, IdempotencyKey: params.IdempotencyKey, ExpectedTaskVersion: int64(body.ExpectedTaskVersion), ExpectedApprovalVersion: int64(body.ExpectedApprovalVersion)})
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, approvalResponse(result))
 }
 
 func (a *API) Readyz(w http.ResponseWriter, r *http.Request) {
@@ -558,6 +589,9 @@ func taskResponse(value task.AnalysisTask) any {
 }
 func messageResponse(value session.Message) any {
 	return map[string]any{"id": value.ID, "sessionId": value.SessionID, "taskId": value.TaskID, "role": value.Role, "content": value.Content, "createdAt": value.CreatedAt}
+}
+func approvalResponse(value remediation.Approval) any {
+	return map[string]any{"id": value.ID, "taskId": value.TaskID, "status": value.Status, "intentDigest": value.IntentDigest, "requestedAt": value.RequestedAt, "expiresAt": value.ExpiresAt, "decidedAt": value.DecidedAt, "decidedBy": value.DecidedBy, "decisionReason": value.DecisionReason, "version": value.Version}
 }
 func taskEventResponse(event task.TaskEvent) any {
 	return map[string]any{"eventId": event.EventID, "taskId": event.TaskID, "sessionId": event.SessionID, "sequence": event.Sequence, "type": event.Type, "timestamp": event.Timestamp, "payload": json.RawMessage(event.Payload)}

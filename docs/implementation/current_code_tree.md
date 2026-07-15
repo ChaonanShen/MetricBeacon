@@ -56,6 +56,7 @@ mini-torchbearing/
 │   │   │   ├── application/
 │   │   │   │   ├── commands/              # Session/Task 命令、Planner 合并与 QueryPlan 冻结
 │   │   │   │   ├── incidents/             # 告警生命周期幂等建组织 Incident 与异步调度
+│   │   │   │   ├── approvals/             # Admin、幂等、双版本 CAS 的 Approval 决策与审计
 │   │   │   │   ├── workflows/             # 指标分析与可恢复 Incident 诊断/prepare/Approval 工作流
 │   │   │   │   └── dto/                   # 应用层数据传递对象
 │   │   │   ├── ports/                     # 存储、Agent、MCP、Incident 只读 Toolset、时钟等抽象接口

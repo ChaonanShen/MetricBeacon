@@ -17,11 +17,13 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/adapters/outbound/events/inmemory"
 	idadapter "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/ids"
 	storage "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/storage/sqlite"
+	"mini-torchbearing.local/services/ai-core/internal/application/approvals"
 	"mini-torchbearing.local/services/ai-core/internal/application/commands"
 	"mini-torchbearing.local/services/ai-core/internal/application/dto"
 	"mini-torchbearing.local/services/ai-core/internal/application/workflows"
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
+	"mini-torchbearing.local/services/ai-core/internal/domain/remediation"
 	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
 	"mini-torchbearing.local/services/ai-core/internal/ports/repositories"
 )
@@ -445,6 +447,83 @@ func TestIncidentContractPlaceholdersFailClosed(t *testing.T) {
 	if body.Error.Code != string(common.NotImplemented) {
 		t.Fatalf("error code = %q", body.Error.Code)
 	}
+}
+
+func TestApprovalHTTPUsesGeneratedContractAndForwardsAdminScope(t *testing.T) {
+	now := time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)
+	value, err := remediation.NewApproval("approval-1", "org:1", "1", "task-1", "intent-1", "sha256:"+strings.Repeat("a", 64), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stub := &approvalHTTPStub{value: value}
+	server := httptest.NewServer(NewHandler(&API{Approvals: stub}))
+	defer server.Close()
+
+	get := approvalRequest(t, http.MethodGet, server.URL+"/v1/tasks/task-1/approval", "", "")
+	if get.StatusCode != http.StatusOK {
+		t.Fatalf("GET status=%d", get.StatusCode)
+	}
+	get.Body.Close()
+	body := `{"decision":"approve","reason":"reviewed","expectedTaskVersion":5,"expectedApprovalVersion":1,"intentDigest":"` + value.IntentDigest + `"}`
+	post := approvalRequest(t, http.MethodPost, server.URL+"/v1/tasks/task-1/approval", body, "decision-key")
+	defer post.Body.Close()
+	if post.StatusCode != http.StatusAccepted {
+		t.Fatalf("POST status=%d", post.StatusCode)
+	}
+	var response struct {
+		Status  string `json:"status"`
+		Version int64  `json:"version"`
+	}
+	if err := json.NewDecoder(post.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Status != "approved" || response.Version != 2 || stub.input.ExpectedTaskVersion != 5 || stub.input.ExpectedApprovalVersion != 1 || stub.input.IdempotencyKey != "decision-key" || stub.identity.OrgID != "1" || len(stub.identity.Roles) != 1 || stub.identity.Roles[0] != "Admin" {
+		t.Fatalf("response=%#v input=%#v identity=%#v", response, stub.input, stub.identity)
+	}
+	invalid := approvalRequest(t, http.MethodPost, server.URL+"/v1/tasks/task-1/approval", strings.TrimSuffix(body, "}")+`,"unexpected":true}`, "other-key")
+	defer invalid.Body.Close()
+	if invalid.StatusCode != http.StatusBadRequest || stub.decisions != 1 {
+		t.Fatalf("strict JSON status=%d decisions=%d", invalid.StatusCode, stub.decisions)
+	}
+}
+
+type approvalHTTPStub struct {
+	value     remediation.Approval
+	identity  requestcontext.Context
+	input     approvals.DecisionInput
+	decisions int
+}
+
+func (s *approvalHTTPStub) Get(_ context.Context, identity requestcontext.Context, _ string) (remediation.Approval, error) {
+	s.identity = identity
+	return s.value, nil
+}
+
+func (s *approvalHTTPStub) Decide(_ context.Context, identity requestcontext.Context, input approvals.DecisionInput) (remediation.Approval, error) {
+	s.identity, s.input = identity, input
+	s.decisions++
+	value := s.value
+	if err := value.Decide(remediation.Decision(input.Decision), identity.UserID, input.Reason, value.RequestedAt.Add(time.Minute)); err != nil {
+		return remediation.Approval{}, err
+	}
+	return value, nil
+}
+
+func approvalRequest(t *testing.T, method, target, body, key string) *http.Response {
+	t.Helper()
+	request, err := http.NewRequest(method, target, strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	addHeaders(request, "request-approval", key)
+	request.Header.Set("X-MTB-User-ID", "admin:1")
+	request.Header.Set("X-MTB-Roles", "Admin")
+	request.Header.Set("Content-Type", "application/json")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return response
 }
 
 func request(t *testing.T, method, target, body, requestID, idempotencyKey string) *http.Response {
