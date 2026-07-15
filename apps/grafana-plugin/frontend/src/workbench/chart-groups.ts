@@ -24,15 +24,11 @@ export function deriveChartGroups(tasksNewestFirst: Task[], messages: Message[],
   });
 }
 
-export function defaultChartId(groups: ChartGroup[]): string | undefined {
-  return groups.at(-1)?.charts[0]?.chart.id;
-}
-
-export function autoFocusTarget(groups: ChartGroup[], activeTaskId: string | undefined, lastFocusedTaskId: string | undefined, historyReady: boolean, selectedChartId: string | undefined) {
+export function autoFocusTask(groups: ChartGroup[], activeTaskId: string | undefined, lastFocusedTaskId: string | undefined, historyReady: boolean, historyFocused: boolean) {
   const active = activeTaskId ? groups.find((group) => group.taskId === activeTaskId) : undefined;
-  if (active && active.taskId !== lastFocusedTaskId) return { taskId: active.taskId, chartId: active.charts[0].chart.id, behavior: 'smooth' as const };
+  if (active && active.taskId !== lastFocusedTaskId) return { taskId: active.taskId, behavior: 'smooth' as const };
   const latest = groups.at(-1);
-  if (historyReady && !selectedChartId && latest) return { taskId: latest.taskId, chartId: latest.charts[0].chart.id, behavior: 'auto' as const };
+  if (historyReady && !historyFocused && latest) return { taskId: latest.taskId, behavior: 'auto' as const };
   return undefined;
 }
 

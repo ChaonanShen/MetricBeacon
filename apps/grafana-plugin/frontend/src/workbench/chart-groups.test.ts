@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { autoFocusTarget, compensatedScrollTop, defaultChartId, deriveChartGroups } from './chart-groups';
+import { autoFocusTask, compensatedScrollTop, deriveChartGroups } from './chart-groups';
 
 const task = (id: string, inputMessageId = `message-${id}`) => ({ id, inputMessageId, createdAt: `2026-07-15T10:0${id.slice(-1)}:00Z` }) as never;
 const message = (id: string, taskId: string, content: string, role = 'user') => ({ id, taskId, role, content }) as never;
@@ -16,7 +16,6 @@ describe('deriveChartGroups', () => {
     expect(groups.map(({ taskId }) => taskId)).toEqual(['task-1', 'task-2']);
     expect(groups[0].charts.map(({ chart }) => chart.id)).toEqual(['chart-task-1-a']);
     expect(groups[1].charts.map(({ chart }) => chart.id)).toEqual(['chart-task-2-b']);
-    expect(defaultChartId(groups)).toBe('chart-task-2-b');
   });
 
   it('uses inputMessageId, then task user message, then a stable fallback', () => {
@@ -42,13 +41,14 @@ describe('chart focus and prepend scrolling', () => {
   const groups = [{ taskId: 'old', charts: [chart('chart-old')], prompt: 'old', createdAt: '' }, { taskId: 'new', charts: [chart('chart-new-a'), chart('chart-new-b')], prompt: 'new', createdAt: '' }];
 
   it('focuses a new task once and does not let later charts steal focus', () => {
-    expect(autoFocusTarget(groups, 'new', undefined, false, 'chart-old')).toMatchObject({ taskId: 'new', chartId: 'chart-new-a' });
-    expect(autoFocusTarget(groups, 'new', 'new', false, 'chart-old')).toBeUndefined();
+    expect(autoFocusTask(groups, 'new', undefined, false, false)).toMatchObject({ taskId: 'new', behavior: 'smooth' });
+    expect(autoFocusTask(groups, 'new', 'new', false, false)).toBeUndefined();
   });
 
   it('selects the newest non-empty group only after history is ready', () => {
-    expect(autoFocusTarget(groups, undefined, undefined, false, undefined)).toBeUndefined();
-    expect(autoFocusTarget(groups, undefined, undefined, true, undefined)).toMatchObject({ taskId: 'new', chartId: 'chart-new-a', behavior: 'auto' });
+    expect(autoFocusTask(groups, undefined, undefined, false, false)).toBeUndefined();
+    expect(autoFocusTask(groups, undefined, undefined, true, false)).toMatchObject({ taskId: 'new', behavior: 'auto' });
+    expect(autoFocusTask(groups, undefined, undefined, true, true)).toBeUndefined();
   });
 
   it('preserves the viewport by adding only prepended height', () => {

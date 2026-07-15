@@ -2,6 +2,7 @@ import { Button, Box, Field, Input, Spinner, Stack, Text } from '@grafana/ui';
 
 import type { Message, Task } from '../api/resource';
 import type { WorkbenchState } from './types';
+import { WorkbenchPane } from './WorkbenchPane';
 
 type Props = {
   sessionTitle?: string;
@@ -15,23 +16,20 @@ type Props = {
   loadingMore: boolean;
   notice?: string;
   requestError?: string;
-  newConversationDisabled: boolean;
   onMessageChange: (message: string) => void;
   onSubmit: () => void;
   onLoadMore: () => void;
-  onNewConversation: () => void;
 };
 
-export function ConversationPane({ sessionTitle, messages, tasks, runtimeByTaskId, activeTask, message, busy, canLoadMore, loadingMore, notice, requestError, newConversationDisabled, onMessageChange, onSubmit, onLoadMore, onNewConversation }: Props) {
-  return <Pane aria-label="对话" data-testid="conversation-pane" height={{ xs: 'auto', xl: '100%' }} minHeight={{ xs: '420px', xl: 0 }}>
+export function ConversationPane({ sessionTitle, messages, tasks, runtimeByTaskId, activeTask, message, busy, canLoadMore, loadingMore, notice, requestError, onMessageChange, onSubmit, onLoadMore }: Props) {
+  return <WorkbenchPane aria-label="对话" data-testid="conversation-pane" height={{ xs: 'auto', xl: '100%' }} minHeight={{ xs: '420px', xl: 0 }}>
     <style>{conversationPaneCSS}</style>
     <Stack direction="column" gap={2} height="100%" minHeight={0}>
-      <Box padding={3} paddingBottom={0} display="flex" justifyContent="space-between" alignItems="flex-start" gap={2}>
+      <Box padding={3} paddingBottom={0}>
         <Box minWidth={0}>
           <Text element="h2" variant="h4">对话</Text>
-          <Text color="secondary">{sessionTitle ?? '当前会话'}</Text>
+          <Text color="secondary">{sessionTitle ?? '新对话'}</Text>
         </Box>
-        <Button variant="secondary" size="sm" onClick={onNewConversation} disabled={newConversationDisabled}>新建对话</Button>
       </Box>
       <div data-testid="conversation-scroll-container" className="mtb-conversation-scroll">
         <Stack direction="column" gap={2}>
@@ -61,13 +59,9 @@ export function ConversationPane({ sessionTitle, messages, tasks, runtimeByTaskI
         </Stack>
       </Box>
     </Stack>
-  </Pane>;
+  </WorkbenchPane>;
 }
 
 const conversationPaneCSS = `
 .mtb-conversation-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 24px; scrollbar-gutter: stable; }
 `;
-
-export function Pane(props: React.ComponentProps<typeof Box>) {
-  return <Box backgroundColor="secondary" borderColor="weak" borderStyle="solid" borderRadius="md" minWidth={0} {...props} />;
-}

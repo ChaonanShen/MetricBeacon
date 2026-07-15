@@ -3,12 +3,10 @@ import { forwardRef, useImperativeHandle, useRef } from 'react';
 
 import { ChartCard } from './ChartCard';
 import { compensatedScrollTop, type ChartGroup } from './chart-groups';
-import { Pane } from './ConversationPane';
+import { WorkbenchPane } from './WorkbenchPane';
 
 type Props = {
   groups: ChartGroup[];
-  selectedChartId?: string;
-  onSelectChart: (chartId: string) => void;
 };
 
 export type ChartCanvasHandle = {
@@ -17,7 +15,7 @@ export type ChartCanvasHandle = {
   scrollTaskIntoView: (taskId: string, behavior?: ScrollBehavior) => void;
 };
 
-export const ChartCanvas = forwardRef<ChartCanvasHandle, Props>(function ChartCanvas({ groups, selectedChartId, onSelectChart }, ref) {
+export const ChartCanvas = forwardRef<ChartCanvasHandle, Props>(function ChartCanvas({ groups }, ref) {
   const chartCount = groups.reduce((total, group) => total + group.charts.length, 0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const groupRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -37,11 +35,11 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, Props>(function ChartCa
     scrollTaskIntoView: (taskId, behavior = 'smooth') => groupRefs.current[taskId]?.scrollIntoView({ block: 'nearest', behavior }),
   }), []);
 
-  return <Pane aria-label="分析画布" data-testid="chart-canvas" grow={3} basis="0" minWidth={0}>
+  return <WorkbenchPane aria-label="图表" data-testid="chart-canvas" grow={3} basis="0" minWidth={0}>
     <style>{chartCanvasCSS}</style>
     <Stack direction="column" gap={2} height="100%" minHeight={0}>
       <Box padding={3} paddingBottom={0} display="flex" justifyContent="space-between" gap={2}>
-        <Text element="h2" variant="h4">分析画布</Text>
+        <Text element="h2" variant="h4">图表</Text>
         <Text color="secondary">{groups.length} 轮分析 · {chartCount} 张图表</Text>
       </Box>
       <div ref={scrollRef} data-testid="chart-scroll-container" className="mtb-chart-scroll">
@@ -55,14 +53,14 @@ export const ChartCanvas = forwardRef<ChartCanvasHandle, Props>(function ChartCa
               </Box>
               <div className="mtb-chart-grid">
                 {group.charts.map(({ chart, execution }) => <div className="mtb-chart-wrapper" key={`${group.taskId}:${chart.id}`}>
-                  <ChartCard chart={chart} execution={execution} selected={chart.id === selectedChartId} onSelect={() => onSelectChart(chart.id)} />
+                  <ChartCard chart={chart} execution={execution} />
                 </div>)}
               </div>
             </section>)}
           </div>}
       </div>
     </Stack>
-  </Pane>;
+  </WorkbenchPane>;
 });
 
 const chartCanvasCSS = `

@@ -40,7 +40,7 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 |`services/assistant-mcp`|以 Streamable HTTP（`/mcp`）暴露只读的 `grafana.*` MCP 工具：`search_metrics`、`get_metric_labels`、`query_prometheus`。|查询工具只接受注册 view、可空 CPU window、范围和 step；工具先做权限和 Schema/点数预算校验，再调用 Prometheus Port。该服务不拥有 AI Core 的任务或数据库。|
 |`services/assistant-mcp/internal/adapters/prometheus/mock`、`http`|Prometheus Port 的 Mock 与真实 HTTP 实现。|默认 Mock 是唯一允许读取 `data/mock-scenarios` 的代码，并将 fixture 确定性重采样到请求范围/step；opt-in HTTP Adapter 只执行本地注册表生成的 CPU `[30s]/[1m]/[5m]`、内存和 load PromQL，并执行响应、时间范围、step、点数和基数上限。|
 |`data/agent-knowledge/node_exporter.md`、`services/ai-core/internal/adapters/outbound/agent/profile`、`agent/eino`、`agent/localresult`|只读 node_exporter Profile、受限 Eino IntentPlanner 与本地结果 formatter。|Profile 继续在启动时校验并保留给执行侧代码，但 Planner 不再拼接其事实回复/工具说明；模型只接收注册 view 说明、当前消息和最近最多 6 个持久化结构化意图。DeepSeek 使用 JSON mode、non-thinking、可实际传输的 0.01 temperature 和 512 token 上限；四字段输出在本地严格校验，空/契约错误最多重试一次。完整时序留在本地，持久化事实回复由 formatter 根据 QueryPlan 与本地结果生成。|
-|`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建/恢复/本地切换新 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|首条消息已生成 Unicode-safe 持久化标题，Resource client 可读取 Session page，reducer 以 Session ID 拒绝迟到 history/replay/event；可见会话栏和最终“会话/对话/图表”布局仍由活动计划接入。当前左栏仍为 320..420px 对话，中心画布最多两列，右栏仍为 280px 只读详情。|
+|`apps/grafana-plugin/frontend`|React/Grafana 三栏工作台：创建/分页列出/恢复/切换私有 Session、提交自然语言、分页读取 Message/Task、有限重放 SSE，并把执行结果映射为 Grafana DataFrame 与时序图。|桌面为 260px 会话栏、320..420px 对话栏和自适应图表栏；窄屏纵向排列。首条消息生成 Unicode-safe 标题，Session 无限分页由服务端 token 驱动，reducer 以 Session ID 拒绝迟到 history/replay/event。图表按 Task oldest-first 分组、最多两列；旧 ContextPane、图表详情选择和 selectedChart 状态已删除。|
 |`apps/grafana-plugin/backend`|Grafana Plugin SDK 的薄 Resource API 层。|从 Grafana 上下文提取身份、读取 `aiCoreEndpoint` 配置，代理 owner-scoped Session page、单 Session、Message/Task 历史、有限事件重放与 SSE 字节流，并映射错误；不持久化业务数据、不调用 MCP。|
 |`data/mock-scenarios/node_exporter_overview`|确定性场景数据：指标搜索、标签、三条查询结果、期望事件。|只供 MCP 的 Mock Prometheus Adapter 使用，并受 Schema 校验。|
 |`scripts/`、`Makefile`、`tests/e2e/`、`tests/diagnostics/`|工程门禁、代码生成、契约/边界检查、分层诊断与端到端验收入口。|`scripts/mtb` 统一根 `.env` 的 worktree ID/slot、脱敏配置、工具链、按 lockfile 指纹执行的 `npm ci`、一次前端 build、三种 Compose mode、生命周期、诊断和快速/full verify。开发栈使用稳定 worktree project/slot 端口；E2E/诊断使用唯一 project 和 Docker 动态端口，并只清理本轮 volume/image/network。原 `make e2e-*` 和 `run-*.sh` 是兼容入口。|
@@ -49,9 +49,9 @@ SSE TaskEvent 按原路径回传到前端，前端恢复状态并渲染 Agent �
 
 - AI Core 独占业务持久化。SQLite 迁移在 `services/ai-core/migrations/sqlite/`，Plugin 和 MCP 都不能直接读写它。`0004` 为 Task 回填并持久化有效 step/CPU rate window，为历史 Chart query 回填 step，并为 Execution 增加可空的实际样本范围。每条 Message 已持久化关联其 Task：User Message 与 `Task.inputMessageId` 双向一致，Assistant Message 也归属产生它的 Task；迁移会拒绝无法无歧义关联的旧数据。
 - 同一 tenant/Session 最多允许一个非终态 Task，SQLite partial unique index 是并发竞争的最终约束；进程内顶层写事务串行进入 SQLite，避免锁竞争掩盖该业务冲突。工具审计以内部稳定 source call ID 关联 start/completed/failed 记录，Mock Runtime 使用可重复的 source call ID。
-- AI Core 与 Plugin Resource API 都提供按 `createdAt DESC,id DESC` 的 Session Message/Task keyset 分页，以及固定 `targetSequence` 的有限 JSON TaskEvent replay。page token 绑定资源类型及 Session/Task，不能跨接口或跨资源复用；Plugin 由 Grafana 身份上下文覆盖浏览器伪造的身份头。
+- AI Core 与 Plugin Resource API 提供 creator-scoped、按 `updatedAt DESC,id DESC` 的非空 Session page，并提供按 `createdAt DESC,id DESC` 的 Session Message/Task keyset 分页及固定 `targetSequence` 的有限 JSON TaskEvent replay。page token 绑定资源、父级和 owner context，不能跨接口、资源或用户复用；Plugin 由 Grafana 身份上下文覆盖浏览器伪造的身份头。
 - 前端以 Session 级 Message/Task/runtimes 状态恢复工作台，历史事件重放至固定目标序列；只有非终态 Task 建立一个 SSE，收到终态事件后关闭。重复事件会忽略，sequence 间隙会从最后连续序列重连。若 URL Session 在当前独立 AI Core volume 中明确不存在，前端会清除两个 workbench 路由 ID 和旧 reducer/replay/幂等状态；网络、权限与依赖错误不会触发该恢复，而会显示安全分类。
-- 用户主动新建对话同样清除 Workbench route、reducer、选择、请求错误和 replay/幂等 refs，但不删除 AI Core 中的旧 Session。若旧 Task 仍在运行，前端停止跟踪它；清理后 reducer 不接受该 Task 的迟到事件，下一次提交再创建新 Session。AI Core 已提供 creator-scoped、只包含非空 Session 的 `updatedAt DESC,id DESC` keyset list；新 Task 接受事务同步更新 Session `updatedAt/version`，Session/Task/Event 浏览器入口对外用户统一返回不存在。Plugin Resource 已代理该分页接口，Workbench 会话栏仍由活动计划继续接入。
+- 用户新建或选择对话时清除当前 Workbench route/reducer、请求错误和 replay/幂等 refs，但不删除 AI Core 中的旧 Session；Session-aware reducer 拒绝旧 history/replay/SSE 的迟到结果。会话栏无限分页选择 creator 私有历史，下一次 Task 接受事务同步更新 Session `updatedAt/version` 并使它回到列表顶部；外用户访问统一返回不存在。
 - 同步 IntentPlanner 只接收当前 User Message 和最近最多 6 个 views 非空的持久化 User Message + QueryPlan 意图，按完整消息边界限制在 12,000 个 Unicode 字符内并保持时间正序；历史读取失败不静默降级。Assistant 事实回复、实际数值和时间戳不会进入模型输入。当前消息超过 4,000 个 Unicode 字符会被拒绝。SSE 已在终态 Task 的 durable events 排空后主动关闭。
 - Mock 只位于 Adapter 层：Mock Agent 在 AI Core 的出站 Adapter，Mock Prometheus 在 MCP 的出站 Adapter；领域和工作流中没有 `mockMode` 分支。
 - Mock 与真实 Adapter 共用逻辑数据源 UID `prometheus-main`。Task、Chart 和 MCP Tool 契约均限制为该 UID；SQLite `0003` 会前移迁移历史 Task 及 Chart query JSON 中的旧 UID。Agent 只提交 view，查询验证结果返回 assistant-mcp 生成的规范 PromQL，AI Core 只将该返回值持久化到 Chart。
@@ -133,7 +133,7 @@ Mock 和真实 Eino 模式都通过同一 IntentPlanner Port 生成受限计划�
 
 |阶段|输入与去向|内部处理|可见/持久化输出|
 |-|-|-|-|
-|1. 创建会话|前端在没有 URL Session 时调用 `POST .../resources/sessions`，标题固定为 `Node exporter mock analysis`。|Plugin Backend 从 Grafana 登录态构造用户/组织/权限上下文，并代理到 AI Core。AI Core 在 SQLite 中创建 Session。|浏览器获得 `sessionId`。|
+|1. 创建会话|前端在没有 URL Session 时调用 `POST .../resources/sessions`，标题由首条消息压缩空白并安全截断为最多 50 个 Unicode code point。|Plugin Backend 从 Grafana 登录态构造用户/组织/权限上下文，并代理到 AI Core。AI Core 在 SQLite 中创建 Session；Task 接受后该非空 Session 才进入 owner history。|浏览器获得 `sessionId`。|
 |2. 创建任务|前端只把用户输入、`datasourceUid: prometheus-main` 和新的 idempotency key 发送到 `POST .../resources/tasks`。|AI Core 在已完成幂等预检后同步规划 views/range/step，本地校验并冻结 QueryPlan；Planner 失败不写入 Message、Task 或幂等记录。|浏览器获得 `taskId`；右栏只读显示最终生效参数。|
 |3. 启动工作流|Task 提交成功后，AI Core 在事务提交后异步运行工作流。|Task 依次进入 planning、running_tools、validating、completed；每次状态改变及后续事件都先写 SQLite，再通知 SSE 订阅者。|任务状态会实时变化，即使 SSE 断开也能从数据库重放。|
 |4. 确定性执行|工作流读取 Task QueryPlan.views。|按持久化顺序为每个 view 各调用一次 Validate/Execute；不再让模型二次选图，unsupported 零查询完成。|最终回复由本地 formatter 按实际范围、step/window 和样本统计生成。|

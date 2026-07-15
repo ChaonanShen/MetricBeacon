@@ -15,12 +15,13 @@ mini-torchbearing/
 │       │   │   │   ├── resource-error.ts  # Resource 404 恢复判定与安全错误展示
 │       │   │   │   └── generated/         # 由 OpenAPI 生成的前端类型
 │       │   │   └── workbench/             # 分析工作台
-│       │   │       ├── Workbench.tsx      # 页面编排、任务创建、新对话清理、SSE 订阅与本地选择
-│       │   │       ├── ConversationPane.tsx # 对话、新建入口、独立消息滚动、Task 状态与输入
+│       │   │       ├── Workbench.tsx      # Session list/切换、任务创建、恢复与 SSE 编排
+│       │   │       ├── SessionPane.tsx   # 新建入口、owner Session 分页列表与选择
+│       │   │       ├── WorkbenchPane.tsx # 三栏共用的 theme-aware Pane 壳
+│       │   │       ├── ConversationPane.tsx # 当前对话、独立消息滚动、Task 状态与输入
 │       │   │       ├── ChartCanvas.tsx    # Task 分组、最多两列画布与滚动控制
-│       │   │       ├── chart-groups.ts    # oldest-first 分组、默认选择与滚动纯逻辑
-│       │   │       ├── ContextPane.tsx    # 只读 Session/Task/图表详情
-│       │   │       ├── ChartCard.tsx      # 时序卡片、图表状态与详情选择
+│       │   │       ├── chart-groups.ts    # oldest-first 分组与 Task 滚动纯逻辑
+│       │   │       ├── ChartCard.tsx      # 时序卡片、图表状态与只读 PromQL
 │       │   │       ├── mapper.ts          # Chart wire 数据 -> Grafana DataFrame
 │       │   │       ├── reducer.ts         # TaskEvent 前端状态归约
 │       │   │       ├── session-reducer.ts # Session 历史、Task runtimes 与活动流状态
