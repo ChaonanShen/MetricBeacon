@@ -25,10 +25,12 @@ import (
 )
 
 type API struct {
-	Commands  *commands.Service
-	Store     repositories.ApplicationStore
-	Notifier  events.Notifier
-	Readiness func(context.Context) error
+	Commands     *commands.Service
+	Incidents    AlertIngestor
+	AlertIngress AlertIngressConfig
+	Store        repositories.ApplicationStore
+	Notifier     events.Notifier
+	Readiness    func(context.Context) error
 }
 
 var _ generated.ServerInterface = (*API)(nil)
@@ -40,13 +42,6 @@ func NewHandler(api *API) http.Handler {
 }
 
 func (a *API) Healthz(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }
-
-// Incident endpoints are contract-first. Their concrete command handlers are
-// added by the Incident workflow slice; returning a typed error keeps every
-// generated server revision buildable between focused commits.
-func (a *API) IngestGrafanaAlert(w http.ResponseWriter, _ *http.Request, params generated.IngestGrafanaAlertParams) {
-	writeError(w, params.XRequestID, common.NewError(common.NotImplemented, "Grafana alert ingress is not implemented", false))
-}
 
 func (a *API) ListIncidents(w http.ResponseWriter, _ *http.Request, params generated.ListIncidentsParams) {
 	writeError(w, params.XRequestID, common.NewError(common.NotImplemented, "Incident listing is not implemented", false))
@@ -599,7 +594,7 @@ func writeError(w http.ResponseWriter, requestID string, err error) {
 	if !errors.As(err, &domainErr) {
 		domainErr = common.NewError(common.InternalError, "internal server error", true)
 	}
-	status := map[common.ErrorCode]int{common.InvalidArgument: http.StatusBadRequest, common.Unauthenticated: http.StatusUnauthorized, common.PermissionDenied: http.StatusForbidden, common.ResourceNotFound: http.StatusNotFound, common.ResourceConflict: http.StatusConflict, common.InvalidStateTransition: http.StatusConflict, common.IdempotencyConflict: http.StatusConflict, common.TargetPreconditionFailed: http.StatusConflict, common.ApprovalRequired: http.StatusConflict, common.ApprovalExpired: http.StatusConflict, common.DependencyUnavailable: http.StatusServiceUnavailable, common.ToolTimeout: http.StatusGatewayTimeout, common.NotImplemented: http.StatusNotImplemented}[domainErr.Code]
+	status := map[common.ErrorCode]int{common.InvalidArgument: http.StatusBadRequest, common.SchemaValidationFailed: http.StatusBadRequest, common.Unauthenticated: http.StatusUnauthorized, common.PermissionDenied: http.StatusForbidden, common.ResourceNotFound: http.StatusNotFound, common.ResourceConflict: http.StatusConflict, common.InvalidStateTransition: http.StatusConflict, common.IdempotencyConflict: http.StatusConflict, common.TargetPreconditionFailed: http.StatusConflict, common.ApprovalRequired: http.StatusConflict, common.ApprovalExpired: http.StatusConflict, common.DependencyUnavailable: http.StatusServiceUnavailable, common.ToolTimeout: http.StatusGatewayTimeout, common.NotImplemented: http.StatusNotImplemented}[domainErr.Code]
 	if status == 0 {
 		status = http.StatusInternalServerError
 	}

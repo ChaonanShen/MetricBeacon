@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
 
 	deepseekmodel "github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cohesion-org/deepseek-go"
@@ -17,6 +18,7 @@ import (
 	storage "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/storage/sqlite"
 	mcpadapter "mini-torchbearing.local/services/ai-core/internal/adapters/outbound/tools/mcp"
 	"mini-torchbearing.local/services/ai-core/internal/application/commands"
+	"mini-torchbearing.local/services/ai-core/internal/application/incidents"
 	"mini-torchbearing.local/services/ai-core/internal/application/workflows"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
@@ -83,7 +85,19 @@ func New(ctx context.Context, config Config) (*Application, error) {
 		return nil, err
 	}
 	commandService := commands.New(store, notifier, workflow, generator, clock, planner)
-	api := httpapi.API{Commands: commandService, Store: store, Notifier: notifier, Readiness: func(checkCtx context.Context) error {
+	api := httpapi.API{Commands: commandService, Store: store, Notifier: notifier}
+	if config.IncidentWebhookSecret != "" {
+		incidentTools := mcpadapter.NewIncidentToolset(gateway)
+		incidentWorkflow := workflows.RunIncidentWorkflow{Store: store, Notifier: notifier, Toolset: incidentTools, IDs: generator, Clock: clock}
+		incidentService := incidents.New(incidents.Config{TenantID: config.IncidentTenantID, OrgID: fmt.Sprint(config.IncidentOrgID), ActorID: config.IncidentActorID}, store, notifier, incidentTools, incidentWorkflow, generator, clock)
+		if err := incidentService.Recover(ctx); err != nil {
+			_ = store.Close()
+			return nil, err
+		}
+		api.Incidents = incidentService
+		api.AlertIngress = httpapi.AlertIngressConfig{SourceID: config.IncidentAlertSource, OrgID: config.IncidentOrgID, HMACSecret: config.IncidentWebhookSecret, MaxClockSkew: config.IncidentAlertMaxSkew, CurrentTime: clock.Now}
+	}
+	api.Readiness = func(checkCtx context.Context) error {
 		identity := requestcontext.Context{TenantID: "readiness", OrgID: "0", UserID: "readiness", Roles: []string{"Admin"}, Permissions: []string{"datasources:query"}, RequestID: "readyz", TraceID: "readyz"}
 		descriptors, err := gateway.ListTools(checkCtx, identity, tools.Filter{Namespace: "grafana"})
 		if err != nil {
@@ -92,7 +106,17 @@ func New(ctx context.Context, config Config) (*Application, error) {
 		if len(descriptors) != 3 {
 			return common.NewError(common.DependencyUnavailable, "assistant-mcp did not expose the required tools", true)
 		}
+		if config.IncidentWebhookSecret != "" {
+			identity.TenantID, identity.OrgID, identity.UserID = config.IncidentTenantID, fmt.Sprint(config.IncidentOrgID), config.IncidentActorID
+			identity.Permissions = []string{"incidents:diagnose"}
+			for namespace, expected := range map[string]int{"knowledge": 1, "skill": 1, "playbook": 3, "order_service": 6} {
+				profile, err := gateway.ListTools(checkCtx, identity, tools.Filter{Namespace: namespace})
+				if err != nil || len(profile) != expected {
+					return common.NewError(common.DependencyUnavailable, "assistant-mcp Incident diagnostic profile is incomplete", true)
+				}
+			}
+		}
 		return nil
-	}}
+	}
 	return &Application{Handler: api, close: store.Close}, nil
 }

@@ -55,11 +55,12 @@ mini-torchbearing/
 │   │   │   ├── domain/                    # 纯领域：Session/Message kind、Task/IncidentPlan、摘要 AlertEvent、QueryPlan、Chart
 │   │   │   ├── application/
 │   │   │   │   ├── commands/              # Session/Task 命令、Planner 合并与 QueryPlan 冻结
-│   │   │   │   ├── workflows/             # 分析工作流与事件持久化
+│   │   │   │   ├── incidents/             # 告警生命周期幂等建组织 Incident 与异步调度
+│   │   │   │   ├── workflows/             # 指标分析与可恢复只读 Incident 诊断工作流
 │   │   │   │   └── dto/                   # 应用层数据传递对象
 │   │   │   ├── ports/                     # 存储、Agent、MCP、Incident 只读 Toolset、时钟等抽象接口
 │   │   │   ├── adapters/
-│   │   │   │   ├── inbound/http/          # AI Core HTTP API 与 SSE
+│   │   │   │   ├── inbound/http/          # AI Core API、SSE 与 source/HMAC/time-window Grafana ingress
 │   │   │   │   └── outbound/              # SQLite、MCP（指标 + Incident 只读分类）、Mock/Eino Agent、时钟/ID
 │   │   │   │       ├── agent/eino/         # JSON mode、结构化历史和一次重试的 IntentPlanner Adapter
 │   │   │   │       ├── agent/mock/         # 确定性意图解析与 persisted-view 执行器
