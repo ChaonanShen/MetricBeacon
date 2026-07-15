@@ -73,10 +73,14 @@ mini-torchbearing/
 │       ├── internal/
 │       │   ├── namespaces/grafana/        # grafana.* Tool 注册与处理
 │       │   ├── ports/prometheus/          # Prometheus 查询抽象
+│       │   ├── ports/orderdemo/           # 无 Fault/写入口的订单 Operational 只读抽象
 │       │   ├── adapters/prometheus/
 │       │   │   ├── mock/                  # 按请求范围/step 重采样的 fixture Adapter
 │       │   │   ├── registry/              # view/window -> PromQL 与 AST policy
 │       │   │   └── http/                  # 动态 step、受注册表约束的真实 HTTP Adapter
+│       │   ├── adapters/orderdemo/
+│       │   │   ├── mock/                  # 四类诊断证据一致的确定性 Adapter
+│       │   │   └── http/                  # 生成客户端、读 token 与响应边界
 │       │   ├── runtime/                   # MCP 运行时与错误处理
 │       │   └── bootstrap/                 # 服务依赖组装
 │       └── Dockerfile

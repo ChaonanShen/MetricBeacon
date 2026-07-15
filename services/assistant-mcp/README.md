@@ -4,6 +4,12 @@ This service will expose the `grafana.*` read-only MCP tools over Streamable HTT
 namespace service calls a Prometheus Port; only the Mock Prometheus Adapter may load
 deterministic scenario files.
 
+The incident slice also defines a typed, read-only order-demo Port with deterministic
+Mock scenarios and an HTTP Adapter generated from the Operational OpenAPI. It is not yet
+registered as an MCP namespace in the default profile. The Port has no fault or write
+method; the HTTP Adapter uses a deployment read token and enforces time, body, cardinality,
+redirect, and response-semantic limits.
+
 It does not own AI Core tasks or SQLite, and Tool handlers must not bypass the namespace
 service to read fixtures.
 
