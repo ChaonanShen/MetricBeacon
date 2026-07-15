@@ -1,7 +1,8 @@
 # 新建对话与对话栏微调执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
+> completedAt: 2026-07-15
 > implementationAuthorized: true
 > decision: local Workbench UI refinement; no ADR or cross-process contract change required
 > dependsOn: `three_pane_workbench_execution_plan.md`、`grouped_chart_canvas_execution_plan.md`、`current_codebase_overview.md`
@@ -52,3 +53,10 @@
 - 宽屏左栏约为中心画布三分之一，右栏不变；既有图表最多两列和无水平溢出断言继续成立。
 - 较矮桌面视口中消息区 `scrollHeight > clientHeight` 且 `scrollTop` 可改变，header/输入保持可见。
 - `make test-frontend`、frontend build、`make e2e-mock`、`make e2e-real-metrics`、`make e2e-real-agent` 与 `make check` 通过。
+
+## 6. 收口记录
+
+本切片曾因外部模型结构化输出不稳定而暂留 active。后续
+[`intent_planner_structured_output_hardening_execution_plan.md`](intent_planner_structured_output_hardening_execution_plan.md)
+已修复该独立 Planner 问题，并重新通过 `make check`、Mock、真实指标和有凭证的真实 Agent E2E。
+因此本计划的 UI 行为和完整回归门均已满足，不再保留为活动切片。

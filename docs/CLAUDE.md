@@ -77,10 +77,15 @@ current narrow multi-column canvas with a maximum two-column responsive layout.
 Progress is tracked in
 [`implementation/grouped_chart_canvas_progress.md`](implementation/grouped_chart_canvas_progress.md).
 
-The active fresh-conversation Workbench refinement is
+The completed fresh-conversation Workbench refinement is
 [`implementation/fresh_conversation_workbench_execution_plan.md`](implementation/fresh_conversation_workbench_execution_plan.md).
 It adds a local new-conversation reset plus a wider independently scrolling conversation pane without adding session-history UI or changing backend contracts. Progress is tracked in
 [`implementation/fresh_conversation_workbench_progress.md`](implementation/fresh_conversation_workbench_progress.md).
+
+The active developer-infrastructure slice is
+[`implementation/worktree_isolated_development_execution_plan.md`](implementation/worktree_isolated_development_execution_plan.md).
+It isolates Compose resources, host ports and local runtime data per Git worktree and adds one unified build/start/verify entrypoint. Progress is tracked in
+[`implementation/worktree_isolated_development_progress.md`](implementation/worktree_isolated_development_progress.md).
 
 ## Reading and conflict rules
 
@@ -120,8 +125,10 @@ Surface the conflict and obtain a decision or add an ADR.
 | `implementation/intent_planner_structured_output_hardening_progress.md` | Completed progress record | Gate status and verification evidence for IntentPlanner hardening. |
 | `implementation/grouped_chart_canvas_execution_plan.md` | Completed execution plan | Chronological Task-grouped charts with a maximum two-column responsive canvas. |
 | `implementation/grouped_chart_canvas_progress.md` | Completed progress record | Gate status and verification evidence for the grouped chart canvas. |
-| `implementation/fresh_conversation_workbench_execution_plan.md` | Active execution plan | Local new-conversation reset and bounded conversation-pane layout refinement. |
-| `implementation/fresh_conversation_workbench_progress.md` | Active progress record | Gate status and verification evidence for the fresh-conversation refinement. |
+| `implementation/fresh_conversation_workbench_execution_plan.md` | Completed execution plan | Local new-conversation reset and bounded conversation-pane layout refinement. |
+| `implementation/fresh_conversation_workbench_progress.md` | Completed progress record | Gate status and verification evidence for the fresh-conversation refinement. |
+| `implementation/worktree_isolated_development_execution_plan.md` | Active execution plan | Per-worktree runtime isolation and the unified build/start/verify entrypoint. |
+| `implementation/worktree_isolated_development_progress.md` | Active progress record | Gate status and verification evidence for worktree isolation. |
 | `implementation/real_backend_test_matrix.md` | Current runbook | Code-agent command order, expected result shapes and layered failure localization. |
 | `implementation/basic_mock_skeleton_execution_plan.md` | Completed, Historical | Record of the finished deterministic Mock slice; not an active task entry point. |
 | `implementation/basic_mock_remediation_plan.md` | Completed evidence | Historical remediation and verification record. |

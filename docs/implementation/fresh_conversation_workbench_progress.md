@@ -1,7 +1,8 @@
 # 新建对话与对话栏微调进度记录
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
+> completedAt: 2026-07-15
 > plan: [`fresh_conversation_workbench_execution_plan.md`](fresh_conversation_workbench_execution_plan.md)
 
 ## 执行状态
@@ -11,7 +12,7 @@
 |G0：计划激活|已完成|用户已确认懒创建 Session，并允许从运行中的 Task 立即切换；执行计划和文档路由已提交。|
 |G1：新建对话|已完成|Conversation header 已增加入口；Workbench 清理 Session/UI/route/ref/mutation 状态，旧 Task 迟到事件由 reducer 忽略；Mock browser E2E 验证新旧 Session 隔离。|
 |G2：对话栏布局|已完成|桌面左栏/画布使用约 1:3 flex 比例，左栏限制 320..420px；消息区独立纵向滚动，header 和输入保持固定；宽屏、矮视口和窄屏几何 E2E 通过。|
-|G3：全量验收|受外部模型阻断|Mock、真实指标、DeepSeek 连通与 `make check` 通过；配置的 `deepseek-v4-flash` 在真实 Agent 多轮规划中重复返回非预期参数或无效 JSON，未扩大本 UI 切片修复 Planner。|
+|G3：全量验收|已完成|后续 IntentPlanner 结构化输出加固切片修复独立模型问题后，`make check`、Mock、真实指标和有凭证的真实 Agent E2E 全部通过。|
 
 ## 当前边界
 
@@ -42,4 +43,6 @@
 
 ## 收口状态
 
-新建对话、宽度和滚动功能本身已完成，所有确定性门禁与真实指标门禁通过。计划暂保持 `active`，仅等待是否另开 AI Planner 结构化输出稳定性切片；该问题不由本次前端改动引入，也不影响 Mock/真实指标 UI 使用。
+新建对话、宽度和滚动功能本身已完成。独立的模型稳定性问题已由
+[`intent_planner_structured_output_hardening_progress.md`](intent_planner_structured_output_hardening_progress.md)
+收口，其 G3 重新通过 `make check`、Mock、真实指标和真实 Agent E2E；本计划据此完成。
