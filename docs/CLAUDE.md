@@ -98,7 +98,8 @@ It isolates Compose resources, host ports and local runtime data per Git worktre
 
 | Question | Read first | Authority when documents disagree |
 |---|---|---|
-| Product scope and milestone | `design/product_design.md` | Product design |
+| Current product scope, value, feature boundaries, and acceptance direction | `design/product_design_final.md` | Current product baseline |
+| Historical MS1-MS4 milestone framing | `design/product_design.md` | Historical evidence only |
 | Existing code, runnable behavior, and test evidence | `implementation/current_codebase_overview.md`, `implementation/current_code_tree.md`, then code/tests | Actual code and verification evidence |
 | Module boundaries, ports, data ownership, contracts, and acceptance design | `implementation/code_skeleton_design.md` | Code skeleton design |
 | A decision explicitly marked as decided | relevant section of `design/arch_design_detail.md` or an ADR | ADR first; otherwise the explicit detailed decision |
@@ -113,7 +114,7 @@ Surface the conflict and obtain a decision or add an ADR.
 
 | Document | Status | Use |
 |---|---|---|
-| `design/` | Mostly stable | Project origin, product scope, and long-term architecture Proposals. See `design/README.md`. |
+| `design/` | Mostly stable | Project origin, current product baseline, superseded milestone design, and long-term architecture Proposals. See `design/README.md`. |
 | `implementation/code_skeleton_design.md` | Active, Implementation Blueprint | Mutable structural authority for code, contracts, Ports/Adapters, ownership, and verification. |
 | `implementation/node_exporter_real_analysis_plan.md` | Completed roadmap | Scope, safety boundaries and gate order for the finished multi-turn, real Prometheus/node_exporter and minimal Eino Agent slice. |
 | `implementation/node_exporter_real_analysis_execution_plan.md` | Completed execution plan | Decision-complete implementation sequence and completion evidence for that slice. |

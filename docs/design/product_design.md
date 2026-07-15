@@ -1,5 +1,9 @@
 产品设计文档：Grafana 自然语言指标分析工作台
 
+> status: superseded historical milestone design
+> supersededBy: [`product_design_final.md`](product_design_final.md)
+> note: 本文保留 MS1-MS4 的原始阶段划分与历史决策证据；当前产品范围和验收方向以新产品基线为准。
+
 文档状态：Draft
 版本：v1.1
 最后更新：2026-07-13

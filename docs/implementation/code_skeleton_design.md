@@ -25,7 +25,7 @@
 ### 1.1 与其他文档的关系
 
 - `../design/original_task.md` 定义项目初心。
-- `../design/product_design.md` 决定阶段范围和产品验收；不得因为本文预留了接口就提前扩大 Milestone。
+- `../design/product_design_final.md` 决定当前产品范围、功能边界和验收方向；具体增量仍须由 active execution plan 授权，不得因为本文预留了接口就提前扩大实现范围。`../design/product_design.md` 仅保留历史 MS1-MS4 阶段证据。
 - `../design/arch_design_draft.md` 定义长期总体分层。
 - `../design/arch_design_detail.md` 中标注“拍板”的模块决策优先于本文中的通用建议。
 - `basic_mock_skeleton_execution_plan.md` 将本文收敛为首个可执行切片：只跑确定性 Mock Agent、Mock Prometheus 和三图纵向闭环，不改变本文的长期接口与替换边界。
