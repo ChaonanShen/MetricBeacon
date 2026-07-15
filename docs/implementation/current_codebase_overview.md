@@ -11,6 +11,10 @@
 > 当前会话历史与三栏 UI 由已完成的
 > [`session_history_workbench_execution_plan.md`](session_history_workbench_execution_plan.md)
 > 记录；其 owner/activity 边界见 ADR-022。
+>
+> 三栏已由完成的
+> [`workbench_product_ui_migration_execution_plan.md`](workbench_product_ui_migration_execution_plan.md)
+> 重构为产品化 Canvas / Context / Chat 工作台；底层 Session、SSE、Chart 和权限边界保持不变。
 
 用户在 Grafana App Plugin 中只提交自然语言。AI Core 同步调用 Mock 或 Eino IntentPlanner，将注册 views 与可选 range/step 与 API hint/本地默认值合并，校验后冻结持久化 QueryPlan。Eino Planner 使用 provider JSON mode、专属 prompt 和由历史 User Message + QueryPlan 组成的结构化上下文，不接收 Assistant 事实回复。后台仅执行这份计划的 `cpu|memory|load` views，PromQL 由 assistant-mcp 注册表编译，数值回复由实际查询结果在本地汇总。
 
@@ -184,7 +188,7 @@ Backend 由 Grafana 承载。
 
 |命令|覆盖内容|本次结果（2026-07-15）|
 |-|-|-|
-|`./scripts/mtb verify --full`|工具链/依赖准备、单次前端 build、完整 `make check` 与唯一 project/动态端口 Mock E2E。|通过；生成物、契约、全部 Go/前端/diagnostics、边界/密钥门禁、六组 API 和 Playwright 1/1 均成功，临时资源已清理。|
+|`./scripts/mtb verify --full`|工具链/依赖准备、单次前端 build、完整 `make check` 与唯一 project/动态端口 Mock E2E。|通过；生成物、契约、全部 Go/前端/diagnostics、边界/密钥门禁、六组 API 和 Playwright 3/3 均成功，临时资源已清理。|
 |`make bootstrap-check`|固定 Go/Node/npm 版本；三个运行时 Go 模块全量编译测试；前端 typecheck；依赖边界。|通过。|
 |`make test-ai-core-domain`|AI Core 领域、应用和 Port 的单元测试。|由 `make check` 通过。|
 |`make test-sqlite`|SQLite Store 与内存事件通知器：CRUD、租户隔离、事务/幂等、sequence 与重放。|由 `make check` 通过。|
@@ -193,7 +197,7 @@ Backend 由 Grafana 承载。
 |`make test-ai-agent`|受限 Eino Runtime：fake model、view-only Tool JSON、source-call 配对、expression 查询前拒绝、成功 proposal 权威性、本地 formatter 与模型输入摘要隔离。|通过。|
 |`make e2e-real-agent`|有凭证的真实 Agent 验收：真实 CPU/内存/负载图、单 CPU 追问、同一 Session 连续 8 次相同 CPU/内存请求、durable tool 配对、有限 replay 与 API/日志/SQLite 泄漏检查。|通过：概览 21 events/3 query tool calls/3 charts，CPU 追问 13 events/1 query tool call/1 chart；8 次重复请求均得到 `600s/120s` 双视图计划，各为 17 events/2 query tool calls/2 charts；调用进程从 `.env` 临时加载 key，未输出或持久化 key。|
 |`make test-plugin-backend`|Grafana Resource API 代理、身份上下文、错误与 SSE 转发。|由 `make check` 通过。|
-|`make test-frontend`|Vitest 工作台 Session 状态、历史分页/标题、SSE、路由、Resource 错误、图表分组/聚焦和 DataFrame mapper；随后 TypeScript typecheck。|通过：10 个测试文件、30 个用例。|
+|`make test-frontend`|Vitest 工作台 Session 状态、历史分页/标题、SSE、路由、Resource 错误、产品 View/Shell、图表分组/聚焦和 DataFrame mapper；随后 TypeScript typecheck。|通过：12 个测试文件、42 个用例。|
 |`make test-diagnostics`|用 fake response/server 离线校验 Prometheus、指标语义、durable Task/Event/Chart 结果、DeepSeek 探针、worktree 配置和 Compose 命名/端口解析，并检查诊断与 E2E Shell 语法。|通过：44 个 Node 测试。|
 |`make test`|上述 Go 和前端测试的聚合入口。|由 `make check` 通过。|
 |`make validate-contracts`|3 份 OpenAPI、25 份 JSON Schema 与 node_exporter fixture。|通过。|
@@ -202,7 +206,7 @@ Backend 由 Grafana 承载。
 |`make boundary-check`、`make secret-scan`|AI Core 依赖边界和常见私钥/AKIA 模式扫描。|通过。|
 |`make check`|除容器 E2E 外的完整质量门禁：生成物、契约、lint、`make test`、边界与密钥扫描。|通过。|
 |`make e2e-mock`|构建前端与三个容器；API E2E 覆盖六种有界输入和 owner Session page/activity；3 个 Playwright 场景验证真实多轮/A-B/replay、503 同幂等键重试、产品导航、真实 Context、dark/light、响应式布局和请求/存储防泄漏。|UI 迁移 G5 连续两轮均通过 API 全链与 Playwright 3/3；临时资源均由脚本清理。|
-|`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后执行相同 API 与会话历史浏览器 E2E。|通过；六种输入均返回非空有限且按有效 step 对齐的真实 series，A/B 历史恢复与继续对话也在真实 metrics Adapter 下通过。|
+|`make e2e-real-metrics`|在同一应用栈叠加 Prometheus/node_exporter，等待真实 target 与 CPU idle 两次 scrape 后执行相同 API 与产品工作台浏览器 E2E。|通过；六种输入均返回非空有限且按有效 step 对齐的真实 series，Playwright 3/3 覆盖纵向链路、错误恢复和 Shell/响应式验收。|
 |`make diagnose-real-metrics`|绕过 Grafana 与 AI Core，分阶段检查原始 Prometheus 与 assistant-mcp 的真实返回及指标语义。|通过：三条 vector/matrix 各 1 series/1 sample；CPU 约 98.2..98.7，内存约 64.64，load 3.25，均通过语义校验。|
 |`make diagnose-deepseek`|绕过 Agent/MCP，验证配置 model 出现在 `/models` 并返回固定严格 JSON。|通过：`deepseek-v4-flash` 在 539 ms 返回 `{"status":"ok","answer":"pong"}`；未输出 key。|
 

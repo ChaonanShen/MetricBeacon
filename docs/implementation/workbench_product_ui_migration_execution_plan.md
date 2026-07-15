@@ -1,6 +1,6 @@
 # 产品化工作台 UI 移植执行计划
 
-> status: active
+> status: completed
 > createdAt: 2026-07-15
 > implementationAuthorized: true
 > decision: 仅重构 Grafana Plugin Frontend 展示层；以 2026-07-15 本机 `../grafana-ui` 当前源码为最新视觉基线，首版不改变跨进程契约、服务边界、权限模型或持久化结构，因此不新增 ADR

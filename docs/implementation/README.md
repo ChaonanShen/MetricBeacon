@@ -66,7 +66,7 @@ The completed developer-infrastructure slice is
 with gate evidence in
 [`worktree_isolated_development_progress.md`](worktree_isolated_development_progress.md).
 
-The active product Workbench UI migration is
+The completed product Workbench UI migration is
 [`workbench_product_ui_migration_execution_plan.md`](workbench_product_ui_migration_execution_plan.md),
 with gate evidence in
 [`workbench_product_ui_migration_progress.md`](workbench_product_ui_migration_progress.md).

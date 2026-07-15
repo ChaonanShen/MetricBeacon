@@ -466,6 +466,8 @@ make e2e-local-down    # 停止环境；保留或清理 volume 由显式参数�
 
 ## 7. Grafana Plugin Frontend 设计
 
+当前已落地的有界切片使用常驻 `Workbench.tsx` controller 统一拥有 Session/Task 请求、SSE、reducer、route 与幂等状态；展示层由 `WorkbenchShell` 组合 `WorkbenchHeader`、真实 `ChartCanvas`、只读 `ContextPane` 和集成 Session history 的 `ChatPane`。宽屏为 `Canvas / Context / Chat`，中宽折叠 Context，窄屏按 `Chat / Context / Canvas` 纵排。所有样式限定在 Plugin 根容器，并由 Grafana theme 映射 CSS variables；浏览器仍只调用 Plugin Resource API。下列职责和目录是长期蓝图，其中编辑、保存、分享、模板、告警和手动模式尚未实现，不能从当前界面推断为已交付能力。
+
 ### 7.1 前端职责
 
 前端负责：
