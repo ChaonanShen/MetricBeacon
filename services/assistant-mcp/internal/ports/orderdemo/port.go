@@ -16,3 +16,10 @@ type Port interface {
 	GetRecentOutcomes(context.Context, requestcontext.Context, RecentRequest) ([]OrderOutcome, error)
 	GetOperation(context.Context, requestcontext.Context, string) (Operation, error)
 }
+
+// RemediationPort is injected only into deterministic Playbook execution. It
+// is never held by the diagnostic Agent Toolset.
+type RemediationPort interface {
+	RestoreWorkerConcurrency(context.Context, requestcontext.Context, RemediationRequest) (Operation, error)
+	RunBusinessProbe(context.Context, requestcontext.Context, string) (ProbeResult, error)
+}

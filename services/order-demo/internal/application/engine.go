@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -274,7 +275,7 @@ func (e *Engine) WorkerSnapshot() WorkerSnapshot {
 }
 
 func (e *Engine) Remediate(request RemediationRequest) (OperationReceipt, error) {
-	if request.OperationID == "" || request.ApprovalID == "" || len(request.IntentDigest) != 64 {
+	if request.OperationID == "" || request.ApprovalID == "" || !validIntentDigest(request.IntentDigest) {
 		return OperationReceipt{}, ErrInvalidArgument
 	}
 	payload := digest(request)
@@ -298,6 +299,18 @@ func (e *Engine) Remediate(request RemediationRequest) (OperationReceipt, error)
 	e.operations[request.OperationID] = operationEntry{payloadDigest: payload, receipt: receipt}
 	e.mu.Unlock()
 	return receipt, nil
+}
+
+func validIntentDigest(value string) bool {
+	if len(value) != 71 || !strings.HasPrefix(value, "sha256:") {
+		return false
+	}
+	for _, char := range value[7:] {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func (e *Engine) GetOperation(id string) (OperationReceipt, error) {

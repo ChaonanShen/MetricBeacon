@@ -61,7 +61,7 @@ func TestStoppedWorkersCauseAndThenDrainRealBacklog(t *testing.T) {
 	}
 	stopped := e.WorkerSnapshot()
 	receipt, err := e.Remediate(RemediationRequest{OperationID: "op-1", InstanceEpoch: stopped.InstanceEpoch, ExpectedVersion: stopped.Version,
-		ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: strings.Repeat("a", 64), ApprovalID: "approval-1"})
+		ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: "sha256:" + strings.Repeat("a", 64), ApprovalID: "approval-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestRemediationIsCASBoundAndIdempotent(t *testing.T) {
 	_ = e.ActivateFault(FaultWorkerStopped)
 	stopped := e.WorkerSnapshot()
 	request := RemediationRequest{OperationID: "op-1", InstanceEpoch: stopped.InstanceEpoch, ExpectedVersion: stopped.Version,
-		ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: strings.Repeat("b", 64), ApprovalID: "approval-1"}
+		ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: "sha256:" + strings.Repeat("b", 64), ApprovalID: "approval-1"}
 	first, err := e.Remediate(request)
 	if err != nil {
 		t.Fatal(err)

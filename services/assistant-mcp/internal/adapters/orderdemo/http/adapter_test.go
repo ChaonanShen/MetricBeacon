@@ -39,7 +39,7 @@ func TestHTTPAdapterReadContractAndAuthorization(t *testing.T) {
 			}
 			writeJSON(t, writer, map[string]any{"orders": []map[string]any{{"id": "redacted-1", "status": "failed", "createdAt": now.Add(-time.Minute), "updatedAt": now, "failureReason": "retry_exhausted"}}})
 		case "/ops/v1/operations/op-1":
-			writeJSON(t, writer, map[string]any{"operationId": "op-1", "instanceEpoch": "epoch-1", "beforeVersion": 2, "afterVersion": 3, "beforeConcurrency": 0, "afterConcurrency": 2, "intentDigest": strings.Repeat("b", 64), "approvalId": "approval-1", "executedAt": now})
+			writeJSON(t, writer, map[string]any{"operationId": "op-1", "instanceEpoch": "epoch-1", "beforeVersion": 2, "afterVersion": 3, "beforeConcurrency": 0, "afterConcurrency": 2, "intentDigest": "sha256:" + strings.Repeat("b", 64), "approvalId": "approval-1", "executedAt": now})
 		default:
 			t.Fatalf("unexpected path %s", request.URL.Path)
 		}
@@ -80,6 +80,41 @@ func TestHTTPAdapterReadContractAndAuthorization(t *testing.T) {
 	}
 }
 
+func TestHTTPAdapterSeparatesRemediationCredentialAndRunsFixedProbe(t *testing.T) {
+	now := time.Date(2026, 7, 16, 8, 0, 0, 0, time.UTC)
+	digest := "sha256:" + strings.Repeat("c", 64)
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(writer stdhttp.ResponseWriter, request *stdhttp.Request) {
+		switch request.URL.Path {
+		case "/ops/v1/config/worker":
+			if request.Method != stdhttp.MethodPut || request.Header.Get("Authorization") != "Bearer write-secret" {
+				t.Fatalf("write credential boundary failed: %s %s", request.Method, request.Header.Get("Authorization"))
+			}
+			writeJSON(t, writer, map[string]any{"operationId": "op-1", "instanceEpoch": "epoch-1", "beforeVersion": 2, "afterVersion": 3, "beforeConcurrency": 0, "afterConcurrency": 2, "intentDigest": digest, "approvalId": "approval-1", "executedAt": now})
+		case "/ops/v1/probes/order-processing":
+			if request.Method != stdhttp.MethodPost || request.Header.Get("Authorization") != "Bearer read-secret" {
+				t.Fatalf("probe credential boundary failed: %s %s", request.Method, request.Header.Get("Authorization"))
+			}
+			writeJSON(t, writer, map[string]any{"probeId": "probe-1", "orderId": "must-be-redacted-by-adapter", "result": "completed", "durationMs": 203, "completedAt": now})
+		default:
+			t.Fatalf("unexpected path %s", request.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+	adapter, err := orderhttp.NewWithRemediation(server.URL, "read-secret", "write-secret", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := orderdemo.RemediationRequest{OperationID: "op-1", InstanceEpoch: "epoch-1", ExpectedVersion: 2, ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: digest, ApprovalID: "approval-1"}
+	receipt, err := adapter.RestoreWorkerConcurrency(context.Background(), requestcontext.Context{}, request)
+	if err != nil || receipt.AfterVersion != 3 || receipt.IntentDigest != digest {
+		t.Fatalf("receipt=%#v err=%v", receipt, err)
+	}
+	probe, err := adapter.RunBusinessProbe(context.Background(), requestcontext.Context{}, "probe-1")
+	if err != nil || probe.Result != "completed" || probe.DurationMS != 203 || probe.CompletedAt == nil {
+		t.Fatalf("probe=%#v err=%v", probe, err)
+	}
+}
+
 func TestHTTPAdapterRejectsInvalidConfigurationAndInputs(t *testing.T) {
 	for _, test := range []struct {
 		endpoint, token string
@@ -88,6 +123,9 @@ func TestHTTPAdapterRejectsInvalidConfigurationAndInputs(t *testing.T) {
 		if _, err := orderhttp.New(test.endpoint, test.token, test.timeout); err == nil {
 			t.Fatalf("invalid config accepted: %#v", test)
 		}
+	}
+	if _, err := orderhttp.NewWithRemediation("http://order", "read", "", time.Second); err == nil {
+		t.Fatal("empty remediation credential was accepted")
 	}
 	server := httptest.NewServer(stdhttp.HandlerFunc(func(stdhttp.ResponseWriter, *stdhttp.Request) { t.Fatal("invalid input contacted service") }))
 	t.Cleanup(server.Close)
@@ -98,6 +136,8 @@ func TestHTTPAdapterRejectsInvalidConfigurationAndInputs(t *testing.T) {
 	}
 	_, err := adapter.GetOperation(context.Background(), requestcontext.Context{}, "")
 	requireCode(t, err, runtime.SchemaValidationFailed)
+	_, err = adapter.RestoreWorkerConcurrency(context.Background(), requestcontext.Context{}, orderdemo.RemediationRequest{})
+	requireCode(t, err, runtime.AdapterNotConfigured)
 }
 
 func TestHTTPAdapterClassifiesFailuresAndRejectsUnboundedResponses(t *testing.T) {

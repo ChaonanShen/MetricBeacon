@@ -22,12 +22,24 @@ const maxResponseBytes = 64 << 10
 var errResponseTooLarge = errors.New("order demo response exceeds limit")
 
 type Adapter struct {
-	client *generated.ClientWithResponses
+	readClient        *generated.ClientWithResponses
+	remediationClient *generated.ClientWithResponses
 }
 
 var _ orderdemo.Port = (*Adapter)(nil)
 
 func New(endpoint, readToken string, timeout time.Duration) (*Adapter, error) {
+	return newAdapter(endpoint, readToken, "", timeout)
+}
+
+func NewWithRemediation(endpoint, readToken, remediationToken string, timeout time.Duration) (*Adapter, error) {
+	if strings.TrimSpace(remediationToken) == "" {
+		return nil, fmt.Errorf("order demo remediation token is required")
+	}
+	return newAdapter(endpoint, readToken, remediationToken, timeout)
+}
+
+func newAdapter(endpoint, readToken, remediationToken string, timeout time.Duration) (*Adapter, error) {
 	parsed, err := url.Parse(strings.TrimSpace(endpoint))
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return nil, fmt.Errorf("order demo endpoint must be an absolute HTTP URL")
@@ -36,18 +48,28 @@ func New(endpoint, readToken string, timeout time.Duration) (*Adapter, error) {
 		return nil, fmt.Errorf("order demo read token and positive timeout are required")
 	}
 	httpClient := &boundedClient{client: &stdhttp.Client{Timeout: timeout, CheckRedirect: func(*stdhttp.Request, []*stdhttp.Request) error { return stdhttp.ErrUseLastResponse }}}
-	client, err := generated.NewClientWithResponses(parsed.String(), generated.WithHTTPClient(httpClient), generated.WithRequestEditorFn(func(_ context.Context, request *stdhttp.Request) error {
+	readClient, err := generated.NewClientWithResponses(parsed.String(), generated.WithHTTPClient(httpClient), generated.WithRequestEditorFn(func(_ context.Context, request *stdhttp.Request) error {
 		request.Header.Set("Authorization", "Bearer "+readToken)
 		return nil
 	}))
 	if err != nil {
 		return nil, err
 	}
-	return &Adapter{client: client}, nil
+	result := &Adapter{readClient: readClient}
+	if remediationToken != "" {
+		result.remediationClient, err = generated.NewClientWithResponses(parsed.String(), generated.WithHTTPClient(httpClient), generated.WithRequestEditorFn(func(_ context.Context, request *stdhttp.Request) error {
+			request.Header.Set("Authorization", "Bearer "+remediationToken)
+			return nil
+		}))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 func (a *Adapter) GetRuntime(ctx context.Context, _ requestcontext.Context) (orderdemo.Runtime, error) {
-	response, err := a.client.GetRuntimeWithResponse(ctx)
+	response, err := a.readClient.GetRuntimeWithResponse(ctx)
 	if err != nil {
 		return orderdemo.Runtime{}, classifyTransport(ctx, err)
 	}
@@ -63,7 +85,7 @@ func (a *Adapter) GetRuntime(ctx context.Context, _ requestcontext.Context) (ord
 }
 
 func (a *Adapter) GetQueue(ctx context.Context, _ requestcontext.Context) (orderdemo.Queue, error) {
-	response, err := a.client.GetQueueWithResponse(ctx)
+	response, err := a.readClient.GetQueueWithResponse(ctx)
 	if err != nil {
 		return orderdemo.Queue{}, classifyTransport(ctx, err)
 	}
@@ -79,7 +101,7 @@ func (a *Adapter) GetQueue(ctx context.Context, _ requestcontext.Context) (order
 }
 
 func (a *Adapter) GetWorker(ctx context.Context, _ requestcontext.Context) (orderdemo.Worker, error) {
-	response, err := a.client.GetWorkerConfigWithResponse(ctx)
+	response, err := a.readClient.GetWorkerConfigWithResponse(ctx)
 	if err != nil {
 		return orderdemo.Worker{}, classifyTransport(ctx, err)
 	}
@@ -95,7 +117,7 @@ func (a *Adapter) GetWorker(ctx context.Context, _ requestcontext.Context) (orde
 }
 
 func (a *Adapter) GetPolicy(ctx context.Context, _ requestcontext.Context) (orderdemo.Policy, error) {
-	response, err := a.client.GetWorkerPolicyWithResponse(ctx)
+	response, err := a.readClient.GetWorkerPolicyWithResponse(ctx)
 	if err != nil {
 		return orderdemo.Policy{}, classifyTransport(ctx, err)
 	}
@@ -123,7 +145,7 @@ func (a *Adapter) GetRecentOutcomes(ctx context.Context, _ requestcontext.Contex
 		status := generated.OrderStatus(request.Status)
 		params.Status = &status
 	}
-	response, err := a.client.ListRecentOrdersWithResponse(ctx, params)
+	response, err := a.readClient.ListRecentOrdersWithResponse(ctx, params)
 	if err != nil {
 		return nil, classifyTransport(ctx, err)
 	}
@@ -155,17 +177,56 @@ func (a *Adapter) GetOperation(ctx context.Context, _ requestcontext.Context, op
 	if strings.TrimSpace(operationID) == "" || len(operationID) > 100 {
 		return orderdemo.Operation{}, runtime.NewError(runtime.SchemaValidationFailed, "operation ID is invalid", false)
 	}
-	response, err := a.client.GetOperationWithResponse(ctx, operationID)
+	response, err := a.readClient.GetOperationWithResponse(ctx, operationID)
 	if err != nil {
 		return orderdemo.Operation{}, classifyTransport(ctx, err)
 	}
 	if response.JSON200 == nil {
 		return orderdemo.Operation{}, classifyResponse(response.StatusCode())
 	}
+	return mapOperation(*response.JSON200)
+}
+
+func (a *Adapter) RestoreWorkerConcurrency(ctx context.Context, _ requestcontext.Context, request orderdemo.RemediationRequest) (orderdemo.Operation, error) {
+	if a.remediationClient == nil {
+		return orderdemo.Operation{}, runtime.NewError(runtime.AdapterNotConfigured, "order demo remediation adapter is not configured", false)
+	}
+	if request.OperationID == "" || request.InstanceEpoch == "" || request.ExpectedVersion < 1 || request.ExpectedConcurrency != 0 || request.NewConcurrency != 2 || !validDigest(request.IntentDigest) || request.ApprovalID == "" {
+		return orderdemo.Operation{}, runtime.NewError(runtime.SchemaValidationFailed, "worker remediation request is invalid", false)
+	}
+	body := generated.UpdateWorkerConfigRequest{OperationId: request.OperationID, InstanceEpoch: request.InstanceEpoch, ExpectedVersion: request.ExpectedVersion, ExpectedConcurrency: request.ExpectedConcurrency, NewConcurrency: request.NewConcurrency, IntentDigest: request.IntentDigest, ApprovalId: request.ApprovalID}
+	response, err := a.remediationClient.UpdateWorkerConfigWithResponse(ctx, body)
+	if err != nil {
+		return orderdemo.Operation{}, classifyTransport(ctx, err)
+	}
+	if response.JSON200 == nil {
+		return orderdemo.Operation{}, classifyWriteResponse(response.StatusCode())
+	}
+	return mapOperation(*response.JSON200)
+}
+
+func (a *Adapter) RunBusinessProbe(ctx context.Context, _ requestcontext.Context, probeID string) (orderdemo.ProbeResult, error) {
+	if strings.TrimSpace(probeID) == "" || len(probeID) > 100 {
+		return orderdemo.ProbeResult{}, runtime.NewError(runtime.SchemaValidationFailed, "business probe ID is invalid", false)
+	}
+	response, err := a.readClient.RunOrderProcessingProbeWithResponse(ctx, generated.RunOrderProcessingProbeJSONRequestBody{ProbeId: probeID})
+	if err != nil {
+		return orderdemo.ProbeResult{}, classifyTransport(ctx, err)
+	}
+	if response.JSON200 == nil {
+		return orderdemo.ProbeResult{}, classifyResponse(response.StatusCode())
+	}
 	value := response.JSON200
+	if value.ProbeId != probeID || !value.Result.Valid() || value.DurationMs < 0 || value.DurationMs > 6000 {
+		return orderdemo.ProbeResult{}, invalidResponse()
+	}
+	return orderdemo.ProbeResult{ProbeID: value.ProbeId, Result: string(value.Result), DurationMS: value.DurationMs, CompletedAt: value.CompletedAt}, nil
+}
+
+func mapOperation(value generated.OperationReceipt) (orderdemo.Operation, error) {
 	before, okBefore := intValue(value.BeforeConcurrency)
 	after, okAfter := intValue(value.AfterConcurrency)
-	if !okBefore || before != 0 || !okAfter || after != 2 || value.OperationId == "" || value.InstanceEpoch == "" || value.BeforeVersion < 1 || value.AfterVersion <= value.BeforeVersion {
+	if !okBefore || before != 0 || !okAfter || after != 2 || value.OperationId == "" || value.InstanceEpoch == "" || value.BeforeVersion < 1 || value.AfterVersion <= value.BeforeVersion || !validDigest(value.IntentDigest) || value.ApprovalId == "" {
 		return orderdemo.Operation{}, invalidResponse()
 	}
 	return orderdemo.Operation{OperationID: value.OperationId, InstanceEpoch: value.InstanceEpoch, BeforeVersion: value.BeforeVersion, AfterVersion: value.AfterVersion, BeforeConcurrency: before, AfterConcurrency: after, IntentDigest: value.IntentDigest, ApprovalID: value.ApprovalId, ExecutedAt: value.ExecutedAt}, nil
@@ -211,6 +272,13 @@ func classifyResponse(status int) error {
 	}
 }
 
+func classifyWriteResponse(status int) error {
+	if status == stdhttp.StatusConflict {
+		return runtime.NewError(runtime.TargetPreconditionFailed, "order demo remediation precondition failed", false)
+	}
+	return classifyResponse(status)
+}
+
 func invalidResponse() error {
 	return runtime.NewError(runtime.SchemaValidationFailed, "order demo response is outside the operational contract", false)
 }
@@ -240,4 +308,16 @@ func validStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+func validDigest(value string) bool {
+	if len(value) != 71 || !strings.HasPrefix(value, "sha256:") {
+		return false
+	}
+	for _, char := range value[7:] {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+			return false
+		}
+	}
+	return true
 }

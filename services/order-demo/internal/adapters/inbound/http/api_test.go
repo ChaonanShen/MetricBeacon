@@ -67,7 +67,7 @@ func TestFaultAndRemediationUseDifferentCapabilities(t *testing.T) {
 	stopped := engine.WorkerSnapshot()
 
 	body := generated.UpdateWorkerConfigRequest{OperationId: "op-1", InstanceEpoch: stopped.InstanceEpoch, ExpectedVersion: stopped.Version,
-		ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: strings.Repeat("a", 64), ApprovalId: "approval-1"}
+		ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: "sha256:" + strings.Repeat("a", 64), ApprovalId: "approval-1"}
 	encoded, _ := json.Marshal(body)
 	assertStatus(t, ops, request(http.MethodPut, "/ops/v1/config/worker", string(encoded), "read-secret"), http.StatusUnauthorized)
 	assertStatus(t, ops, request(http.MethodPut, "/ops/v1/config/worker", string(encoded), "write-secret"), http.StatusOK)
@@ -81,7 +81,7 @@ func TestStaleRemediationDoesNotWrite(t *testing.T) {
 	waitHTTP(t, func() bool { return engine.WorkerSnapshot().ActiveWorkers == 0 })
 	stopped := engine.WorkerSnapshot()
 	body := generated.UpdateWorkerConfigRequest{OperationId: "op-stale", InstanceEpoch: stopped.InstanceEpoch, ExpectedVersion: stopped.Version + 1,
-		ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: strings.Repeat("b", 64), ApprovalId: "approval-1"}
+		ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: "sha256:" + strings.Repeat("b", 64), ApprovalId: "approval-1"}
 	encoded, _ := json.Marshal(body)
 	assertStatus(t, api.OperationalHandler("read-secret", "write-secret"), request(http.MethodPut, "/ops/v1/config/worker", string(encoded), "write-secret"), http.StatusConflict)
 	if got := engine.WorkerSnapshot().ConfiguredConcurrency; got != 0 {

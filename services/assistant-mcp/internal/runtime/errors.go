@@ -6,19 +6,20 @@ import "fmt"
 type ErrorCode string
 
 const (
-	InvalidArgument        ErrorCode = "invalid_argument"
-	Unauthenticated        ErrorCode = "unauthenticated"
-	PermissionDenied       ErrorCode = "permission_denied"
-	ResourceNotFound       ErrorCode = "resource_not_found"
-	ResourceConflict       ErrorCode = "resource_conflict"
-	InvalidStateTransition ErrorCode = "invalid_state_transition"
-	AdapterNotConfigured   ErrorCode = "adapter_not_configured"
-	DependencyUnavailable  ErrorCode = "dependency_unavailable"
-	ToolNotSupported       ErrorCode = "tool_not_supported"
-	ToolTimeout            ErrorCode = "tool_timeout"
-	SchemaValidationFailed ErrorCode = "schema_validation_failed"
-	NotImplemented         ErrorCode = "not_implemented"
-	InternalError          ErrorCode = "internal_error"
+	InvalidArgument          ErrorCode = "invalid_argument"
+	Unauthenticated          ErrorCode = "unauthenticated"
+	PermissionDenied         ErrorCode = "permission_denied"
+	ResourceNotFound         ErrorCode = "resource_not_found"
+	ResourceConflict         ErrorCode = "resource_conflict"
+	InvalidStateTransition   ErrorCode = "invalid_state_transition"
+	AdapterNotConfigured     ErrorCode = "adapter_not_configured"
+	DependencyUnavailable    ErrorCode = "dependency_unavailable"
+	ToolNotSupported         ErrorCode = "tool_not_supported"
+	ToolTimeout              ErrorCode = "tool_timeout"
+	SchemaValidationFailed   ErrorCode = "schema_validation_failed"
+	TargetPreconditionFailed ErrorCode = "target_precondition_failed"
+	NotImplemented           ErrorCode = "not_implemented"
+	InternalError            ErrorCode = "internal_error"
 )
 
 // ToolError is the classified error shape exchanged across the namespace and

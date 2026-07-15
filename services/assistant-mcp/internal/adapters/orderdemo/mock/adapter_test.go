@@ -3,6 +3,7 @@ package mock_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,6 +40,31 @@ func TestScenariosPreserveDistinctDiagnosticEvidence(t *testing.T) {
 				t.Fatalf("unexpected evidence: worker=%#v outcomes=%#v err=%v", worker, outcomes, err)
 			}
 		})
+	}
+}
+
+func TestMockRemediationIsTypedIdempotentAndRestoresRealProbe(t *testing.T) {
+	now := time.Date(2026, 7, 16, 8, 0, 0, 0, time.UTC)
+	adapter, _ := mock.New(mock.WorkerStopped, now)
+	digest := "sha256:" + strings.Repeat("a", 64)
+	request := orderdemo.RemediationRequest{OperationID: "op-1", InstanceEpoch: "mock-epoch-1", ExpectedVersion: 2, ExpectedConcurrency: 0, NewConcurrency: 2, IntentDigest: digest, ApprovalID: "approval-1"}
+	first, err := adapter.RestoreWorkerConcurrency(context.Background(), requestcontext.Context{}, request)
+	if err != nil || first.BeforeVersion != 2 || first.AfterVersion != 3 {
+		t.Fatalf("receipt=%#v err=%v", first, err)
+	}
+	second, err := adapter.RestoreWorkerConcurrency(context.Background(), requestcontext.Context{}, request)
+	if err != nil || second != first {
+		t.Fatalf("idempotent receipt=%#v err=%v", second, err)
+	}
+	worker, _ := adapter.GetWorker(context.Background(), requestcontext.Context{})
+	probe, err := adapter.RunBusinessProbe(context.Background(), requestcontext.Context{}, "probe-1")
+	if err != nil || worker.ConfiguredConcurrency != 2 || worker.Version != 3 || probe.Result != "completed" {
+		t.Fatalf("worker=%#v probe=%#v err=%v", worker, probe, err)
+	}
+	changed := request
+	changed.ApprovalID = "approval-2"
+	if _, err := adapter.RestoreWorkerConcurrency(context.Background(), requestcontext.Context{}, changed); err == nil {
+		t.Fatal("operation ID reuse was accepted")
 	}
 }
 

@@ -60,3 +60,20 @@ type Operation struct {
 	ApprovalID        string
 	ExecutedAt        time.Time
 }
+
+type RemediationRequest struct {
+	OperationID         string
+	InstanceEpoch       string
+	ExpectedVersion     int
+	ExpectedConcurrency int
+	NewConcurrency      int
+	IntentDigest        string
+	ApprovalID          string
+}
+
+type ProbeResult struct {
+	ProbeID     string
+	Result      string
+	DurationMS  int
+	CompletedAt *time.Time
+}
