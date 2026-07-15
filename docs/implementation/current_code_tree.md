@@ -81,6 +81,7 @@ mini-torchbearing/
 │       │   ├── adapters/orderdemo/
 │       │   │   ├── mock/                  # 四类诊断证据一致的确定性 Adapter
 │       │   │   └── http/                  # 生成客户端、读 token 与响应边界
+│       │   ├── adapters/assets/filesystem/ # Schema、引用、能力和 SHA-256 固定的只读资产
 │       │   ├── runtime/                   # MCP 运行时与错误处理
 │       │   └── bootstrap/                 # 服务依赖组装
 │       └── Dockerfile

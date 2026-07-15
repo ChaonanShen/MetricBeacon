@@ -10,6 +10,12 @@ registered as an MCP namespace in the default profile. The Port has no fault or 
 method; the HTTP Adapter uses a deployment read token and enforces time, body, cardinality,
 redirect, and response-semantic limits.
 
+`internal/adapters/assets/filesystem` loads deployment-provided operational assets
+read-only. Startup validates their JSON Schemas and cross-references, restricts Playbook
+capabilities to the referenced Skill and the compiled read registry, and pins raw file
+bytes with SHA-256. Alert resolution requires exactly one source/name/required-label
+match; zero or multiple matches fail closed.
+
 It does not own AI Core tasks or SQLite, and Tool handlers must not bypass the namespace
 service to read fixtures.
 

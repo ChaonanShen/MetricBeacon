@@ -12,7 +12,7 @@
 |G1：Contracts-first|进行中|Business/Operational 与独立 Fault OpenAPI、首批 Incident MCP Tool 输入/输出合同已定义；Go/TypeScript 类型已生成。Incident 合同覆盖精确告警映射、固定资产引用、可暂停 Playbook、严格诊断 DTO 和有界订单只读查询；写能力与 Approval HTTP 合同将在 G6 实现前补齐。`make validate-contracts`、`make generated-client-diff`、order-demo generated package tests 和 `git diff --check` 通过。|
 |G2：order-demo|已完成|Domain/Application、分离的 Business/Operational HTTP、读写 token、Unix Socket Fault、Prometheus collector、loadgen 和三命令镜像已实现。全模块 race tests、重复应用 race tests、合同/生成门禁和 Docker 冷构建通过；真实双容器验证显示 Fault 容器 `network_mode=none`、Business 对 Ops 返回 404、积压 depth=1/configured=0/active=0，CAS `0 -> 2` 后 queue=0 且 probe 203ms 完成。|
 |G3：可观测性与隔离拓扑|已完成|新增 incident Compose mode、三个 internal order network、无网络 fault-controller、5s Prometheus scrape、只读 Grafana datasource、10s 规则评估和 HMAC Webhook contact point。冷构建全栈通过；真实 E2E 验证 order target up=1、Business 对 Ops 404、Fault network mode=none、健康 Normal(NoData)、注入后 Pending→Alerting、reset 后恢复 Normal 且 queue=0。Grafana 文件 provisioning 格式以当前镜像实际导出 API 验证。|
-|G4：assistant-mcp 资产与能力|进行中|Knowledge、Skill、Playbook、精确 Alert Mapping 与严格 Schema 已落地。order-demo 类型化只读 Port 及 Mock/HTTP Adapter 已实现：四种场景保持不同证据，HTTP 使用生成客户端和部署读 token，并限制超时、重定向、64 KiB 响应、查询数量和返回语义；Port 无 Fault/任意 HTTP/命令/写方法。race 合同测试重复 10 次通过。资产摘要固定、Playbook engine 和 incident-profile MCP 注册待实现。|
+|G4：assistant-mcp 资产与能力|进行中|Knowledge、Skill、Playbook、精确 Alert Mapping 与严格 Schema 已落地。文件 Adapter 启动时校验 Schema、跨资产引用、Skill/Playbook 能力交集与只读注册表，并固定原始字节 SHA-256；告警零/多匹配失败关闭。order-demo Mock/HTTP 只读 Adapter 保持四种不同证据并限制凭证、超时、重定向、响应大小/语义；所有 Adapter race tests 重复 10 次通过。Playbook engine 和 incident-profile MCP 注册待实现。|
 |G5：AI Core 只读 Incident|未开始|—|
 |G6：审批、执行、验证与审计|未开始|—|
 |G7：Plugin 与 Workbench|未开始|—|
@@ -20,4 +20,4 @@
 
 ## 当前边界
 
-G3 已完成。G4 已固定 Tool 合同、运行资产和 order-demo Mock/HTTP 只读 Adapter；下一步实现带摘要固定和精确匹配的文件资产 Adapter、确定性 Playbook engine，并只在 incident profile 中注册这些能力。
+G3 已完成。G4 已固定 Tool 合同、运行资产、文件资产 Adapter 和 order-demo Mock/HTTP 只读 Adapter；下一步实现确定性 Playbook engine，并只在 incident profile 中注册这些能力。
