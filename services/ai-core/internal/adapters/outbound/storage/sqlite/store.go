@@ -119,6 +119,9 @@ func (r taskRepository) ListNonTerminal(ctx context.Context) ([]task.AnalysisTas
 func (r taskRepository) ListPageBySession(ctx context.Context, tenantID, sessionID string, page repositories.PageRequest) (repositories.Page[task.AnalysisTask], error) {
 	return r.store.listTaskPageBySession(ctx, tenantID, sessionID, page)
 }
+func (r taskRepository) ListPageByOrgIncidents(ctx context.Context, tenantID, orgID string, page repositories.IncidentListRequest) (repositories.IncidentListPage, error) {
+	return r.store.listTaskPageByOrgIncidents(ctx, tenantID, orgID, page)
+}
 func (r taskRepository) Update(ctx context.Context, value task.AnalysisTask, expectedVersion int64) error {
 	return r.store.updateTask(ctx, value, expectedVersion)
 }
@@ -546,6 +549,44 @@ func (s *Store) listTaskPageBySession(ctx context.Context, tenantID, sessionID s
 		return repositories.Page[task.AnalysisTask]{}, mapError(err)
 	}
 	return pageTasks(items, limit), nil
+}
+
+func (s *Store) listTaskPageByOrgIncidents(ctx context.Context, tenantID, orgID string, page repositories.IncidentListRequest) (repositories.IncidentListPage, error) {
+	if tenantID == "" || orgID == "" || page.Limit < 1 || page.Limit > 50 || (page.BeforeUpdatedAt == nil) != (page.BeforeID == "") {
+		return repositories.IncidentListPage{}, common.NewError(common.InvalidArgument, "Incident page request is invalid", false)
+	}
+	query := `SELECT t.id, t.tenant_id, t.kind, t.session_id, t.status, t.input_message_id, t.datasource_uid, t.time_from, t.time_to, t.views_json, t.step_seconds, t.cpu_rate_window_seconds, t.incident_plan_json, t.latest_sequence, t.error_code, t.error_message, t.created_at, t.started_at, t.completed_at, t.updated_at, t.version FROM tasks t JOIN sessions s ON s.tenant_id = t.tenant_id AND s.id = t.session_id WHERE t.tenant_id = ? AND t.kind = ? AND s.kind = ? AND s.org_id = ?`
+	args := []any{tenantID, task.KindIncidentRemediation, session.KindOrgIncident, orgID}
+	if page.BeforeUpdatedAt != nil {
+		cursor := storageTimestamp(*page.BeforeUpdatedAt)
+		query += ` AND (t.updated_at < ? OR (t.updated_at = ? AND t.id < ?))`
+		args = append(args, cursor, cursor, page.BeforeID)
+	}
+	query += ` ORDER BY t.updated_at DESC, t.id DESC LIMIT ?`
+	args = append(args, page.Limit+1)
+	rows, err := s.executor().QueryContext(ctx, query, args...)
+	if err != nil {
+		return repositories.IncidentListPage{}, mapError(err)
+	}
+	defer rows.Close()
+	items := make([]task.AnalysisTask, 0, page.Limit+1)
+	for rows.Next() {
+		item, err := scanTask(rows)
+		if err != nil {
+			return repositories.IncidentListPage{}, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return repositories.IncidentListPage{}, mapError(err)
+	}
+	result := repositories.IncidentListPage{Items: items}
+	if len(items) > page.Limit {
+		result.Items = items[:page.Limit]
+		last := result.Items[len(result.Items)-1]
+		result.NextAfter = &repositories.IncidentListCursor{UpdatedAt: last.UpdatedAt, ID: last.ID}
+	}
+	return result, nil
 }
 
 func (s *Store) updateTask(ctx context.Context, value task.AnalysisTask, expectedVersion int64) error {

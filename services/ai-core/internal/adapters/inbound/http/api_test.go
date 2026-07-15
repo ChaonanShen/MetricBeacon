@@ -24,6 +24,8 @@ import (
 	"mini-torchbearing.local/services/ai-core/internal/domain/chart"
 	"mini-torchbearing.local/services/ai-core/internal/domain/common"
 	"mini-torchbearing.local/services/ai-core/internal/domain/remediation"
+	"mini-torchbearing.local/services/ai-core/internal/domain/session"
+	"mini-torchbearing.local/services/ai-core/internal/domain/task"
 	"mini-torchbearing.local/services/ai-core/internal/ports/agent"
 	"mini-torchbearing.local/services/ai-core/internal/ports/repositories"
 )
@@ -427,14 +429,14 @@ func waitTaskTerminal(t *testing.T, store *storage.Store, taskID string) {
 	t.Fatalf("task did not reach a terminal state: status=%v err=%v", lastStatus, lastErr)
 }
 
-func TestIncidentContractPlaceholdersFailClosed(t *testing.T) {
+func TestIncidentListFailsClosedWhenStoreIsNotConfigured(t *testing.T) {
 	server := httptest.NewServer(NewHandler(&API{}))
 	defer server.Close()
 
 	response := request(t, http.MethodGet, server.URL+"/v1/incidents", "", "request-incidents", "")
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusNotImplemented {
-		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusNotImplemented)
+	if response.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusInternalServerError)
 	}
 	var body struct {
 		Error struct {
@@ -444,9 +446,129 @@ func TestIncidentContractPlaceholdersFailClosed(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body.Error.Code != string(common.NotImplemented) {
+	if body.Error.Code != string(common.InternalError) {
 		t.Fatalf("error code = %q", body.Error.Code)
 	}
+}
+
+func TestIncidentListIsOrgScopedRecentlyOrderedAndCursorBound(t *testing.T) {
+	ctx := context.Background()
+	store, err := storage.Open(ctx, filepath.Join(t.TempDir(), "incidents.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)
+	seedHTTPIncident(t, store, "older", "1", now)
+	seedHTTPIncident(t, store, "newer", "1", now.Add(time.Minute))
+	seedHTTPIncident(t, store, "other_org", "2", now.Add(2*time.Minute))
+	server := httptest.NewServer(NewHandler(&API{Store: store}))
+	defer server.Close()
+
+	first := incidentListRequest(t, server.URL+"/v1/incidents?pageSize=1", "org:1", "1", "incidents:read")
+	defer first.Body.Close()
+	var page struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+		NextPageToken *string `json:"nextPageToken"`
+	}
+	if err := json.NewDecoder(first.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if first.StatusCode != http.StatusOK || len(page.Items) != 1 || page.Items[0].ID != "task_newer" || page.NextPageToken == nil {
+		t.Fatalf("page=%#v status=%d", page, first.StatusCode)
+	}
+	second := incidentListRequest(t, server.URL+"/v1/incidents?pageSize=1&pageToken="+*page.NextPageToken, "org:1", "1", "incidents:read")
+	defer second.Body.Close()
+	var nextPage struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+		NextPageToken *string `json:"nextPageToken"`
+	}
+	if err := json.NewDecoder(second.Body).Decode(&nextPage); err != nil {
+		t.Fatal(err)
+	}
+	if second.StatusCode != http.StatusOK || len(nextPage.Items) != 1 || nextPage.Items[0].ID != "task_older" || nextPage.NextPageToken != nil {
+		t.Fatalf("page=%#v status=%d", nextPage, second.StatusCode)
+	}
+	crossOrg := incidentListRequest(t, server.URL+"/v1/incidents?pageToken="+*page.NextPageToken, "org:1", "2", "incidents:read")
+	defer crossOrg.Body.Close()
+	if crossOrg.StatusCode != http.StatusBadRequest {
+		t.Fatalf("cross-org token status=%d", crossOrg.StatusCode)
+	}
+	denied := incidentListRequest(t, server.URL+"/v1/incidents", "org:1", "1", "datasources:query")
+	defer denied.Body.Close()
+	if denied.StatusCode != http.StatusForbidden {
+		t.Fatalf("permission status=%d", denied.StatusCode)
+	}
+	for _, path := range []string{"/v1/sessions/session_newer", "/v1/sessions/session_newer/messages", "/v1/sessions/session_newer/tasks", "/v1/tasks/task_newer", "/v1/tasks/task_newer/events/replay"} {
+		response := incidentListRequest(t, server.URL+path, "org:1", "1", "incidents:read")
+		response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("visible Incident path %s status=%d", path, response.StatusCode)
+		}
+	}
+	crossOrgTask := incidentListRequest(t, server.URL+"/v1/tasks/task_other_org", "org:1", "1", "incidents:read")
+	crossOrgTask.Body.Close()
+	if crossOrgTask.StatusCode != http.StatusNotFound {
+		t.Fatalf("cross-org Task status=%d", crossOrgTask.StatusCode)
+	}
+	deniedTask := incidentListRequest(t, server.URL+"/v1/tasks/task_newer", "org:1", "1", "datasources:query")
+	deniedTask.Body.Close()
+	if deniedTask.StatusCode != http.StatusForbidden {
+		t.Fatalf("Task permission status=%d", deniedTask.StatusCode)
+	}
+}
+
+func seedHTTPIncident(t *testing.T, store repositories.ApplicationStore, suffix, orgID string, now time.Time) {
+	t.Helper()
+	digest := "sha256:" + strings.Repeat("a", 64)
+	plan := task.IncidentPlan{SourceID: "demo-grafana", AlertName: "OrderQueueBacklog", AlertFingerprint: "fingerprint_" + suffix, ServiceRef: "order-demo", Labels: map[string]string{"service_ref": "order-demo"}, Mapping: task.PinnedRef{ID: "mapping", Digest: digest}, Playbook: task.PinnedRef{ID: "playbook", Version: "1", Digest: digest}, AssetRefs: []task.AssetRef{{Kind: "knowledge", ID: "knowledge", Version: "1", Digest: digest}, {Kind: "skill", ID: "skill", Version: "1", Digest: digest}, {Kind: "playbook", ID: "playbook", Version: "1", Digest: digest}}, Phase: task.PhaseNeedsAgent}
+	incidentSession, err := session.NewIncident("session_"+suffix, "org:1", orgID, "Incident "+suffix, "system:grafana", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, err := session.NewMessage("message_"+suffix, "org:1", incidentSession.ID, "task_"+suffix, session.RoleTrigger, "OrderQueueBacklog firing", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item, err := task.NewIncident("task_"+suffix, "org:1", incidentSession.ID, message.ID, plan, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WithinTransaction(context.Background(), func(tx repositories.ApplicationStore) error {
+		if err := tx.Sessions().Create(context.Background(), incidentSession); err != nil {
+			return err
+		}
+		if err := tx.Messages().Append(context.Background(), message); err != nil {
+			return err
+		}
+		return tx.Tasks().Create(context.Background(), item)
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func incidentListRequest(t *testing.T, target, tenantID, orgID, permissions string) *http.Response {
+	t.Helper()
+	request, err := http.NewRequest(http.MethodGet, target, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("X-MTB-Tenant-ID", tenantID)
+	request.Header.Set("X-MTB-Org-ID", orgID)
+	request.Header.Set("X-MTB-User-ID", "viewer:1")
+	request.Header.Set("X-MTB-Roles", "Viewer")
+	request.Header.Set("X-MTB-Permissions", permissions)
+	request.Header.Set("X-Request-ID", "request-incidents")
+	request.Header.Set("X-Trace-ID", "trace-incidents")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return response
 }
 
 func TestApprovalHTTPUsesGeneratedContractAndForwardsAdminScope(t *testing.T) {

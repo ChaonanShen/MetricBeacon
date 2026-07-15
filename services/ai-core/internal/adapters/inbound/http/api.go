@@ -51,8 +51,36 @@ func NewHandler(api *API) http.Handler {
 
 func (a *API) Healthz(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }
 
-func (a *API) ListIncidents(w http.ResponseWriter, _ *http.Request, params generated.ListIncidentsParams) {
-	writeError(w, params.XRequestID, common.NewError(common.NotImplemented, "Incident listing is not implemented", false))
+func (a *API) ListIncidents(w http.ResponseWriter, r *http.Request, params generated.ListIncidentsParams) {
+	if a == nil || a.Store == nil {
+		writeError(w, params.XRequestID, common.NewError(common.InternalError, "Incident listing is not configured", true))
+		return
+	}
+	requestIdentity := identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID)
+	if !identityHasPermission(requestIdentity, "incidents:read") {
+		writeError(w, params.XRequestID, common.NewError(common.PermissionDenied, "Incident read permission is required", false))
+		return
+	}
+	page, err := incidentPageRequest(params.PageSize, params.PageToken, requestIdentity.TenantID, requestIdentity.OrgID)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	result, err := a.Store.Tasks().ListPageByOrgIncidents(r.Context(), requestIdentity.TenantID, requestIdentity.OrgID, page)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	items := make([]any, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, taskResponse(item))
+	}
+	next, err := encodeIncidentListToken(requestIdentity.TenantID, requestIdentity.OrgID, result.NextAfter)
+	if err != nil {
+		writeError(w, params.XRequestID, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "nextPageToken": next})
 }
 
 func (a *API) GetTaskApproval(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.GetTaskApprovalParams) {
@@ -146,7 +174,8 @@ func (a *API) ListSessions(w http.ResponseWriter, r *http.Request, params genera
 }
 
 func (a *API) GetSession(w http.ResponseWriter, r *http.Request, sessionID generated.SessionId, params generated.GetSessionParams) {
-	result, err := a.Store.Sessions().GetOwned(r.Context(), params.XMTBTenantID, params.XMTBUserID, sessionID)
+	requestIdentity := identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID)
+	result, err := a.getVisibleSession(r.Context(), requestIdentity, sessionID)
 	if err != nil {
 		writeError(w, params.XRequestID, err)
 		return
@@ -155,7 +184,8 @@ func (a *API) GetSession(w http.ResponseWriter, r *http.Request, sessionID gener
 }
 
 func (a *API) ListSessionMessages(w http.ResponseWriter, r *http.Request, sessionID generated.SessionId, params generated.ListSessionMessagesParams) {
-	if _, err := a.Store.Sessions().GetOwned(r.Context(), params.XMTBTenantID, params.XMTBUserID, sessionID); err != nil {
+	requestIdentity := identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID)
+	if _, err := a.getVisibleSession(r.Context(), requestIdentity, sessionID); err != nil {
 		writeError(w, params.XRequestID, err)
 		return
 	}
@@ -182,7 +212,8 @@ func (a *API) ListSessionMessages(w http.ResponseWriter, r *http.Request, sessio
 }
 
 func (a *API) ListSessionTasks(w http.ResponseWriter, r *http.Request, sessionID generated.SessionId, params generated.ListSessionTasksParams) {
-	if _, err := a.Store.Sessions().GetOwned(r.Context(), params.XMTBTenantID, params.XMTBUserID, sessionID); err != nil {
+	requestIdentity := identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID)
+	if _, err := a.getVisibleSession(r.Context(), requestIdentity, sessionID); err != nil {
 		writeError(w, params.XRequestID, err)
 		return
 	}
@@ -247,7 +278,8 @@ func canonicalTaskRequestHash(tenantID string, body generated.CreateTaskJSONRequ
 }
 
 func (a *API) GetTask(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.GetTaskParams) {
-	result, err := a.getOwnedTask(r.Context(), params.XMTBTenantID, params.XMTBUserID, taskID)
+	requestIdentity := identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID)
+	result, err := a.getVisibleTask(r.Context(), requestIdentity, taskID)
 	if err != nil {
 		writeError(w, params.XRequestID, err)
 		return
@@ -256,7 +288,8 @@ func (a *API) GetTask(w http.ResponseWriter, r *http.Request, taskID generated.T
 }
 
 func (a *API) StreamTaskEvents(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.StreamTaskEventsParams) {
-	if _, err := a.getOwnedTask(r.Context(), params.XMTBTenantID, params.XMTBUserID, taskID); err != nil {
+	requestIdentity := identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID)
+	if _, err := a.getVisibleTask(r.Context(), requestIdentity, taskID); err != nil {
 		writeError(w, params.XRequestID, err)
 		return
 	}
@@ -325,7 +358,8 @@ func (a *API) StreamTaskEvents(w http.ResponseWriter, r *http.Request, taskID ge
 }
 
 func (a *API) ReplayTaskEvents(w http.ResponseWriter, r *http.Request, taskID generated.TaskId, params generated.ReplayTaskEventsParams) {
-	if _, err := a.getOwnedTask(r.Context(), params.XMTBTenantID, params.XMTBUserID, taskID); err != nil {
+	requestIdentity := identity(params.XMTBTenantID, params.XMTBOrgID, params.XMTBUserID, params.XMTBRoles, params.XMTBPermissions, params.XRequestID, params.XTraceID)
+	if _, err := a.getVisibleTask(r.Context(), requestIdentity, taskID); err != nil {
 		writeError(w, params.XRequestID, err)
 		return
 	}
@@ -435,6 +469,15 @@ type sessionListPageToken struct {
 	ID        string `json:"id"`
 }
 
+type incidentListPageToken struct {
+	Version   int    `json:"version"`
+	Resource  string `json:"resource"`
+	TenantID  string `json:"tenantId"`
+	OrgID     string `json:"orgId"`
+	UpdatedAt string `json:"updatedAt"`
+	ID        string `json:"id"`
+}
+
 type taskReplayToken struct {
 	Version        int    `json:"version"`
 	Resource       string `json:"resource"`
@@ -466,6 +509,27 @@ func sessionPageRequest(size *int, encoded *string, tenantID, userID string) (re
 	updatedAt, err := time.Parse(time.RFC3339Nano, token.UpdatedAt)
 	if err != nil {
 		return repositories.SessionListRequest{}, common.NewError(common.InvalidArgument, "pageToken is invalid", false)
+	}
+	updatedAt = updatedAt.UTC()
+	result.BeforeUpdatedAt, result.BeforeID = &updatedAt, token.ID
+	return result, nil
+}
+
+func incidentPageRequest(size *int, encoded *string, tenantID, orgID string) (repositories.IncidentListRequest, error) {
+	result := repositories.IncidentListRequest{Limit: pageSize(size, 20, 50)}
+	if result.Limit == 0 || tenantID == "" || orgID == "" {
+		return repositories.IncidentListRequest{}, common.NewError(common.InvalidArgument, "Incident page request is invalid", false)
+	}
+	if encoded == nil {
+		return result, nil
+	}
+	var token incidentListPageToken
+	if err := decodePageToken(*encoded, &token); err != nil || token.Version != 1 || token.Resource != "incidents" || token.TenantID != tenantID || token.OrgID != orgID || token.ID == "" {
+		return repositories.IncidentListRequest{}, common.NewError(common.InvalidArgument, "pageToken is invalid", false)
+	}
+	updatedAt, err := time.Parse(time.RFC3339Nano, token.UpdatedAt)
+	if err != nil {
+		return repositories.IncidentListRequest{}, common.NewError(common.InvalidArgument, "pageToken is invalid", false)
 	}
 	updatedAt = updatedAt.UTC()
 	result.BeforeUpdatedAt, result.BeforeID = &updatedAt, token.ID
@@ -519,6 +583,22 @@ func encodeSessionListToken(tenantID, userID string, cursor *repositories.Sessio
 		return nil, nil
 	}
 	return encodePageToken(sessionListPageToken{Version: 1, Resource: "sessions", TenantID: tenantID, UserID: userID, UpdatedAt: cursor.UpdatedAt.UTC().Format(time.RFC3339Nano), ID: cursor.ID})
+}
+
+func encodeIncidentListToken(tenantID, orgID string, cursor *repositories.IncidentListCursor) (any, error) {
+	if cursor == nil {
+		return nil, nil
+	}
+	return encodePageToken(incidentListPageToken{Version: 1, Resource: "incidents", TenantID: tenantID, OrgID: orgID, UpdatedAt: cursor.UpdatedAt.UTC().Format(time.RFC3339Nano), ID: cursor.ID})
+}
+
+func identityHasPermission(identity requestcontext.Context, permission string) bool {
+	for _, value := range identity.Permissions {
+		if value == permission {
+			return true
+		}
+	}
+	return false
 }
 
 func encodeReplayToken(taskID string, target, after int64) (string, error) {
@@ -597,13 +677,33 @@ func taskEventResponse(event task.TaskEvent) any {
 	return map[string]any{"eventId": event.EventID, "taskId": event.TaskID, "sessionId": event.SessionID, "sequence": event.Sequence, "type": event.Type, "timestamp": event.Timestamp, "payload": json.RawMessage(event.Payload)}
 }
 
-func (a *API) getOwnedTask(ctx context.Context, tenantID, userID, taskID string) (task.AnalysisTask, error) {
-	result, err := a.Store.Tasks().Get(ctx, tenantID, taskID)
+func (a *API) getVisibleTask(ctx context.Context, identity requestcontext.Context, taskID string) (task.AnalysisTask, error) {
+	result, err := a.Store.Tasks().Get(ctx, identity.TenantID, taskID)
 	if err != nil {
 		return task.AnalysisTask{}, err
 	}
-	if _, err := a.Store.Sessions().GetOwned(ctx, tenantID, userID, result.SessionID); err != nil {
+	if _, err := a.getVisibleSession(ctx, identity, result.SessionID); err != nil {
 		return task.AnalysisTask{}, err
+	}
+	return result, nil
+}
+
+func (a *API) getVisibleSession(ctx context.Context, identity requestcontext.Context, sessionID string) (session.AnalysisSession, error) {
+	result, err := a.Store.Sessions().Get(ctx, identity.TenantID, sessionID)
+	if err != nil {
+		return session.AnalysisSession{}, err
+	}
+	if result.Kind == session.KindPrivate {
+		if result.CreatedBy != identity.UserID {
+			return session.AnalysisSession{}, common.NewError(common.ResourceNotFound, "Session was not found", false)
+		}
+		return result, nil
+	}
+	if result.Kind != session.KindOrgIncident || result.OrgID != identity.OrgID {
+		return session.AnalysisSession{}, common.NewError(common.ResourceNotFound, "Session was not found", false)
+	}
+	if !identityHasPermission(identity, "incidents:read") {
+		return session.AnalysisSession{}, common.NewError(common.PermissionDenied, "Incident read permission is required", false)
 	}
 	return result, nil
 }

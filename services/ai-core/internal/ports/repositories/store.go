@@ -42,7 +42,21 @@ type TaskRepository interface {
 	Get(context.Context, string, string) (task.AnalysisTask, error)
 	ListNonTerminal(context.Context) ([]task.AnalysisTask, error)
 	ListPageBySession(context.Context, string, string, PageRequest) (Page[task.AnalysisTask], error)
+	ListPageByOrgIncidents(context.Context, string, string, IncidentListRequest) (IncidentListPage, error)
 	Update(context.Context, task.AnalysisTask, int64) error
+}
+type IncidentListRequest struct {
+	Limit           int
+	BeforeUpdatedAt *time.Time
+	BeforeID        string
+}
+type IncidentListPage struct {
+	Items     []task.AnalysisTask
+	NextAfter *IncidentListCursor
+}
+type IncidentListCursor struct {
+	UpdatedAt time.Time
+	ID        string
 }
 type TaskCheckpointRepository interface {
 	Create(context.Context, task.Checkpoint) error
